@@ -1,0 +1,92 @@
+<<setup-child,include=FALSE,cache=FALSE,purl=FALSE>>=
+library(knitr)
+opts_chunk$set(
+  cache=TRUE,
+  cache.path="tmp/cache/",
+  comment=NA,
+  echo=TRUE,
+  eval=TRUE,
+  include=TRUE,
+  dev='CairoPNG',
+  dev.args=list(bg='transparent'),
+  dpi=300,
+  error=FALSE,
+  fig.align='center',
+  fig.height=4,fig.width=6.83,
+  fig.lp="fig:",
+  fig.path="tmp/figure/",
+  fig.pos="h!",
+  fig.show='asis',
+  highlight=TRUE,
+  message=FALSE,
+  progress=TRUE,
+  prompt=FALSE,
+  purl=TRUE,
+  results="markup",
+  size='small',
+  strip.white=TRUE,
+  tidy=FALSE,
+  warning=FALSE
+  )
+
+library(ggplot2)
+theme_set(theme_bw())
+
+registerS3method(
+  "knit_print",
+  "data.frame",
+  function (x, ...) {
+    print(x,row.names=FALSE)
+  }
+)
+
+str_opt <- getOption("str")
+str_opt$strict.width <- "cut"
+options(
+  width=65, # number of characters in R output before wrapping
+  keep.source=TRUE,
+  encoding="UTF-8",
+  str=str_opt
+)
+
+
+myround<- function (x, digits = 1) {
+  # taken from the broman package
+  if (digits < 1) 
+    stop("This is intended for the case digits >= 1.")
+  if (length(digits) > 1) {
+    digits <- digits[1]
+    warning("Using only digits[1]")
+  }
+  tmp <- sprintf(paste("%.", digits, "f", sep = ""), x)
+  zero <- paste0("0.", paste(rep("0", digits), collapse = ""))
+  tmp[tmp == paste0("-", zero)] <- zero
+  tmp
+}
+
+
+mysummary <- function (x, digits = max(3L, getOption("digits") - 3L), se = TRUE, print.call=FALSE,print.sigma=TRUE,loglik=TRUE,coef.label=TRUE){
+  if(print.call) cat("\nCall:", deparse(x$call, width.cutoff = 75L), "", sep = "\n")
+    if (length(x$coef)) {
+        if(coef.label) cat("Coefficients:\n")
+        coef <- round(x$coef, digits = digits)
+        if (se && NROW(x$var.coef)) {
+            ses <- rep.int(0, length(coef))
+            ses[x$mask] <- round(sqrt(diag(x$var.coef)), digits = digits)
+            coef <- matrix(coef, 1L, dimnames = list(NULL, names(coef)))
+            coef <- rbind(coef, s.e. = ses)
+        }
+        print.default(coef, print.gap = 2)
+    }
+    cm <- x$call$method
+    if (is.null(cm) || cm != "CSS") {
+      if(print.sigma)cat("\nsigma^2 estimated as ", myround(x$sigma2, digits = digits))
+      if(loglik)cat("\nlog likelihood = ", myround(x$loglik, 2), 
+        ",  aic = ", format(round(x$aic, 2L)), "\n", sep = "")
+      } else cat("\nsigma^2 estimated as ", myround(x$sigma2, digits = digits), 
+        ":  part log likelihood = ", myround(round(x$loglik, 2)), 
+        "\n", sep = "")
+    invisible(x)
+}
+
+@
