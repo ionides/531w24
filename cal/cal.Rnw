@@ -1,0 +1,125 @@
+\documentclass[11pt]{article}
+\usepackage{fullpage}
+\usepackage{url}
+\parskip 5pt
+\parindent 0pt
+\pagestyle{empty}
+\begin{document}
+<<setup, include=FALSE, cache=FALSE, echo=FALSE>>=
+library(knitr)
+class1 <- as.Date("2024-01-11")
+class_date <- class1
+for(week in 1:15) class_date <- c(class_date,class1+week*7-2,class1+week*7)
+class_date <- class_date[-c(14,15)] # spring break
+
+library(xtable)
+entries <- rbind(
+  c(format.Date(class_date[1],format="%a %b %d"),
+    "Class 1"),
+  c(format.Date(class_date[2]-1,format="%a %b %d"),
+    "Homework 0, due 11:59pm, ungraded"),    
+  c(format.Date(class_date[2],format="%a %b %d"),
+    "Class 2"),
+  c(format.Date(class_date[3],format="%a %b %d"),
+    "Class 3"),
+  c(format.Date(class_date[4]-1,format="%a %b %d"),
+    "Homework 1, Participation 1, due 11:59pm"),    
+  c(format.Date(class_date[4],format="%a %b %d"),
+    "Class 4"),
+  c(format.Date(class_date[5],format="%a %b %d"),
+    "Class 5"),
+  c(format.Date(class_date[6]-1,format="%a %b %d"),
+    "Homework 2, Participation 2, due 11:59pm"),    
+  c(format.Date(class_date[6],format="%a %b %d"),
+    "Class 6"),
+  c(format.Date(class_date[7],format="%a %b %d"),
+    "Class 7"),
+  c(format.Date(class_date[8],format="%a %b %d"),
+    "Class 8"),
+  c(format.Date(class_date[8]+1,format="%a %b %d"),
+    "Homework 3, Participation 3, due 11:59pm"),    
+  c(format.Date(class_date[9],format="%a %b %d"),
+    "Class 9"),
+  c(format.Date(class_date[10],format="%a %b %d"),
+    "Class 10"),
+  c(format.Date(class_date[11],format="%a %b %d"),
+    "Class 11"),
+  c(format.Date(class_date[12]-1,format="%a %b %d"),
+    "Homework 4, Participation 4, due 11:59pm"),    
+  c(format.Date(class_date[12],format="%a %b %d"),
+    "Class 12"),
+  c(format.Date(class_date[13],format="%a %b %d"),
+    "Class 13"),
+   c(format.Date(class_date[13]+1,format="%a %b %d"),
+    "Midterm project, due 11:59pm"),       
+  c(format.Date(class_date[12]+7,format="%a %b %d"),
+    "SPRING BREAK"),
+  c(format.Date(class_date[13]+7,format="%a %b %d"),
+    "SPRING BREAK"),
+  c(format.Date(class_date[14],format="%a %b %d"),
+    "Class 14"),
+  c(format.Date(class_date[15],format="%a %b %d"),
+    "Class 15"),
+  c(format.Date(class_date[16]-1,format="%a %b %d"),
+    "Midterm peer review, due 11:59pm"),           
+  c(format.Date(class_date[16],format="%a %b %d"),
+    "Class 16"),
+  c(format.Date(class_date[17],format="%a %b %d"),
+    "Class 17"),
+  c(format.Date(class_date[18]-1,format="%a %b %d"),
+    "Homework 5, Participation 5, due 11:59pm"),    
+  c(format.Date(class_date[18],format="%a %b %d"),
+    "Class 18"),
+  c(format.Date(class_date[19],format="%a %b %d"),
+    "Class 19"),
+  c(format.Date(class_date[20]-1,format="%a %b %d"),
+    "Homework 6, Participation 6, due 11:59pm"),    
+  c(format.Date(class_date[20],format="%a %b %d"),
+    "Class 20"),
+  c(format.Date(class_date[21],format="%a %b %d"),
+    "Class 21"),
+  c(format.Date(class_date[22]-1,format="%a %b %d"),
+    "Homework 7, Participation 7, due 11:59pm"),    
+  c(format.Date(class_date[22],format="%a %b %d"),
+    "Class 22"),
+  c(format.Date(class_date[23],format="%a %b %d"),
+    "Class 23"),
+  c(format.Date(class_date[24]-1,format="%a %b %d"),
+    "Homework 8, Participation 8, due 11:59pm"),    
+  c(format.Date(class_date[24],format="%a %b %d"),
+    "Class 24"),
+  c(format.Date(class_date[25],format="%a %b %d"),
+    "Class 25"),
+  c(format.Date(class_date[26],format="%a %b %d"),
+    "Class 26"),
+  c(format.Date(class_date[27],format="%a %b %d"),
+    "Class 27"),
+  c(format.Date(class_date[28],format="%a %b %d"),
+    "Class 28"),
+   c(format.Date(class_date[28],format="%a %b %d"),
+    "Final project, due 11:59pm"),       
+   c(format.Date(class_date[28]+8,format="%a %b %d"),
+    "Final peer review, due 11:59pm")       
+)
+
+xt <- xtable(entries, align="|c|ll|")
+
+@
+
+\rule{0mm}{2mm}
+
+\vspace{-20mm}
+
+
+\begin{center}\bf\Large
+DATASCI/STATS 531 schedule, Winter \Sexpr{format.Date(class1,format='%Y')} \\
+\end{center}
+
+<<schedule,echo=FALSE,results='asis'>>=
+print(xt,include.rownames=F,
+ hline.after=c(0,nrow(entries)),
+ include.colnames=F,floating=FALSE,
+ sanitize.text.function = function(x){x})
+@
+
+\end{document}

@@ -1,5 +1,5 @@
 ---
-title: "Syllabus for STATS/DATASCI 531 (Winter 2022) <br><it>Modeling and Analysis of Time Series Data</it>"
+title: "Syllabus for DATASCI/STATS 531 (Winter 2024) <br><it>Modeling and Analysis of Time Series Data</it>"
 author: "Instructor: Edward L. Ionides"
 output:
   html_document:
@@ -10,25 +10,23 @@ output:
 
 ## Course information
 
-Structure of the lectures and project groups is to be confirmed, depending on the Omicron situation. Course components will include:
+Course components will include:
 
 * classes Tu/Th, 10-11:30 a.m. in 1360 East Hall
 * homework
-<!-- * [Piazza discussion forum](https://piazza.com/umich/winter2024/statsdatasci531) -->
-* Discussion forum: TBD
+* [Piazza discussion forum](https://piazza.com/umich/winter2024/statsdatasci531)
 * group midterm project, with individual peer review
 * group final project, with individual peer review
-
 
 Instructor contact information:
 
 * email: ionides@umich.edu 
 * web: dept.stat.lsa.umich.edu/~ionides
-* office hours: Tuesday/Thursday 11:30-12:30 in 453 West Hall. 
+* office hours: Tuesday 11:30-12:30, Thursday 1:00-2:00 in 453 West Hall. 
 
-GSI: TBD
+GSI: Jesse Wheeler
 
-* email: TBD
+* email: jeswheel@umich.edu
 * office hours: TBD
 
 Computing support. If you have a coding problem you cannot debug, it is often helpful to develop a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) that others can run to help you. You can share this, and the error message you obtain, with your group and/or on Piazza, or by email if necessary.
