@@ -14,7 +14,7 @@ Course components will include:
 
 * classes Tu/Th, 10-11:30 a.m. in 1360 East Hall
 * homework
-* [Piazza discussion forum](https://piazza.com/umich/winter2024/statsdatasci531)
+* [Piazza discussion forum](https://piazza.com/umich/winter2024/datascistats531)
 * group midterm project, with individual peer review
 * group final project, with individual peer review
 
@@ -100,7 +100,7 @@ Statistical computing background:
 * A group midterm project (20\%, due 11:59pm on Friday 2/23). In special situations, you can request to write an individual project for the midterm and/or the final project. This may be appropriate if you have a particular dataset or scientific question that has motivated your interest in learning time series analysis. You can also ask your group if it is willing to join collaboratively on your project to make it a group project.
 * Two individual anonymous peer review evaluations of other group midterm projects (8\%, due 11:59pm on Monday 3/11). Each should be about 500 words, and should identify the main strengths and weaknesses of the project (from both technical and conceptual perspectives) as well as identifying points with room for improvement. The reviews should include discussion relating to reproducibility of the project's numerical results.
 * A group final project (30%, due 11:59pm on Tuesday 4/23).
-* Two individual anonymous peer review evaluations of other group final projects (12\%, due 3:30pm on Wednesday 5/1). Each should be about 750 words, and should identify the main strengths and weaknesses of the project (from both technical and conceptual perspectives) as well as identifying points with room for improvement. The reviews should include discussion relating to reproducibility of the project's numerical results.
+* Two individual anonymous peer review evaluations of other group final projects (12\%, due 11:59pm on Wednesday 5/1). Each should be about 750 words, and should identify the main strengths and weaknesses of the project (from both technical and conceptual perspectives) as well as identifying points with room for improvement. The reviews should include discussion relating to reproducibility of the project's numerical results.
 * Participation (5%). To build a learning community, willingness to ask and answer questions in class is valuable. Similarly, both raising and answering questions on a discussion forum can help the entire class. The instructor and GSI will keep track of student participation following a [rubric](rubric_participation.html).
 * Course letter grades are anticipated to be mostly in the A, A-, B+ range customary for courses at this level. In the past, this has corresponded to overall scores of approximately 95% for A+, 90% for A, 85% for A-, 80% for B+. However, the exact cutoff used will be determined in the context of the course for this specific semester.
 
@@ -112,9 +112,7 @@ Careful attribution of sources is fundamental to good scholarship. Also, **compl
 
 + Reference any web page you look at in connection with a homework or project, and to acknowledge any person you talk to in connection with a homework or project, including people in your own group or discussions in office hours.
 
-+ If you look at a web page while working on your homework solutions, or while checking your homework solutions, add the URL to your source section.
-
-+ The grader will look for an explicit statement saying that the listed sources and only those sources were consulted.
++ If you look at a web page while working on your homework solutions, or while checking your homework solutions, add the URL to your source section and reference it where appropriate in your solution.
 
 + Directly copied text must be in quotation marks. Directly copied equations must be explicitly referenced to the source. Adapted or paraphrased material take from a source should be referenced.
 
