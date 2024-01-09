@@ -1,0 +1,28 @@
+---
+title: "Chapter 1 discussion question"
+author: "STATS/DATASCI 531, Winter 2024"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+In class, we saw results for ARMA models fitted to two different time intervals. Here are the full R fitted model summaries for data up to 2018 and 2020:
+
+```{r compare}
+y <- read.table(file="ann_arbor_weather.csv",header=1)
+arma2018 <- arima(y$Low[y$Year<=2018], order=c(1,0,1))
+arma2018
+arma2020 <- arima(y$Low[y$Year<=2020], order=c(1,0,1))
+arma2020
+```
+
+What do you conclude by comparing these fitted models? Do you notice anything surprising? 
+
+------------

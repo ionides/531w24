@@ -23,9 +23,9 @@ The course outline, course information and grading policies are described in the
 
 ## Class notes and recorded lectures
 
-<!--
 1. [Introduction](01/index.html)
 
+<!--
 2. [Estimating trend and autocovariance](02/index.html)
 
 3. [Stationarity, white noise, and some basic time series models](03/index.html)

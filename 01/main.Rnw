@@ -1,0 +1,546 @@
+\input{../header}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{1}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w24/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Introduction}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+\section{Overview}
+
+\begin{frame}{Objectives for this chapter}
+  \begin{itemize}
+  \item Discuss some basic motivations for the topic of time series analysis.
+  \item Introduce some fundamental concepts for time series analysis: stationarity, autocorrelation, autoregressive models, moving average models, autoregressive-moving average (ARMA) models, state-space models. These will be covered in more detail later.
+  \item Introduce some of the computational tools we will be using.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Overview}
+
+\begin{itemize}
+
+\item Time series data are, simply, data collected at many different times. 
+
+\item This is a common type of data! Observations at similar time points are often more similar than more distant observations. 
+
+\item This immediately forces us to think beyond the independent, identically distributed assumptions fundamental to much basic statistical theory and practice. 
+
+\item Time series dependence is an introduction to more complicated dependence structures: space, space/time, networks (social/economic/communication), ...
+
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Looking for trends and relationships in dependent data}
+
+The first half of this course focuses on:
+
+\begin{enumerate}
+
+\item Quantifying dependence in time series data.
+
+\item Finding statistical arguments for the presence or absence of associations that are valid in situations with dependence.
+
+\end{enumerate}
+
+Example questions: Does Michigan show evidence for global warming? Does Michigan follow global trends, or is there evidence for regional variation? What is a good prediction interval for weather in the next year or two?
+
+\end{frame}
+
+\begin{frame}{Modeling and statistical inference for dynamic systems}
+
+The second half of this course focuses on:
+\begin{enumerate}
+\item
+ Building models for dynamic systems, which may or may not be linear and Gaussian.
+\item
+Using time series data to carry out statistical inference on these models.
+\end{enumerate}
+
+Example questions: Can we develop a better model for understanding variability of financial markets (known in finance as volatility)? How do we assess our model and decide whether it is indeed an improvement?
+
+\end{frame}
+
+\section{Example: Winter in Michigan}
+
+\subsection{Course files on Github}
+
+\begin{frame}[fragile]{Example: Winter in Michigan}
+
+There is a temptation to attribute a warm winter to global warming. You can then struggle to explain a subsequent cold winter. Is a trend in fact noticeable at individual locations in the presence of variability? Let's look at some data, downloaded from \link{https://www.usclimatedata.com/climate/ann-arbor/michigan/united-states/usmi0028}{\code{www.usclimatedata.com}} and put in \link{ann_arbor_weather.csv}{\code{ann\_arbor\_weather.csv}}. 
+
+\begin{itemize}
+
+\item You can get this file from the \link{https://github.com/ionides/531w24}{course repository on GitHub}.
+
+\item Better, you can make a local clone of this git repository that will give you an up-to-date copy of all the data, notes, code, homeworks and solutions for this course.
+
+\end{itemize}
+
+<<weather_data>>=
+y <- read.table(file="ann_arbor_weather.csv",header=1)
+@
+
+\end{frame}
+
+\subsection{Rmarkdown and knitr}
+
+\begin{frame}{Rmarkdown and knitr}
+
+The notes combine source code with text, to generate statistical analysis that is 
+\begin{itemize}
+\item Reproducible
+\item Easily modified or extended
+\end{itemize}
+These two properties are useful for developing your own statistical research projects. Also, they are useful for teaching and learning statistical methodology, since they make it easy for you to replicate and adapt analysis presented in class.
+
+%% ### Question: How many of you already know Rmarkdown?
+
+\begin{itemize}
+\item Many of you will already know \code{Rmarkdown} (.Rmd).
+\item \code{knitr} (.Rnw) is similar, and is also supported by Rstudio. 
+\item \code{knitr} is superior for combining with Latex to produce pdf. The notes are in \code{knitr} and you can modify the source code.
+\item \code{Rmarkdown} naturally produces html.
+\end{itemize}
+
+\end{frame}
+
+\subsection{Some basic investigation using R}
+
+\begin{frame}[fragile]
+
+To get a first look at our dataset, \code{str} summarizes its structure:
+
+<<str>>=
+str(y)
+@
+
+We focus on \code{Low}, which is the lowest temperature, in Fahrenheit, for January.
+
+\end{frame}
+
+\begin{frame}
+
+As statisticians, we want an uncertainty estimate. We want to know how reliable our estimate is, since it is based on only a limited amount of data.
+
+\begin{itemize}
+
+\item The data are $\data{y_1},\dots,\data{y_N}$, which we also write as $\data{y_{1:N}}$.
+
+\item Basic estimates of the mean and standard deviation are 
+\begin{equation}
+\estimate{\hat\mu_1}= \frac{1}{N}\sum_{n=1}^N\data{y_n}, \hspace{2cm}
+\estimate{\hat\sigma_1}= \sqrt{\frac{1}{N-1}\sum_{n=1}^N(\data{y_n}-\hat{\mu_1})^2}.
+\end{equation}
+
+
+\item This suggests an approximate confidence interval for $\mu$ of $\estimate{\hat\mu_1} \pm 1.96\, \estimate{\hat\sigma_1}/\sqrt{N}$.
+
+\end{itemize}
+
+\myquestion. What are the assumptions behind this confidence interval?
+
+\answer{\vspace{2cm}}{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\begin{itemize}
+
+\item 1955 has missing data, coded as \code{NA}, requiring a minor modification. So, we compute $\estimate{\hat\mu_1}$ and $\SE_1=\estimate{\hat\sigma_1}/\sqrt{N}$ as
+
+\end{itemize}
+
+<<mean>>=
+mu1 <- mean(y$Low,na.rm=TRUE)
+se1 <- sd(y$Low,na.rm=TRUE)/sqrt(sum(!is.na(y$Low)))
+cat("mu1 =", mu1, ",  se1 =", se1, "\n")
+@
+
+\myquestion. If you had to give an uncertainty estimate on the mean, is it reasonable to present the confidence interval, $\Sexpr{round(mu1,2)} \pm \Sexpr{round(1.96*se1,2)}$? Do you have ideas of a better alternative?
+
+\answer{\vspace{2.5cm}}{}
+
+
+\end{frame}
+
+\begin{frame}{Some data analysis}
+
+\begin{itemize}
+
+\item The first rule of data analysis is to plot the data in as many ways as you can think of. For time series, we usually start with a time plot.
+
+\end{itemize}
+
+<<weather_plot_code,echo=T,eval=F>>=
+plot(Year,Low,data=y,ty="l")
+@
+
+<<weather_plot,out.width="80%",echo=F>>=
+par(mai=c(0.8,0.8,0.1,0.1))
+plot(Low~Year,data=y,ty="l",ylab="January low (F)")
+@
+
+\end{frame}
+
+\section{A first look at an autoregressive-moving average (ARMA) model}
+
+\begin{frame}{ARMA models}
+
+Another basic thing to do is to fit an \myemph{autoregressive-moving average} (ARMA) model. 
+We'll look at ARMA models in much more detail later in the course.
+Let's fit an ARMA model given by
+\begin{equation}
+Y_n = \mu + \alpha(Y_{n-1}-\mu) + \epsilon_n + \beta \epsilon_{n-1}.
+\end{equation}
+This has a one-lag autoregressive term, $\alpha(Y_{n-1}-\mu)$, and a one-lag moving average term, $\beta \epsilon_{n-1}$. It is therefore called an ARMA(1,1) model. These lags give the model some time dependence. 
+
+\begin{itemize}
+
+\item If $\alpha=\beta=0$, we get back to the basic independent model, $Y_n = \mu + \epsilon_n$.
+ 
+\item If $\alpha=0$ we have a moving average model with one lag, MA(1).
+
+\item If $\beta=0$, we have an autoregressive model with one lag, AR(1).
+
+\end{itemize}
+
+We model $\epsilon_1\dots,\epsilon_N$ to be an independent, identically distributed (\iid) sequence. 
+To be concrete, let's specify a model where they are normally distributed with mean zero and variance $\sigma^2$.
+
+\end{frame}
+
+\begin{frame}{A note on notation}
+
+\begin{itemize}
+
+\item In this course, capital Roman letters, e.g., $X$, $Y$, $Z$, denote random variables. We may also use $\epsilon$, $\eta$, $\xi$, $\zeta$ for random noise processes. Thus, these symbols are used to build models.
+
+\item We use lower case Roman letters ($x$, $y$, $z$, $\dots$) to denote numbers. These are not random variables. We use $\data{y}$ to denote a data point.
+
+\item  ``We must be careful not to confuse data with the abstractions we use to analyze them.'' (William James, 1842-1910).
+
+\item Other Greek letters will usually be parameters, i.e., real numbers that form part of the model.
+
+\end{itemize}
+
+\end{frame}
+
+\section{Fitting an ARMA model in R}
+
+\begin{frame}[fragile]{Maximum likelihood}
+
+We can readily fit the ARMA(1,1) model by maximum likelihood,
+
+<<arma>>=
+arma11 <- arima(y$Low, order=c(1,0,1))
+@
+
+\code{print(arma11)} or just \code{arma11} gives a summary of the fitted model, where $\alpha$ is called \code{ar1}, $\beta$ is called \code{ma1}, and $\mu$ is called \code{intercept}.
+
+<<fitted,echo=F>>=
+# code from getS3method("print","Arima")
+x <- arma11; digits <- 3; se <- TRUE
+       cat("Coefficients:\n")
+        coef <- round(x$coef, digits = digits)
+        if (se && NROW(x$var.coef)) {
+            ses <- rep.int(0, length(coef))
+            ses[x$mask] <- round(sqrt(diag(x$var.coef)), digits = digits)
+            coef <- matrix(coef, 1L, dimnames = list(NULL, names(coef)))
+            coef <- rbind(coef, s.e. = ses)
+        }
+        print.default(coef, print.gap = 2)
+       cat("\nsigma^2 estimated as ", format(x$sigma2, digits = digits), 
+            ":  log likelihood = ", format(round(x$loglik, 2L)), 
+            ",  \naic = ", format(round(x$aic, 2L)), "\n", sep = "")
+ @
+
+We will write the ARMA(1,1) estimate of $\mu$ as $\estimate{\hat\mu_2}$, and its standard error as $\SE_2$.
+
+\end{frame}
+
+\begin{frame}[fragile]{Investigating R objects}
+ 
+Some poking around is required to extract the quantities of primary interest from the fitted ARMA model in R. 
+
+<<names>>=
+names(arma11)
+@
+
+<<bits>>=
+mu2 <- arma11$coef["intercept"]
+se2 <- sqrt(arma11$var.coef["intercept","intercept"])
+cat("mu2 =", mu2, ",  se2 =", se2, "\n")
+@
+
+\end{frame}
+
+\section{Model diagnostics}
+
+\begin{frame}[fragile]{Comparing the {\iid} estimate with the ARMA estimate}
+
+<<subset,echo=FALSE>>=
+t_subset <- 1:116
+y_subset <- y$Low[t_subset]
+yr_max <- max(y$Year[t_subset])
+mu1_subset <- mean(y_subset,na.rm=TRUE)
+se1_subset <- sd(y_subset,na.rm=TRUE)/sqrt(sum(!is.na(y_subset)))
+arma11_subset <- arima(y_subset, order=c(1,0,1))
+mu2_subset <- arma11_subset$coef["intercept"]
+se2_subset <- sqrt(arma11_subset$var.coef["intercept","intercept"])
+@
+
+\begin{itemize}
+\item In this case, the two estimates, $\estimate{\hat\mu_1}=\Sexpr{round(mu1,2)}$ and $\estimate{\hat\mu_2}=\Sexpr{round(mu2,2)}$, and their standard errors,  $\SE_1=\Sexpr{formatC(round(se1,2),2,format="f")}$ and $\SE_2=\Sexpr{formatC(round(se2,2),2,format="f")}$, are close.
+
+\item For data up to \Sexpr{yr_max}, $\estimate{\hat\mu^{\Sexpr{yr_max}}_1}=\Sexpr{round(mu1_subset,2)}$ and $\estimate{\hat\mu^{\Sexpr{yr_max}}_2}=\Sexpr{round(mu2_subset,2)}$, with standard errors, $\SE^{\Sexpr{yr_max}}_1=\Sexpr{formatC(round(se1_subset,2),2,format="f")}$ and $\SE_2^{\Sexpr{yr_max}}=\Sexpr{formatC(round(se2_subset,2),2,format="f")}$.
+
+\item In this case, the standard error for the simpler model is  $100(1-\SE^{\Sexpr{yr_max}}_1/\SE^{\Sexpr{yr_max}}_2)=$ \Sexpr{round((1-se1_subset/se2_subset)*100,1)}\% smaller.
+
+\end{itemize}
+
+Exactly how the ARMA(1,1) model is fitted and the standard errors computed will be covered later.
+
+\myquestion. When standard errors for two methods differ, which is more trustworthy? Or are they both equally valid for their distinct estimators?
+
+\answer{\vspace{2cm}}{}
+
+\end{frame}
+
+\begin{frame}[fragile]{Model diagnostic analysis}
+
+\begin{itemize}
+
+\item We should do \myemph{diagnostic analysis}. The first thing to do is to look at the residuals.
+\item For an ARMA model, the residual $\residual_n$ at time $t_n$ is defined to be the difference between the data, $\data{y_n}$, and a one-step ahead prediction of $\data{y_n}$ based on $\data{y_{1:n-1}}$, written as $\predict{y_n}$.
+\end{itemize}
+From the ARMA(1,1) definition, 
+\begin{equation}
+Y_n = \mu + \alpha(Y_{n-1}-\mu) + \epsilon_n + \beta \epsilon_{n-1},
+\end{equation}
+a basic one-step-ahead predicted value corresponding to parameter estimates $\estimate{\hat\mu}$ and $\estimate{\hat\alpha}$ could be
+\begin{equation}
+\predict{y_n} = \estimate{\hat{\mu}} + \estimate{\hat{\alpha}}(\data{y_{n-1}}-\estimate{\hat{\mu}}).
+\end{equation}
+A \myemph{residual time series}, $\residual_{1:N}$, is then given by
+\begin{equation}
+\residual_n = \data{y_n} - \predict{y_n}.
+\end{equation}
+In fact, R does something slightly more sophisticated.
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-3mm}
+
+<<arma_diag_code,echo=T,eval=F>>=
+plot(arma11$resid)
+@
+
+<<arma_diag, out.width="65%",echo=F>>=
+par(mai=c(0.8,0.5,0.1,0.1))
+plot(arma11$resid)
+@
+
+We see slow variation in the residuals, over a decadal time scale. However, the residuals $\residual_{1:N}$ are close to uncorrelated. We see this by plotting their pairwise sample correlations at a range of lags. This is the \myemph{sample autocorrelation function}, or \myemph{sample ACF}, written for each lag $h$ as
+
+\vspace{-2mm}
+
+\begin{equation}
+\estimate{\hat\rho_h} = \frac{\frac{1}{N}\sum_{n=1}^{N-h} \residual_n \, \residual_{n+h}}{\frac{1}{N}\sum_{n=1}^{N} {\residual_n}^2}.
+\end{equation}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<acf_code, out.width="70%",echo=T,eval=F>>=
+acf(arma11$resid,na.action=na.pass)
+@
+
+<<acf, out.width="70%",echo=F>>=
+par(mai=c(0.8,0.5,0.7,0.1))
+acf(arma11$resid,na.action=na.pass)
+@
+
+\begin{itemize}
+\item
+This shows no substantial autocorrelation. An ARMA model may not be a good way to describe the slow variation present in the residuals of the ARMA(1,1) model. 
+\item
+This is a simple example. However, inadequate models giving poor statistical uncertainty estimates is a general concern when working with time series data.
+\end{itemize}
+
+\end{frame}
+
+\section{Model misspecification and non-reproducibility}
+
+\begin{frame}{Quantifying uncertainty for scientific reproducibility}
+
+Usually, omitted dependency in the model will give overconfident (too small) standard errors. 
+
+\begin{itemize}
+
+\item This leads to scientific reproducibility problems, where chance variation is too often assigned statistical significance. 
+
+\item It can also lead to improper pricing of risk in financial markets, a factor in the US financial crisis of 2007-2008.
+
+\end{itemize}
+
+\end{frame}
+
+
+\section{A first look at a state-space model}
+
+\begin{frame}{Models dynamic systems: State-space models}
+
+Scientists and engineers often have equations in mind to describe a system they're interested in.
+Often, we have a model for how the state of a stochastic dynamic system evolves through time, and another model for how imperfect measurements on this system gives rise to a time series of observations. 
+
+This is called a \myemph{state-space model}. The \myemph{state} models the quantities that we think determine how the system changes with time. However, these idealized state variables are not usually directly and perfectly measurable. 
+
+Statistical analysis of time series data on a system should be able to 
+
+\begin{enumerate}
+\item  Help scientists choose between rival hypotheses.
+
+\item Estimate unknown parameters in the model equations.
+\end{enumerate}
+
+We will look at examples from a wide range of scientific applications. The dynamic model may be linear or nonlinear, Gaussian or non-Gaussian.  
+
+\end{frame}
+
+\begin{frame}{A finance example: fitting a model for volatility of a stock market index}
+
+\begin{itemize}
+
+\item Let $\{\data{y_n},n=1,\dots,N\}$ be the daily returns on a stock market index, such as the S\&P 500.
+
+\item The \myemph{return} is the difference of the log of the index. If $z_n$ is the index value for day $n$, then $\data{y_n} = \log(z_n)-\log(z_{n-1})$.
+
+\item Since the stock market is notoriously unpredictable, it is often unproductive to predict the mean of the returns and instead there is much emphasis on predicting the variability of the returns, known as the \myemph{volatility}.
+
+\item Volatility is critical to assessing the risk of financial investments.
+
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+
+Financial mathematicians have postulated the following model.
+We do not need to understand it in detail right now. 
+The point is that investigators find it useful to develop models for how dynamic systems progress through time, and this gives rise to the time series analysis goals of estimating unknown parameters and assessing how successfully the fitted model describes the data.
+\begin{equation}
+\begin{aligned} Y_n &= \exp\left\{\frac{H_n}{2}\right\} \epsilon_n,  \quad G_n = G_{n-1}+\nu_n,
+\\
+H_n &= \mu_h(1-\phi) + \phi H_{n-1} \\
+&\quad +  Y_{n-1}\sigma_\eta\sqrt{1-\phi^2}\tanh(G_{n-1}+\nu_n)\exp\left\{\! \frac{-H_{n-1}}{2} \! \right\} + \omega_n.\\
+\end{aligned}
+\end{equation}
+\begin{itemize}
+\item $\{\epsilon_n\}$ is {\iid} $N(0,1)$, $\{\nu_n\}$ is {\iid} $N(0,\sigma_{\nu}^2)$, $\{\omega_n\}$ is {\iid} $N(0,\sigma_\omega^2)$.
+
+\item $H_n$ is unobserved volatility at time $t_n$. We only observe the return, modeled by $Y_n$.
+
+\item  $H_n$ has auto-regressive behavior and dependence on $Y_{n-1}$ and a slowly varying process $G_n$.
+
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Questions to be addressed later in the course}
+
+This is an example of a \myemph{mechanistic model}, where scientific or engineering considerations lead to a model of interest. Now there is data and a model of interest, it is time to recruit a statistician! 
+
+\begin{enumerate}
+
+\item How can we get good estimates of the parameters, $\mu_h$, $\phi$, $\sigma_\nu$, $\sigma_\omega$, together with their uncertainties?
+
+\item Does this model fit better than alternative models? So far as it does, what have we learned?
+
+\item Does the data analysis suggest new models, or the collection of new data?
+
+\end{enumerate}
+
+Likelihood-based inference for this partially observed stochastic dynamic system is possible, and enables addressing these questions \citep{breto14}.
+
+\begin{itemize}
+\item By the end of this course, you will be able to carry out data analysis developing complex models and fitting them to time series. See past final projects for \link{https://ionides.github.io/531w18/final_project/}{2018}, \link{https://ionides.github.io/531w20/final_project/}{2020}, \link{https://ionides.github.io/531w21/final_project/}{2021},  \link{https://ionides.github.io/531w22/final_project/}{2022}, 
+\end{itemize}
+\end{frame}
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w24/acknowledge.html}{students and instructors for previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+
+
+\end{document}
+
+
+
+
+
+
+
