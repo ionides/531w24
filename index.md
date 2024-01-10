@@ -66,7 +66,7 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 
 ## Homework and participation assignments
 
-Please read the [grading policy in the syllabus](syllabus.html) before submitting homework.
+Please read the [grading rubric](rubric_homework.html) before submitting homework.
 
 * [Homework 0](hw00/hw00.html). Setting up your computational environment. Nothing to submit.
 
