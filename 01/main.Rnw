@@ -127,10 +127,9 @@ These two properties are useful for developing your own statistical research pro
 %% ### Question: How many of you already know Rmarkdown?
 
 \begin{itemize}
-\item Many of you will already know \code{Rmarkdown} (.Rmd).
-\item \code{knitr} (.Rnw) is similar, and is also supported by Rstudio. 
-\item \code{knitr} is superior for combining with Latex to produce pdf. The notes are in \code{knitr} and you can modify the source code.
-\item \code{Rmarkdown} naturally produces html.
+\item Many of you will already know \code{Rmarkdown} (Rmd format) and/or Jupyter notebooks.
+\item \code{knitr} (Rnw format) is similar, and is also supported by Rstudio. The notes are in Rnw, since it is superior for combining with Latex to produce pdf articles.
+\item Rmd naturally produces html.
 \end{itemize}
 
 \end{frame}

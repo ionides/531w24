@@ -1,0 +1,19 @@
+---
+title: "Chapter 2 discussion question"
+author: "STATS/DATASCI 531, Winter 2024"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+On slide 19 of Chapter 2, I asserted that the point estimates produced by `lm()` are "good" but the usual ordinary least squares (OLS) standard errors and associated tests are "junk". The justification was that the estimator is unbiased regardless of the correlation structure, but its variance depends on a particular assumption about the correlation (i.e., independence) that is inconsistent with the sample ACF. However, this is not quite enough to dismiss the OLS standard error estimates. It could be that in this particular situation the standard errors are not sensitive to the model violation, in which case the OLS standard errors might be a useful approximation. Alternatively, the OLS standard errors might be substantially wrong. How could you investigate that, given your current level of understanding of statistical methods? Imagine the issue arose in a statistical consulting situation where you are supposed to give an immediate suggestion of how to proceed.
+
+---------------
+

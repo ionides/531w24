@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Edward L. Ionides" />
+<meta name="author" content="STATS/DATASCI 531, Winter 2024" />
 
 
-<title>Modeling and Analysis of Time Series Data STATS/DATASCI 531, Winter 2024 Chapter 1: Introduction</title>
+<title>Chapter 2 discussion question</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,60 +349,28 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Modeling and Analysis of Time Series
-Data<br>STATS/DATASCI 531, Winter 2024<br>Chapter 1: Introduction</h1>
-<h4 class="author">Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Chapter 2 discussion question</h1>
+<h4 class="author">STATS/DATASCI 531, Winter 2024</h4>
 
 </div>
 
 
 <hr />
-<table>
-<colgroup>
-<col width="34%" />
-<col width="65%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th align="left"> </th>
-<th align="center"> </th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">Lecture slides</td>
-<td align="center"><a href="slides.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left">Annotated slides</td>
-<td align="center"><a href="slides-annotated.pdf">pdf</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Lecture notes</td>
-<td align="center"><a href="notes.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left">Recording: Chapter 1, Part 1</td>
-<td align="center"><a href="https://youtu.be/Zb8QPW-ldPM">(15
-mins)</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Recording: Chapter 1, Part 2</td>
-<td align="center"><a href="https://youtu.be/8LvOkEgtwpU">(25
-mins)</a></td>
-</tr>
-<tr class="even">
-<td align="left">Discussion question</td>
-<td align="center"><a href="discussion.html">html</a></td>
-</tr>
-</tbody>
-</table>
-<hr />
-<hr />
-<p><a href="../index.html">Back to course homepage</a><br />
-<a href="../acknowledge.html">Acknowledgements</a><br />
-<a href="http://github.com/ionides/531w24/tree/master/01/">Source code
-for these notes</a></p>
+<p>On slide 19 of Chapter 2, I asserted that the point estimates
+produced by <code>lm()</code> are “good” but the usual ordinary least
+squares (OLS) standard errors and associated tests are “junk”. The
+justification was that the estimator is unbiased regardless of the
+correlation structure, but its variance depends on a particular
+assumption about the correlation (i.e., independence) that is
+inconsistent with the sample ACF. However, this is not quite enough to
+dismiss the OLS standard error estimates. It could be that in this
+particular situation the standard errors are not sensitive to the model
+violation, in which case the OLS standard errors might be a useful
+approximation. Alternatively, the OLS standard errors might be
+substantially wrong. How could you investigate that, given your current
+level of understanding of statistical methods? Imagine the issue arose
+in a statistical consulting situation where you are supposed to give an
+immediate suggestion of how to proceed.</p>
 <hr />
 
 

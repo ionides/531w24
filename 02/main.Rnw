@@ -1,0 +1,648 @@
+\input{../header}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{2}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+% other set up
+<<setup,echo=F,results=F,cache=F>>=
+library(broman) # used for myround 
+@
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w22/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Estimating trend and autocovariance}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+
+\section{General notation for time series data and models}
+
+\begin{frame}[fragile]
+
+\frametitle{Definition: Time series data and time series models}
+
+\begin{itemize}
+
+\item A time series is a sequence of numbers, called \myemph{data}. In general, we will suppose that there are $N$ numbers, $\data{y_1},\data{y_2},\dots,\data{y_N}$, collected at an increasing sequence of times, $t_1,t_2,\dots,t_N$. 
+
+\item We write $1{\mycolon}N$ for the sequence $\{1,2,\dots,N\}$ and we write the collection of numbers $\{\data{y_n}, n=1,\dots,N\}$ as $\data{y_{1:N}}$.
+
+
+\item A time series model is a collection of jointly defined random variables, $Y_1,Y_2,\dots,Y_N$.
+
+\item We write this collection of random variables as  $Y_{1:N}$. 
+
+\item Like all jointly defined random variables, the distribution of $Y_{1:N}$ is defined by a joint density function, which we write as 
+\begin{equation}
+f_{Y_{1:N}}(y_1,\dots,y_N \params \theta).
+\end{equation}
+
+\item Here, $\theta$ is a vector of parameters.
+
+\item The density is defined for arbitrary outcomes $y_{1:N}$. Its value at the data, $\data{y_{1:N}}$, is called the \myemph{likelihood}.
+
+\end{itemize}
+\end{frame}
+\begin{frame}
+\begin{itemize}
+\item Our notation for densities generalizes. We write $f_Y(y)$ for the density of a random variable $Y$ evaluated at $y$, and $f_{YZ}(y,z)$ for the joint density of the pair of random variables $(Y,Z)$ evaluated at $(y,z)$. We can also write $f_{Y|Z}(y\given z)$ for the conditional density of $Y$ given $Z$.
+
+\item For discrete data, such as count data, our model may also be discrete and we interpret the density function as a probability mass function. Expectations and probabilities are integrals for continuous models, and sums for discrete models. Otherwise, everything remains the same. We will write formulas only for the continuous case. You can swap integrals for sums when working with discrete models.
+
+\item Scientifically, we postulate that $\data{y_{1:N}}$ is a realization of $Y_{1:N}$ for some unknown value of $\theta$.
+
+\item Our notation distinguishes between the model, $Y_{1:N}$; an arbitrary realization of the model, $y_{1:N}$; the specific sequence of numbers that we observed as data, $\data{y_{1:N}}$.
+
+\item Time series texts commonly ignore these distinctions. For example, \citet{shumway17} call all these quantities $y_t$.
+
+%\item We keep $t$ to represent continuous time, and $n$ for discrete time counting through the observations. This will serve us well later, when we fit continuous time models to data.
+
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Review: Random variables}
+
+\myquestion. 
+What is a random variable? 
+
+\vspace{2mm}
+
+\myquestion.
+What is a collection of jointly defined random variables? 
+
+\vspace{2mm}
+
+\myquestion. 
+What is a probability density function? What is a joint density function? What is a conditional density function?
+
+\vspace{2mm}
+
+\myquestion.
+What does it mean to say that ``$\theta$ is a vector of parameters?''
+
+\vspace{4mm}
+
+There are different answers to these questions, but you should be able to write down an answer that you are satisfied with.
+
+\vspace{5cm}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Review: Expectation}
+
+Random variables usually have an expected value, and in this course they always do. We write $\E[X]$ for the expected value of a random variable $X$. 
+
+\vspace{2mm}
+
+\myquestion. Review question: What is expected value? How is it defined? How can it fail to exist for a properly defined random variable?
+
+\answer{\vspace{25mm}}{
+\vspace{25mm}
+}
+
+\end{frame}
+
+\section{Trend}
+
+\begin{frame}
+\frametitle{Definition: The mean function, or trend}
+\begin{itemize}
+\item We define the \myemph{mean function}, for $n\in 1{\mycolon}N$, by
+$$ \mu_n = \E[Y_n] = \int_{-\infty}^\infty y_n \, f^{}_{Y_n}(y_n)\, dy_n$$
+
+\item We use the words ``mean function'' and ``trend'' interchangeably.
+
+\item We say ``function'' since we are thinking of $\mu_n$ as a function of $n$. 
+
+\item Sometimes, it makes sense to think of time as continuous. Then, we write 
+$\mu(t)$
+for the expected value of an observation at time $t$. 
+We only make observations at the discrete collection of times $t_{1:N}$ and so we require
+$ \mu(t_n)= \mu_n$.
+
+\item A time series may have measurements evenly spaced in time, but our notation does not insist on this. In practice, time series data may contain missing values or unequally spaced observations. 
+
+\end{itemize}
+
+\end{frame}
+\begin{frame}
+\begin{itemize}
+\item $\mu_n$ may depend on $\theta$, the parameter vector. We can write $\mu_n(\theta)$ to make this explicit.
+
+\item We write $\hat\mu_n(y_{1:N})$ to be some estimator of $\mu_n$, i.e., a map which is applied to data to give an estimate of $\mu_n$.  An appropriate choice of $\hat\mu_n$ will depend on the data and the model.
+
+\item Usually, applied statistics courses do not distinguish between estimators (functions that can be applied to any dataset) and estimates (an estimator evaluated on our data). For thinking about model specification and diagnosing model misspecification it is helpful to bear the difference in mind.
+
+\item The \myemph{estimated mean function} or \myemph{estimated trend} is the value of the estimator when applied to our data. Here, we write this as
+%$$ \data{\hat\mu_n} = \hat\mu_n(\data{y_{1:N}}).$$
+\begin{equation}
+\hat\mu_n = \hat\mu_n(\data{y_{1:N}}).
+\end{equation}
+
+\item We are using a standard abuse of notation where $\hat\mu_n$ denotes both the estimator function and its value evaluated at $\data{y_{1:N}}$. 
+
+\end{itemize}
+
+\end{frame}
+\begin{frame}
+\begin{itemize}
+\item  For example, suppose a model with $\mu_n=\mu$, so the mean is assumed constant. In this case, the model is called \myemph{mean stationary}.
+Then, we might estimate $\mu$ using the mean estimator,
+\begin{equation}
+\hat\mu(y_{1:N})=\frac{1}{N}\sum_{n=1}^N y_n.
+\end{equation}
+
+\item $\estimate{\hat\mu}=\hat\mu(\data{y_{1:N}})$ denotes the sample mean.
+
+\item We can compute the sample mean, $\estimate{\hat\mu}$, for any dataset. It is only a reasonable estimator of the mean function when a mean stationary model is appropriate.
+
+\item Notice that trend is a property of the model, and the estimated trend is a function of the data.
+
+\item Similarly, data cannot be mean stationary. A model can be mean stationary.
+
+
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\myquestion. Properties of models vs properties of data.
+
+\vspace{2mm}
+
+Consider these two statements. Does is matter which we use?
+
+\begin{enumerate}
+\item ``The data look mean stationary.''
+\item ``A mean stationary model looks appropriate for these data.''
+\end{enumerate}
+
+\answer{\vspace{50mm}}{\vspace{50mm}}
+
+\end{frame}
+
+\section{Autocovariance and autocorrelation}
+
+\begin{frame}
+
+\frametitle{Definition: The autocovariance function}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\begin{itemize}
+
+\item We will assume that variances and covariances exist for the random variables $Y_{1:N}$. We write
+\begin{equation}
+\gamma_{m,n} = \E\big[(Y_m-\mu_m)(Y_n-\mu_n)\big].
+\end{equation}
+This is the \myemph{autocovariance} function, a function of $m$ and $n$.
+
+\item We write $\Gamma$ for the $N\times N$ matrix whose $(m,n)$ entry is $\gamma_{m,n}$.
+
+\item If the covariance between two observations depends only on their time difference, the time series model is \myemph{covariance stationary}. For observations equally spaced in time, the autocovariance function is then a function of a lag, $h$,
+
+\vspace{-4mm}
+
+\begin{equation}
+\gamma_{h} = \gamma_{n,n+h}.
+\end{equation}
+
+\item For a covariance stationary model, and some mean estimate $\hat\mu_n$, an estimate for $\gamma_h$ is the \myemph{sample autovariance function},
+
+\vspace{-3mm}
+
+\begin{equation}
+\hat\gamma_h = \frac{1}{N}\sum_{n=1}^{N-h} \big( {\data{y}_n} - \hat\mu_n \big)\, \big({\data{y}_{n+h}}-\hat\mu_{n+h} \big).
+\end{equation}
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Definition: The autocorrelation function}
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+\begin{itemize}
+\item Dividing the autocovariance by the variance gives the \myemph{autocorrelation function} $\rho_h$  given by
+$$ \rho_h = \frac{\gamma_h}{\gamma_0}.$$
+We can analogously construct the standard autocorrelation estimator,
+$$ \hat\rho_h(y_{1:N}) = \frac{\hat\gamma_h(y_{1:N})}{\hat\gamma_0(y_{1:N})},$$
+which leads to an estimate known as the \myemph{sample autocorrelation},
+$$ \estimate{\hat\rho_h} = \hat\rho_h(\data{y_{1:N}})= \frac{\estimate{\hat\gamma_h}}{\estimate{\hat\gamma_0}}.$$
+
+\item It is common to use ACF as an acronym for any or all of the autocorrelation function, sample autocorrelation function, autocovariance function, and sample autocovariance function. \myemph{If you use the acronym ACF, you are expected to define it, to remove the ambiguity}.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+
+\frametitle{Sample statistics exist without a model}
+
+%\vspace{-15mm}
+
+\begin{itemize}
+
+\item The sample autocorrelation and sample autocovariance functions are statistics computed from the data. They exist, and can be computed, even when the data are not well modeled as covariance stationary. However, in that case, it does not make sense to view them as estimators of the autocorrelation and autocovariance functions (which exist as functions of a lag $h$ only for covariance stationary models).
+
+\item Formally, we should not talk about the correlation or covariance of data. These are properties of models. We can talk about the sample autocorrelation or sample autocovariance of data. 
+
+\end{itemize}
+
+\end{frame}
+
+\section{Least squares estimation of a trend}
+
+\begin{frame}[fragile]
+
+\frametitle{Estimating a trend by least squares}
+
+Let's analyze a time series of global mean annual temperature downloaded from 
+\url{climate.nasa.gov/system/internal_resources/details/original/647_Global_Temperature_Data_File.txt}. These data are in degrees Celsius measured as an anomaly from a 1951-1980 base. This is climatology jargon for saying that the sample mean of the temperature over the interval 1951-1980 was subtracted from all time points.
+
+<< data>>=
+global_temp <- read.table("Global_Temperature.txt",header=TRUE)
+str(global_temp)
+@
+
+<< data_plot_code,echo=T,eval=F>>=
+plot(Annual~Year,data=global_temp,ty="l")
+@
+
+
+\end{frame}
+
+\begin{frame}
+
+\frametitle{Mean global temperature anomaly, degrees C} 
+
+<<data_plot,echo=F,fig.width=4,fig.height=3.2,out.width="4in",cache=F>>=
+par(mai=c(1.1,1,0.4,1))
+<<data_plot_code>>
+@
+
+\end{frame}
+
+\begin{frame}
+\begin{itemize}
+\item These data should make all of us pause for thought about the future of our planet. 
+
+\item Understanding climate change involves understanding the complex systems of physical, chemical and biological processes driving climate. 
+
+\item It is hard to know if gigantic models that attempt to capture all important parts of the global climate processes are in fact a reasonable description of what is happening.
+
+\item There is value in relatively simple statistical analysis, which can at least help to tell us what evidence there is for how things are, or are not, changing. 
+
+\item Here is a quote from {\it Science} (18 December 2015, volume 350, page 1461; I've added some emphasis).
+
+\end{itemize}
+
+``Scientists are still debating whether---and, if so, how---warming in the Arctic and dwindling sea ice influences extreme weather events at midlatitudes. \myemph{Model limitations}, \myemph{scarce data} on the warming Arctic, and the \myemph{inherent variability} of the systems make answers elusive.''
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+
+\frametitle{Fitting a least squares model with a quadratic trend}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+Perhaps the simplest trend model that makes sense looking at these data is a quadratic trend,
+\begin{equation}
+\mu(t)= \beta_0 + \beta_1 t + \beta_2 t^2.
+\end{equation}
+To write the least squares estimate of $\beta_0$, $\beta_1$ and $\beta_2$, we set up matrix notation. Write
+\begin{equation}
+\mu = (\mu_1,\mu_2,\dots,\mu_N)^\transpose
+\end{equation}
+for the column vector describing the mean function, and similarly,
+\begin{equation}
+\beta = (\beta_0,\beta_1,\beta_2)^\transpose.
+\end{equation}
+Then, defining
+
+\vspace{-4mm}
+
+\begin{equation}
+Z = \left(\begin{array}{ccc}
+1 & 1880 & 1880^2 \\
+1 & 1881 & 1881^2 \\
+1 & 1882 & 1882^2 \\
+\vdots & \vdots & \vdots
+\end{array}\right),
+\end{equation}
+we can write
+
+\vspace{-6mm}
+
+$$ \mu = Z\beta.$$
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+We write ${y_{1:N}}$ as a column vector,
+\begin{eqnarray}
+y &=& (y_1,y_2,\dots,y_N)^\transpose.
+\end{eqnarray}
+The ordinary least squares (OLS) estimator of $\beta$ is
+\begin{equation}
+\hat\beta_{OLS}(y_{1:N}) = (Z^\transpose Z)^{-1}Z^\transpose y,
+\end{equation}
+with corresponding OLS estimate
+$$
+\estimate{\hat\beta_{OLS}}=\hat\beta_{OLS}(\data{y_{1:N}}) = (Z^\transpose Z)^{-1}Z^\transpose \data{y}.
+$$
+We can carry out this computation in R by
+<< glob_temp_lm >>=
+lm_fit <- lm(Annual~Year+I(Year^2),data=global_temp)
+@
+where \code{I()} is a function that tells R to construct \code{Year\^{}2} as a variable, and inhibits interpretation in the R model formula notation.
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+\mode<presentation>{
+\vspace{-4mm}
+}
+
+<<glob_temp_summary>>=
+summary(lm_fit)
+@
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+
+We can check visually how well this model fits the data.
+
+<< glob_temp_lm_plot_code,echo=T,eval=F>>=
+yr <- 1880:2026
+Z <- cbind(1,yr,yr^2)
+beta <- coef(lm_fit)
+prediction <- Z%*%beta
+plot(Annual~Year,data=global_temp,ty="l",xlim=range(yr),
+  ylim=range(c(global_temp$Annual,prediction),na.rm=TRUE),
+  lty="dashed")
+lines(x=yr,y=prediction,col="red")
+@
+
+
+
+<< glob_temp_lm_plot ,fig.width=4,fig.height=2,out.width="8cm",echo=F>>=
+par(mai=c(0.8,1,0.1,1))
+<<glob_temp_lm_plot_code>>
+@
+\end{frame}
+
+
+\begin{frame}[fragile]
+\begin{itemize}
+
+\item The overall estimated trend seems a reasonable fit for the data. 
+
+\item If we want to attach uncertainty to our parameter estimates, and consequently to our forecast, we need a time series model $Y_{1:N}$, which we write in column vector form as
+$$Y = (Y_1,Y_2,\dots,Y_N)^\transpose.$$
+
+
+\end{itemize}
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+
+\begin{itemize}
+\item The usual model behind OLS is the independent error model, known in time series analysis as the \myemph{white noise} error model:
+
+[L1] $\quad\quad\quad\quad\quad Y = Z\beta + \epsilon,$
+
+where $\epsilon=\epsilon_{1:N}$ is a vector of independent identically distributed (\iid) random variables with mean zero and constant variance,
+$\E[\epsilon_n]=0$ and $\myvar(\epsilon_n) = \sigma^2$.
+Standard linear model software, such as \code{lm} in \code{R}, provides confidence intervals based on this model. 
+
+\item Under model L1, the estimator $\hat\beta_{OLS}(y_{1:N})$ is unbiased. This can be checked:
+\begin{eqnarray*}
+\E\big[\hat\beta_{OLS}(Y_{1:N})\big] &=&\E\big[ (Z^\transpose Z)^{-1}Z^\transpose Y \big]\\
+&=& \E\big[ (Z^\transpose Z)^{-1}Z^\transpose \{Z\beta + \epsilon \}\big]\\
+&=&  (Z^\transpose Z)^{-1}Z^\transpose \{Z\beta + \E[\epsilon]\} \\
+&=&  (Z^\transpose Z)^{-1}(Z^\transpose Z)\beta \\
+&=& \beta
+\end{eqnarray*}
+\item A result for linear models is that $\hat\beta_{OLS}(y_{1:N})$ is the minimum variance unbiased estimator for model L1.
+
+\end{itemize}
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Variance/covariance for the white noise error model}
+\begin{itemize}
+\item The variance/covariance matrix of $\hat\beta_{OLS}(Y_{1:N})$ under this model \citep{faraway02} is
+$$\var{\hat\beta_{OLS}(Y_{1:N})} = \sigma^2 \big( Z^\transpose Z\big)^{-1},$$
+which is estimated using an estimate for $\sigma$ of
+$$\hat\sigma_{OLS}= \sqrt{\frac{1}{N-d} \big(\data{y}-Z\hat\beta_{OLS}\big)^\transpose \big(\data{y}-Z\hat\beta_{OLS}\big)},$$
+where $d$ is the number of covariates, i.e., the number of columns of $Z$.
+
+\end{itemize}
+
+\end{frame}
+
+\section{Autocorrelated residuals with trend estimation}
+
+\begin{frame}[fragile]
+
+
+Let's look at the residuals to assess how appropriate this model is here.
+
+<< acf_global_temp>>=
+acf(resid(lm_fit))
+@
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Investigating the ACF plot provided by R}
+
+\begin{itemize}
+
+\item The horizontal dashed lines on the graph of the sample autocorrelation function (ACF) give a measure of chance variation under the null hypothesis that the residuals are {\iid}.
+
+\item At each lag $h$, the chance that the estimated ACF falls within this band is approximately 95\%, under the null hypothesis. 
+
+\item Thus, under the null hypothesis, one expects a fraction of $1/20$ of the lags of the sample ACF to fall outside this band.
+
+\item Here, the sample ACF confirms what we can probably see from the plot of the fitted model: the variation around the fitted model is clustered in time, so the sample ACF of the residuals is not consistent with a model having independent error terms.
+\end{itemize}
+
+\myquestion. How does R construct these horizontal dashed lines?
+
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Figuring out what R does}
+
+\begin{itemize}
+
+\item How would you check what R actually does when it constructs these dashed lines? What approximation is being made? When is that approximation appropriate?
+
+\item Hint: If you type `acf` in R, you get the source code for the acf function. You'll see that the plotting is done by a service function `plot.acf`. This service function is part of the package, and is not immediately accessible to you. Nevertheless, you can check the source code as follows
+
+\item Notice, either from the help documentation `?acf` or the last line of the source code `acf` that this function resides in the package `stats`.
+
+\item Now, you can access this namespace directly, to list the source code, by
+<<,eval=F,echo=T>>=
+stats:::plot.acf
+@
+
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\begin{itemize}
+\item  To relate this source code to the task of testing for lack of correlation, a standard topic in undergrad introductory statistics courses, the critical line of code seems to be
+<<,eval=F,echo=T>>=
+clim0 <- if (with.ci) qnorm((1 + ci)/2)/sqrt(x$n.used)
+@
+This appears to use a normal distribution approximation for the sample autocorrelation estimator, with mean zero and standard deviation $1/\sqrt{N}$. 
+
+\end{itemize}
+
+\end{frame}
+
+
+\section{Generalized least squares for trend estimation}
+
+\begin{frame}[fragile]
+
+\frametitle{Generalized least squares}
+
+\begin{itemize}
+\item Suppose for the moment that we knew the covariance matrix, $\Gamma$, for a model with dependent errors,
+
+[L2] $\quad\quad\quad\quad Y = Z\beta + \zeta, \quad \quad \zeta \sim N[0,\Gamma].$
+
+We read ``$\zeta \sim N[0,\Gamma]$'' as ``$\zeta$ follows a multivariate normal distribution with mean zero and covariance matrix $\Gamma$.''
+
+\item The minimum variance unbiased estimator of $\beta$ for model L2 is the generalized least square (GLS) estimator \citep[][Chapter~5]{faraway02}
+$$\hat \beta_{GLS}(y_{1:N}) = \big( Z^\transpose \Gamma^{-1} Z \big)^{-1} \, Z^\transpose \Gamma^{-1} y.$$
+
+\item The OLS estimator remains unbiased for L2 (you can check this as an exercise). In this sense it remains a reasonable estimator. It is often a practical solution to use the OLS estimator, expecially for preliminary data analysis. We don't know $\Gamma$ so can't necessarily make a good estimator based on the GLS model. It might be easier to get an estimate of $\Gamma$ once we have a reasonable estimate of the trend.
+
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+
+\begin{itemize}
+\item For model L2, the variance of the OLS estimator is 
+\begin{equation}
+\var{\hat \beta_{OLS}(Y_{1:N})} = (Z^\transpose Z)^{-1} \, Z^\transpose \Gamma Z\, (Z^\transpose Z)^{-1}.
+\end{equation}
+This is different from the variance under model L1.
+
+\item \myemph{CONCLUSION. It is okay to do ordinary linear regression for data which are not well modeled with uncorrelated errors. However, if we do so, we should not trust the error estimates coming from L1.}
+
+\item This is an example of a situation where some parts of the output from statistical software are reasonable (here, the parameter estimates from \code{lm}) and other parts are unreasonable (the corresponding standard errors and any tests based on them). The theory helps us decide which bits of computer output to use and which to ignore.
+
+\end{itemize}
+
+\end{frame}
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w22/acknowledge.html}{students and instructors for previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
+
+
+
