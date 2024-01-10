@@ -6,8 +6,6 @@ output:
     toc: no
 ---
 
-# IN PREPARATION
-
 ## Course information
 
 Course components will include:
@@ -84,6 +82,8 @@ Statistical computing background:
 
 16. A case study of financial volatility and a POMP model with observations driving latent dynamics.
 
+17. A case study of measles: Dynamics revealed in long time series.
+
 --------------
 
 ## Groups
@@ -106,19 +106,11 @@ Statistical computing background:
 
 ### Grading credit for attribution of sources
 
-Careful attribution of sources is fundamental to good scholarship. Also, **complete attribution facilitates meaningful grading given the reality of abundant online materials and online collaboration**. The grader will look for demonstrated effort in submitted homework, with contributions that go beyond the sources, following the [posted rubric](rubric_homework.html).
+Careful attribution of sources is fundamental to good scholarship.  The grader will look for demonstrated effort in submitted homework, with contributions that go beyond the sources.
 
 + Each homework will have a question asking about sources. You will be asked to explain which parts of your responses above made use of a source, meaning anything or anyone you consulted (including classmates or office hours or any website you visited) to help you write or check your answers. **All sources are permitted. Every source must be documented. Full credit requires being explicit about which parts you did without any collaboration or other source, as well as being explicit about which parts used or did not use each listed source.**
 
-+ Reference any web page you look at in connection with a homework or project, and to acknowledge any person you talk to in connection with a homework or project, including people in your own group or discussions in office hours.
-
-+ If you look at a web page while working on your homework solutions, or while checking your homework solutions, add the URL to your source section and reference it where appropriate in your solution.
-
-+ Directly copied text must be in quotation marks. Directly copied equations must be explicitly referenced to the source. Adapted or paraphrased material take from a source should be referenced.
-
-+ It is expected that you will consult the notes and the course Piazza site. However, putting explicit references (e.g., 531 class notes, slide 10 of chapter 3) is still appropriate as documentation of your sources.
-
-+ The reader should not have to carry out detective work to figure out correctly which parts of the homework are attributable to a source.  Specific references to a page of the notes, or material on a previous course web page, or a page of the textbook, or a Stack Overflow page, can help with this. If the reader cannot readily tell what part of the homework is attributable to each source, that is a defect in the scholarship.
++ You should study the [posted rubric](rubric_homework.html) to undertand how your homework will be graded. 
 
 + The midterm and final project will also have a substantial grading component allocated to clear and scholarly assignment of credit to sources.
 

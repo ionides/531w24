@@ -1,0 +1,34 @@
+---
+title: "Homework 0. Setting up your statistical computing environment."
+author: "DATASCI/STATS 531, Winter 2024"
+output:
+  html_document:
+    toc: no
+---
+
+This assignment involves getting your computer ready for the computing environment we will be using for DATASCI/STATS 531. There is nothing to turn in. For most students, it is expected that these tools are familiar. If they are unfamiliar, you are welcome to ask for advice or assistance in group meetings or via Piazza. If they are familiar, please consider helping others. Asking and answering questions are both contributions to the course community, and both count toward the course participation credit, as described in the syllabus. Please join the class Piazza site [piazza.com/umich/winter2024/datascistats531](https://piazza.com/umich/winter2024/datascistats531) if you have not already done so.
+
+----------------------
+
+## Internet repositories for collaboration and open-source research: git and GitHub
+
+* Git is currently the dominant tool for managing, developing and sharing code within the computational sciences and industry. 
+
+* GitHub is the largest git-based internet repository, but others (such as bitbucket) also use git, and it can be useful to use git to build a local repository on your own computer. 
+
+* You do not need to use git for this course. All the materials will be on the class website so it is not essential that you use git at all. However, keeping a local copy of the course git project is a good way to maintain up-to-date copies of all the files. Also, you may find additional features of git to be useful, such as making pull requests with corrections or improvements to the notes!
+
+* If you like, you can read Karl Broman's practical and minimal git/github tutorial ([kbroman.org/github_tutorial](https://kbroman.org/github_tutorial/)). A deeper, more technical tutorial is [www.atlassian.com/git/tutorials](https://www.atlassian.com/git/tutorials/).
+
+
+## R and Rstudio
+
+You have probably used R before, and if not it is time to start! We will make extensive use of R. Please check an up-to-date R version is installed on your laptop. It is available at [www.r-project.org](https://www.r-project.org)
+
+Rstudio is a popular environment for carrying out statistical analysis in R. You can choose whether or not to access R through Rstudio for this course, but many people find that a convenient approach. It can be downloaded from [www.rstudio.com](https://www.rstudio.com)
+
+## Rmarkdown and knitr
+
+The midterm and final projects will be submitted as reproducible reports written in Rmarkdown or knitr. A reproducible report combines text and source code, generates the results by running the code, and inserts the resulting tables, figures and numbers into the finished document. Advantages of this approach are: (i) you can easily modify your report if you want to try doing something differently; (ii) the reader can, if necessary, inspect or run the code that gave the results; (iii) classmates can easily learn effective data analysis techniques from each other. Rmarkdown is a popular approach for doing this, see [rmarkdown.rstudio.com](http://rmarkdown.rstudio.com). If you have not used Rmarkdown before, you might like to start familiarizing yourself with it. Rstudio works well with Rmarkdown (Rmd) files, especially for generating HTML documents. Knitr is similar to Rmarkdown, and provides a better environment for producing pdf documents. The course notes are written using knitr, and you are welcome to inspect the source files in the GitHub repository.
+
+------

@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Instructor: Edward L. Ionides" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 (Winter 2024)  ‘Modeling and Analysis of Time Series Data’</title>
+<title>Homework 1, due Sunday 1/21, 11:59pm</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,196 +349,145 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 (Winter 2024)
-<br>‘Modeling and Analysis of Time Series Data’</h1>
-<h4 class="author">Instructor: Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Homework 1, due Sunday 1/21, 11:59pm</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
-<div id="TOC">
-<ul>
-<li><a href="#course-description" id="toc-course-description">Course
-description</a></li>
-<li><a href="#class-notes-and-recorded-lectures" id="toc-class-notes-and-recorded-lectures">Class notes and recorded
-lectures</a></li>
-<li><a href="#homework-and-participation-assignments" id="toc-homework-and-participation-assignments">Homework and
-participation assignments</a></li>
-<li><a href="#acknowledgements-and-license" id="toc-acknowledgements-and-license">Acknowledgements and
-License</a></li>
-</ul>
-</div>
 
 <hr />
-<div id="course-description" class="section level2">
-<h2>Course description</h2>
-<p>This course gives an introduction to time series analysis using time
-domain methods and frequency domain methods. The goal is to acquire the
-theoretical and computational skills required to investigate data
-collected as a time series. The first half of the course will develop
-classical time series methodology, including auto-regressive moving
-average (ARMA) models, regression with ARMA errors, and estimation of
-the spectral density. The second half of the course will focus on state
-space model techniques for fitting structured dynamic models to time
-series data. We will progress from fitting linear, Gaussian dynamic
-models to fitting nonlinear models for which Monte Carlo methods are
-required. Examples will be drawn from ecology, economics, epidemiology,
-finance and elsewhere.</p>
-<p>The course outline, course information and grading policies are
-described in the <a href="syllabus.html">syllabus</a>.</p>
+<p>Submit your solution as a pdf via Canvas. You may scan a handwritten
+report. Later in the course, we will be using Rmarkdown for projects, so
+you might like to use that also for this homework. In that case, the
+source code for this assignment is available on GitHub to help get you
+started. Rmarkdown combines R with Latex, so extra work will be required
+initially if you are unfamiliar with either of these.</p>
+<p>The grading scheme for the homework report puts an emphasis on
+careful explanation of sources, as explained in the <a href="../rubric_homework.html">grading rubric</a>. You are advised to
+read this rubric before submitting your homework. You are expected to
+support your homework report with sources, when appropriate. Usually,
+the sources are listed at the end of the report and cited where
+applicable within the report.</p>
+<p>Some of you are already contributing on the <a href="https://piazza.com/umich/winter2024/datascistats531">course Piazza
+site</a>. You can also consider participation in online discussion as
+part of your homework. If there is no discussion on the Piazza site that
+you want to join, start a new one! Participation, in class or online, is
+assessed via participation statements scheduled on Canvas.</p>
 <hr />
-</div>
-<div id="class-notes-and-recorded-lectures" class="section level2">
-<h2>Class notes and recorded lectures</h2>
+<p><strong><big>Question 1.1</big></strong>. Recall the basic properties
+of covariance, <span class="math inline">\(\mathrm{Cov}(X,Y) =
+E\big[(X-\mathbb{E}[X])(Y-\mathbb{E}[Y])\big]\)</span>, following the
+convention that upper case letters are random variables and lower case
+letters are constants:</p>
+<p>P1. <span class="math inline">\(\quad \mathrm{Cov}(Y,Y)=
+\mathrm{Var}(Y)\)</span>,</p>
+<p>P2. <span class="math inline">\(\quad
+\mathrm{Cov}(X,Y)=\mathrm{Cov}(Y,X)\)</span>,</p>
+<p>P3. <span class="math inline">\(\quad \mathrm{Cov}(aX,bY)=
+ab\,\mathrm{Cov}(X,Y)\)</span>,</p>
+<p>P4. <span class="math inline">\(\quad \mathrm{Cov}\left(\sum_{m=1}^M
+Y_m,\sum_{n=1}^N Y_n\right)= \sum_{m=1}^M \sum_{n=1}^N \mathrm{Cov}(Y_m,
+Y_n)\)</span>.</p>
+<p>Let <span class="math inline">\(Y_{1:N}\)</span> be a covariance
+stationary time series model with autocovariance function <span class="math inline">\(\gamma_h\)</span> and constant mean function,
+<span class="math inline">\(\mu_n=\mu\)</span>. Consider the sample mean
+as an estimator of <span class="math inline">\(\mu\)</span>, <span class="math display">\[\hat\mu(y_{1:N}) = \frac{1}{N}\sum_{n=1}^N
+y_n.\]</span> Show how the basic properties of covariance can be used to
+derive the expression, <span class="math display">\[\mathrm{Var}\big(\hat\mu(Y_{1:N})\big) =
+\frac{1}{N}\gamma_0 +
+\frac{2}{N^2}\sum_{h=1}^{N-1}(N-h)\gamma_h.\]</span></p>
+<hr />
+<p><strong><big>Question 1.2</big></strong>. The sample autocorrelation
+is perhaps the second most common type of plot in time series analysis,
+after simply plotting the data. We investigate how R represents chance
+variation in the plot of the sample autocorrelation function produced by
+the <code>acf</code> function. We seek to check what R actually does
+when it constructs the dashed horizontal lines in this plot. What
+approximation is being made? How should the lines be interpreted
+statistically?</p>
+<p>If you type <code>acf</code> in R, you get the source code for the
+acf function. You’ll see that the plotting is done by a service function
+<code>plot.acf</code>. This service function is part of the package, and
+is not immediately accessible to you. Nevertheless, you can check the
+source code as follows:</p>
 <ol style="list-style-type: decimal">
-<li><a href="01/index.html">Introduction</a></li>
+<li><p>Notice, either from the help documentation <code>?acf</code> or
+the last line of the source code <code>acf</code> that this function
+resides in the package <code>stats</code>.</p></li>
+<li><p>Now, you can access this namespace directly, to list the source
+code, by</p></li>
 </ol>
-<!--
-2. [Estimating trend and autocovariance](02/index.html)
-
-3. [Stationarity, white noise, and some basic time series models](03/index.html)
-
-4. [Linear time series models and the algebra of ARMA models](04/index.html)
-
-5. [Parameter estimation and model identification for ARMA models](05/index.html)
-
-6. [Extending the ARMA model: Seasonality, integration and trend](06/index.html)
-
-7. [Introduction to time series analysis in the frequency domain](07/index.html)
-
-8. [Smoothing in the time and frequency domains](08/index.html)
-
-9. [Case study: An association between unemployment and mortality?](09/index.html)
-
-10. [Introduction to partially observed Markov process models](10/index.html)
-
-11. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](11/index.html)
-
-12. [Simulation of stochastic dynamic models](12/index.html)
-
-13. [Likelihood for POMP models: Theory and practice](13/index.html)
-
-14. [Likelihood maximization for POMP models](14/index.html)
-
-15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
-
-16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
-
-17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
-
-There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).
-
--->
+<pre><code>stats:::plot.acf</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li>Now we can see how the horizontal dashed lines are constructed. The
+critical line of code seems to be</li>
+</ol>
+<pre><code>clim0 &lt;- if (with.ci) qnorm((1 + ci)/2)/sqrt(x$n.used)</code></pre>
+<p>This appears to correspond to a normal distribution approximation for
+the sample autocorrelation estimator, with mean zero and standard
+deviation <span class="math inline">\(1/\sqrt{N}\)</span>.</p>
+<p><br></p>
+<p><strong>A</strong>. This question investigates the use of <span class="math inline">\(1/\sqrt{N}\)</span> as an approximation to the
+standard deviation of the sample autocorrelation estimator under the
+null hypothesis that the time series is a sequence of independent,
+identically distributed (IID) mean zero random variables.</p>
+<p>Instead of studying the full autocorrelation estimator, you are asked
+to analyze a simpler situation where we take advantage of the knowledge
+that the mean is zero and consider <span class="math display">\[
+\hat\rho_h(Y_{1:N}) = \frac{\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \,
+Y_{n+h}}
+{\frac{1}{N}\sum_{n=1}^{N} Y_{n}^2}\]</span> where <span class="math inline">\(Y_1,\dots,Y_N\)</span> are IID random variables
+with zero mean and finite variance. Specifically, find the mean and
+standard deviation for <span class="math inline">\(\hat\rho_h(Y_{1:N})\)</span> when <span class="math inline">\(N\)</span> becomes large.</p>
+<p>The actual autocorrelation estimator subtracts a sample mean, and you
+can analyze that instead if you want an additional challenge.</p>
+<p>You will probably want to make an argument based on linearization.
+You can reason at whatever level of math stat formalization you’re happy
+with. According to <em>Mathematical Statistics and Data Analysis</em> by
+John Rice, a textbook used for the undergraduate upper level Math Stats
+course, STATS 426,</p>
+<p>“When confronted with a nonlinear problem we cannot solve, we
+linearize. In probability and statistics, this method is called
+<strong>propagation of errors</strong> or the <strong><span class="math inline">\(\delta\)</span> method</strong>. Linearization is
+carried out through a <a href="https://en.wikipedia.org/wiki/Taylor_series">Taylor Series</a>
+expansion.”</p>
+<p>Rice then proceeds to describe the delta method in a way very similar
+to the <a href="https://en.wikipedia.org/wiki/Delta_method">Wikipedia
+article</a> on this topic. In summary, suppose <span class="math inline">\(X\)</span> is a random variable with mean <span class="math inline">\(\mu^{}_X\)</span> and small variance <span class="math inline">\(\sigma^2_X\)</span>, and <span class="math inline">\(g(x)\)</span> is a nonlinear function with
+derivative <span class="math inline">\(g^\prime(x)=dg/dx\)</span>. To
+study the random variable <span class="math inline">\(Y=g(X)\)</span> we
+can make a Taylor series approximation, <span class="math display">\[ Y
+\approx g(\mu^{}_X) + (X-\mu^{}_X) g^\prime(\mu^{}_X).\]</span> This
+approximates <span class="math inline">\(Y\)</span> as a linear function
+of <span class="math inline">\(X\)</span>, so we have</p>
+<ol style="list-style-type: decimal">
+<li><p><span class="math inline">\(\quad \mu^{}_Y = \mathbb{E}[Y]\approx
+g(\mu^{}_X)\)</span>.</p></li>
+<li><p><span class="math inline">\(\quad \sigma^2_Y = \mathrm{Var}(Y)
+\approx \sigma^2_X \big\{g^\prime(\mu^{}_X)\big\}^2\)</span>.</p></li>
+<li><p><span class="math inline">\(\quad\)</span>If <span class="math inline">\(X\sim N\big[\mu^{}_X,\sigma_X^2\big]\)</span>,
+then <span class="math inline">\(Y\)</span> approximately follows a
+<span class="math inline">\(N\big[g(\mu^{}_X), \sigma^2_X
+\big\{g^\prime(\mu^{}_X)\big\}^2\big]\)</span> distribution.</p></li>
+</ol>
+<p>For this question, we have a two-dimensional situation, where <span class="math inline">\(Y=g(U,V)\)</span> and the Taylor series
+approximation becomes <span class="math display">\[ Y \approx
+g(\mu^{}_U,\mu^{}_V) + (U-\mu^{}_U) \frac{\partial }{\partial
+u}g(\mu^{}_U,\mu^{}_V) + (V-\mu^{}_V) \frac{\partial}{\partial
+v}g(\mu^{}_U,\mu^{}_V)\]</span> with <span class="math inline">\(U=\hat\gamma_h(Y_{1:N})=\frac{1}{N}\sum_{n=1}^{N-h}
+{Y_n} \, Y_{n+h}\)</span> and <span class="math inline">\(V=\hat\gamma_0(Y_{1:N}) =
+\frac{1}{N}\sum_{n=1}^{N} {Y_n}^2\)</span>. Finding the mean and
+variance of <span class="math inline">\(U\)</span> and <span class="math inline">\(V\)</span> requires similar techniques to Question
+1.1.</p>
+<p><br></p>
+<p><strong>B</strong>. It is often asserted that the horizontal dashed
+lines on the sample ACF plot represent a confidence interval. For
+example, in the documentation produced by <code>?plot.acf</code> we
+read</p>
+<pre><code>ci: coverage probability for confidence interval.  Plotting of the confidence interval is suppressed if ‘ci’ is zero or negative.</code></pre>
+<p>Use a definition of a confidence interval to explain how these lines
+do, or do not, construct a confidence interval.</p>
 <hr />
-</div>
-<div id="homework-and-participation-assignments" class="section level2">
-<h2>Homework and participation assignments</h2>
-<p>Please read the <a href="syllabus.html">grading policy in the
-syllabus</a> before submitting homework.</p>
-<ul>
-<li><a href="hw00/hw00.html">Homework 0</a>. Setting up your
-computational environment. Nothing to submit.</li>
-</ul>
-<!--
-
-* [Homework 1](hw01/hw01.html), due Mon Jan 17, 11:59pm. This included Participation 1. 
-[Solution](hw01/sol01.html).
-
-* [Homework 2](hw02/hw02.html), due Mon Jan 24, 11:59pm.
-[Solution](hw02/sol02.html).
-
-* [Participation 2](participation/participation2.html), due Mon Jan 31, 11:59pm.
-
-* [Homework 3](hw03/hw03.html), due Mon Feb 7, 11:59pm.
-[Solution](hw03/sol03.html).
-
-* [Participation 3](participation/participation3.html), due Mon Feb 14, 11:59pm.
-
-
-* [Homework 4](hw04/hw04.html), due Mon Feb 14, 11:59pm.
-[Solution](hw04/sol04.html).
-
-* [Participation 4](participation/participation4.html), due Mon Mar 7, 11:59pm.
-
-* [Homework 5](hw05/hw05.html), due Mon Mar 14, 11:59pm.
-[Solution](hw05/sol05.html).
-
-* [Participation 5](participation/participation5.html), due Mon Mar 21, 11:59pm.
-
-* [Homework 6](hw06/hw06.html), due Mon Mar 21, 11:59pm. 
-[Solution](hw06/sol06.html).
-
-
-* [Homework 7](hw07/hw07.html), due Mon Mar 28, 11:59pm.
-[Solution](hw07/sol07.html).
-
-* [Participation 6](participation/participation6.html), due Mon Apr 4, 11:59pm.
-
-* [Homework 8](hw08/hw08.pdf), due Mon Apr 4, 11:59pm.
-[Solution](hw08/sol08.pdf).
-
-* [Participation 7](participation/participation7.html), due Mon Apr 18, 11:59pm.
-
-* There is no assigned homework for the last two weeks of the semester. You should work on your final project. The remaining lectures contain material that will be useful for your final projects.
-
--->
-<hr />
-<!--
-
-## Midterm project
-
-* [Information](midterm_project/midterm_project_info.html).
-
-* [Midterm review report instructions](midterm_project/midterm_review.html)
-
-* [2024 midterm projects](midterm_project/index.html)
-
-* You are welcome to browse previous midterm projects. The [2021 midterm projects](http://ionides.github.io/531w21/midterm_project/) have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/midterm_project/), [2018](http://ionides.github.io/531w18/midterm_project/), [2020](http://ionides.github.io/531w20/midterm_project/) and  [2021](http://ionides.github.io/531w21/midterm_project/) 
-
--------------
-
--->
-<!--
-
-## Final project
-
-
-* [Information](final_project/final_project_info.html)
-
-* [Final review report instructions](final_project/final_review.html)
-
-* [2024 final projects](final_project/index.html)
-
-* You're welcome to browse previous final projects. The [2021 final projects](http://ionides.github.io/531w21/final_project/) have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
-
-If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. The changes from **pomp 2.0** to the current **pomp 4.x** are smaller.
-
---------
--->
-<!--
-
-## Using the Great Lakes cluster
-
-* Great Lakes access will be set up after the midterm project and used for the second half of the course.
-
-* [Introductory notes](greatlakes/index.html) for using our class account on the greatlakes cluster. This is optional but may be helpful for your final project.
-
-* If you are already familiar with using R on Great Lakes, all you need to know is the class account: ```stats531w24_class```.
-
-* You are expected to use our class account only for computations related to DATASCI/STATS 531.
-
-* Please share knowledge about cluster computing between group members, and/or on piazza, to help everyone who wants to learn these skills.
-
-* Cluster-related questions can also be emailed to hpc-support@umich.edu.
-
----------
--->
-</div>
-<div id="acknowledgements-and-license" class="section level2">
-<h2>Acknowledgements and License</h2>
-<p>This course and the code involved are made available with an <a href="LICENSE">MIT license</a>. Some components follow a Creative
-Commons Attribution non-commercial license. A longer list of
-acknowledgments is <a href="acknowledge.html">available</a>.</p>
-</div>
 
 
 
