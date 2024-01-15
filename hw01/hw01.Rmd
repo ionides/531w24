@@ -32,9 +32,9 @@ P3. $\quad \cov(aX,bY)= ab\,\cov(X,Y)$,
 P4. $\quad \cov\left(\sum_{m=1}^M Y_m,\sum_{n=1}^N Y_n\right)= \sum_{m=1}^M \sum_{n=1}^N \cov(Y_m, Y_n)$.
 
 Let $Y_{1:N}$ be a covariance stationary time series model with autocovariance function $\gamma_h$ and constant mean function, $\mu_n=\mu$. Consider the sample mean as an estimator of $\mu$,
-$$\hat\mu(y_{1:N}) = \frac{1}{N}\sum_{n=1}^N y_n.$$
+$$\widehat{\mu}(y_{1:N}) = \frac{1}{N}\sum_{n=1}^N y_n.$$
 Show how the basic properties of covariance can be used to derive the expression,
-$$\var\big(\hat\mu(Y_{1:N})\big) = \frac{1}{N}\gamma_0 + \frac{2}{N^2}\sum_{h=1}^{N-1}(N-h)\gamma_h.$$
+$$\var\big(\widehat{\mu}(Y_{1:N})\big) = \frac{1}{N}\gamma_0 + \frac{2}{N^2}\sum_{h=1}^{N-1}(N-h)\gamma_h.$$
 
 
 -------------------
@@ -61,9 +61,9 @@ This appears to correspond to a normal distribution approximation for the sample
 **A**. This question investigates the use of $1/\sqrt{N}$ as an approximation to the standard deviation of the sample autocorrelation estimator under the null hypothesis that the time series is a sequence of independent, identically distributed (IID) mean zero random variables. 
 
 Instead of studying the full autocorrelation estimator, you are asked to analyze a simpler situation where we take advantage of the knowledge that the mean is zero and consider
-$$ \hat\rho_h(Y_{1:N}) = \frac{\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \, Y_{n+h}}
+$$ \widehat{\rho}_h(Y_{1:N}) = \frac{\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \, Y_{n+h}}
 {\frac{1}{N}\sum_{n=1}^{N} Y_{n}^2}$$
-where $Y_1,\dots,Y_N$ are IID random variables with zero mean and finite variance. Specifically, find the mean and standard deviation for $\hat\rho_h(Y_{1:N})$ when $N$ becomes large.
+where $Y_1,\dots,Y_N$ are IID random variables with zero mean and finite variance. Specifically, find the mean and standard deviation for $\widehat{\rho}_h(Y_{1:N})$ when $N$ becomes large.
 
 The actual autocorrelation estimator subtracts a sample mean, and you can analyze that instead if you want an additional challenge. 
 
@@ -83,7 +83,7 @@ This approximates $Y$ as a linear function of $X$, so we have
 
 For this question, we have a two-dimensional situation, where $Y=g(U,V)$ and the Taylor series approximation becomes
 $$ Y \approx g(\mu^{}_U,\mu^{}_V) + (U-\mu^{}_U) \frac{\partial }{\partial u}g(\mu^{}_U,\mu^{}_V) + (V-\mu^{}_V) \frac{\partial}{\partial v}g(\mu^{}_U,\mu^{}_V)$$
-with $U=\hat\gamma_h(Y_{1:N})=\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \, Y_{n+h}$ and $V=\hat\gamma_0(Y_{1:N}) = \frac{1}{N}\sum_{n=1}^{N} {Y_n}^2$. Finding the mean and variance of $U$ and $V$ requires similar techniques to Question 1.1.
+with $U=\widehat{\gamma}_h(Y_{1:N})=\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \, Y_{n+h}$ and $V=\widehat{\gamma}_0(Y_{1:N}) = \frac{1}{N}\sum_{n=1}^{N} {Y_n}^2$. Finding the mean and variance of $U$ and $V$ requires similar techniques to Question 1.1.
 
 <br>
 

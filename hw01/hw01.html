@@ -391,9 +391,9 @@ Y_n)\)</span>.</p>
 <p>Let <span class="math inline">\(Y_{1:N}\)</span> be a covariance
 stationary time series model with autocovariance function <span class="math inline">\(\gamma_h\)</span> and constant mean function,
 <span class="math inline">\(\mu_n=\mu\)</span>. Consider the sample mean
-as an estimator of <span class="math inline">\(\mu\)</span>, <span class="math display">\[\hat\mu(y_{1:N}) = \frac{1}{N}\sum_{n=1}^N
+as an estimator of <span class="math inline">\(\mu\)</span>, <span class="math display">\[\widehat{\mu}(y_{1:N}) = \frac{1}{N}\sum_{n=1}^N
 y_n.\]</span> Show how the basic properties of covariance can be used to
-derive the expression, <span class="math display">\[\mathrm{Var}\big(\hat\mu(Y_{1:N})\big) =
+derive the expression, <span class="math display">\[\mathrm{Var}\big(\widehat{\mu}(Y_{1:N})\big) =
 \frac{1}{N}\gamma_0 +
 \frac{2}{N^2}\sum_{h=1}^{N-1}(N-h)\gamma_h.\]</span></p>
 <hr />
@@ -434,11 +434,11 @@ identically distributed (IID) mean zero random variables.</p>
 <p>Instead of studying the full autocorrelation estimator, you are asked
 to analyze a simpler situation where we take advantage of the knowledge
 that the mean is zero and consider <span class="math display">\[
-\hat\rho_h(Y_{1:N}) = \frac{\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \,
+\widehat{\rho}_h(Y_{1:N}) = \frac{\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \,
 Y_{n+h}}
 {\frac{1}{N}\sum_{n=1}^{N} Y_{n}^2}\]</span> where <span class="math inline">\(Y_1,\dots,Y_N\)</span> are IID random variables
 with zero mean and finite variance. Specifically, find the mean and
-standard deviation for <span class="math inline">\(\hat\rho_h(Y_{1:N})\)</span> when <span class="math inline">\(N\)</span> becomes large.</p>
+standard deviation for <span class="math inline">\(\widehat{\rho}_h(Y_{1:N})\)</span> when <span class="math inline">\(N\)</span> becomes large.</p>
 <p>The actual autocorrelation estimator subtracts a sample mean, and you
 can analyze that instead if you want an additional challenge.</p>
 <p>You will probably want to make an argument based on linearization.
@@ -474,8 +474,8 @@ then <span class="math inline">\(Y\)</span> approximately follows a
 approximation becomes <span class="math display">\[ Y \approx
 g(\mu^{}_U,\mu^{}_V) + (U-\mu^{}_U) \frac{\partial }{\partial
 u}g(\mu^{}_U,\mu^{}_V) + (V-\mu^{}_V) \frac{\partial}{\partial
-v}g(\mu^{}_U,\mu^{}_V)\]</span> with <span class="math inline">\(U=\hat\gamma_h(Y_{1:N})=\frac{1}{N}\sum_{n=1}^{N-h}
-{Y_n} \, Y_{n+h}\)</span> and <span class="math inline">\(V=\hat\gamma_0(Y_{1:N}) =
+v}g(\mu^{}_U,\mu^{}_V)\]</span> with <span class="math inline">\(U=\widehat{\gamma}_h(Y_{1:N})=\frac{1}{N}\sum_{n=1}^{N-h}
+{Y_n} \, Y_{n+h}\)</span> and <span class="math inline">\(V=\widehat{\gamma}_0(Y_{1:N}) =
 \frac{1}{N}\sum_{n=1}^{N} {Y_n}^2\)</span>. Finding the mean and
 variance of <span class="math inline">\(U\)</span> and <span class="math inline">\(V\)</span> requires similar techniques to Question
 1.1.</p>
