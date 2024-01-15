@@ -17,7 +17,7 @@ Submit your solution as a pdf via Canvas. You may scan a handwritten report. Lat
 
 The grading scheme for the homework report puts an emphasis on careful explanation of sources, as explained in the [grading rubric](../rubric_homework.html). You are advised to read this rubric before submitting your homework. You are expected to support your homework report with sources, when appropriate. Usually, the sources are listed at the end of the report and cited where applicable within the report.
 
-Some of you are already contributing on the [course Piazza site](https://piazza.com/umich/winter2024/datascistats531). You can also consider participation in online discussion as part of your homework. If there is no discussion on the Piazza site that you want to join, start a new one! Participation, in class or online, is assessed via participation statements scheduled on Canvas.
+Questions about the homework can be asked (and answered) on the [course Piazza site](https://piazza.com/umich/winter2024/datascistats531). Involvement on Piazza can count towward class participation. 
 
 --------
 
