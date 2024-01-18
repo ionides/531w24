@@ -1,0 +1,794 @@
+\input{../header}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{3}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w22/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Stationarity, white noise, and some basic time series models}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+\section{Concepts of stationarity}
+
+\begin{frame}[fragile]
+\frametitle{Definition: Weak and strong stationarity}
+
+\bi
+
+\item A time series model which is both mean stationary and covariance stationary is \myemph{weakly stationary} or \myemph{second order stationary}.
+
+\item A time series model for which all joint distributions are invariant to shifts in time is \myemph{strongly stationary} or \myemph{strictly stationary}.
+
+\item Formally, this means that for any collection of times $(t_1, t_2,\dots,t_K)$, the joint distribution of observations at these times should be the same as the joint distribution at $(t_1+\tau, t_2+\tau,\dots,t_K+\tau)$ for any $\tau$.
+
+\item For equally spaced observations, this becomes: for any collection of timepoints $n_1,\dots,n_K$, and for any lag $h$, the joint density function of $(Y_{n_1},Y_{n_2},\dots, Y_{n_K})$ is the same as the joint density function of $(Y_{n_1+h},Y_{n_2+h},\dots, Y_{n_K+h})$.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+\item In our general notation for densities, this strict stationarity requirement can be written as
+\begin{eqnarray}&&f_{Y_{n_1},Y_{n_2},\dots, Y_{n_K}}(y_1,y_2,\dots,y_K)\\
+&&\quad\quad = f_{Y_{n_1+h},Y_{n_2+h},\dots, Y_{n_K+h}}(y_1,y_2,\dots,y_K).
+\end{eqnarray}
+
+\item Strict stationarity implies weak stationarity (check this). 
+
+\ei
+
+\myquestion. How could we assess whether a weak stationary model is appropriate for a time series dataset?
+
+\answer{\vspace{40mm}}{
+Supposed they are equally spaced, we can
+\begin{enumerate}
+\item calculate average in chunks (for mean stationary)
+\item calculate sample ACF in chunks (for covariance stationary)
+\end{enumerate}
+}
+
+\end{frame}
+\begin{frame}
+
+\myquestion. How could we assess whether a strictly stationary model is appropriate for a time series dataset?
+
+\answer{\vspace{40mm}}
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\myquestion. Is it usual for time series to be well modeled as stationary (either weakly or strictly)?
+
+\answer{\vspace{25mm}}{It sometimes happens. However, systems often change over time, and that may be one of the things we are interested in.}
+
+\myquestion. If data often do not show stationary behavior, why do many fundamental models have stationarity?
+
+\answer{\vspace{25mm}}{todo}
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\vspace{-1.5mm}
+
+
+\myquestion. Is a stationary model appropriate for either (or both) the time series below? Explain.
+
+\answer{\vspace{20mm}}{todo}
+
+<< stationarity_sim, echo=FALSE>>=
+N <- 500
+times <- 1:N
+T1 <- 120
+T2 <- 37
+set.seed(73413)
+y <- sin(2*pi*(times/T1 + runif(1))) +   sin(2*pi*(times/T2 + runif(1))) + rnorm(N)
+x <- y[1:50]
+oldpars <- par(mfrow=c(1,2))
+plot(x,ty="l",xlab="")
+plot(y,ty="l",xlab="")
+par(oldpars)
+@
+
+
+\end{frame}
+
+\section{White noise}
+
+\begin{frame}[fragile]
+\frametitle{White noise}
+
+A time series model $\epsilon_{1:N}$ which is weakly stationary with 
+\begin{eqnarray} \nonumber
+\E[\epsilon_n]&=& 0 
+\\ 
+\nonumber
+\cov(\epsilon_m,\epsilon_n) &=& \left\{\begin{array}{ll}
+  \sigma^2, & \mbox{if $m=n$} \\
+   0, & \mbox{if $m\neq n$} \end{array}\right. ,
+\end{eqnarray}
+is said to be \myemph{white noise} with variance $\sigma^2$.
+\bi
+\item The ``noise'' is because there's no pattern, just random variation. If you listened to a realization of white noise as an audio file, you would hear a static sound.
+
+\item The ``white'' is because all freqencies are equally represented. This will become clear when we do frequency domain analysis of time series.
+
+\item Signal processing---sending and receiving signals on noisy channels---was a motivation for early time series analysis.
+
+\ei
+
+\end{frame} 
+
+
+\begin{frame}[fragile]
+\frametitle{Example: Gaussian white noise}
+
+In time series analysis, a sequence of independent identically distributed (\iid) Normal random variables with mean zero and variance $\sigma^2$ is known as \myemph{Gaussian white noise}. We write this model as
+\[
+\nonumber 
+\epsilon_{1:N} \sim \mathrm{\iid} \, N[0,\sigma^2].
+\]
+ 
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\frametitle{Example: Binary white noise}
+
+Let $\epsilon_{1:N}$ be {\iid} with
+\begin{eqnarray}
+\nonumber
+\epsilon_n = \left\{\begin{array}{ll}
+  1, & \mbox{with probability $1/2$} \\
+  -1, & \mbox{with probability $1/2$} \end{array}\right. .
+\end{eqnarray}
+We can check that $\E[\epsilon_n]=0$, $\myvar(\epsilon_n)=1$ and $\cov(\epsilon_m,\epsilon_n)=0$ for $m\neq n$. Therefore, $\epsilon_{1:N}$ is white noise. 
+
+Similarly, for any $p\in (0,1)$, we could have 
+\begin{eqnarray}
+\nonumber
+\epsilon_n = \left\{\begin{array}{ll}
+  (1-p)/p, & \mbox{with probability $p$} \\
+  -1, & \mbox{with probability $1-p$} \end{array}\right. .
+\end{eqnarray}
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\frametitle{Example: Sinusoidal white noise}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+Let $\epsilon_n = \sin(2\pi n U)$, with a single draw $U\sim\mathrm{Uniform}[0,1]$ determining the time series model for all $n\in 1:N$. We will show this is an example of a weakly stationary time series that is not strictly stationary.
+
+\vspace{2mm}
+
+{\myquestion}. Show that $\epsilon_{1:N}$ is weakly stationary, and is white noise!
+
+
+\answer{\vspace{50mm}}{
+\begin{eqnarray}
+\E[\epsilon_n] &=& \int_0^1 \sin(2\pi nu)\, du = -(2\pi n)^{-1}[cos(2\pi nu)]_0^1=0$.
+\\
+\cov[\epsilon_m\epsilon_n] &=&=\int_0^1 \sin(2\pi nu)\sin(2\pi\mu)\, du
+\\
+&=& (1/2)\int_0^1[\cos(2\pi(n-m)u)-cos(2\pi(n+m)u)]\, du
+\end{eqnarray}
+}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+{\myquestion}. Show that $\epsilon_{1:N}$ is NOT strictly stationary.
+
+\vspace{1mm}
+\myemph{Hint}: consider the following plot of $\epsilon_{1:3}$ as a function of $U$.
+$\epsilon_1$ is shown as the black line; $\epsilon_2$ is the red line; $\epsilon_3$ is the blue line.
+
+
+<<sinusoidal,echo=FALSE,fig.width=5,fig.height=2.5,out.width="8cm">>=
+par(mai=c(0.8,0.5,0.2,0.1))
+np <- 500
+U <- seq(from=0,to=1,length=np)
+epsilon1 <- sin(2*pi*U)
+epsilon2 <- sin(2*pi*2*U)
+epsilon3 <- sin(2*pi*3*U)
+matplot(U,cbind(epsilon1,epsilon2,epsilon3),col=c("black","red","blue"),
+  lty=c(1,2,4),ylab="",ty="l",xlab="U")
+abline(h=0,lty="dotted")
+abline(v=c(1/4,1/2,3/4),lty="dotted")
+
+@
+
+\answer{\vspace{50mm}}{
+A counterexample: e.g., $\prob[\epsilon_2=0\given \epsilon_1=1]=1$, whereas  $\prob[\epsilon_3=0\given \epsilon_2=1]=0$
+}
+
+\end{frame}
+
+
+\section{Building models using white noise}
+
+\begin{frame}[fragile]
+
+\frametitle{Using white noise to build other time series models}
+
+Reminder: Why do we even need time series models?
+
+\bi
+\item All statistical tests (i.e., whenever we use data to answer a question) rely on having a model for the data. The model is sometimes called the \myemph{assumptions} for the test.
+
+\item If our model is wrong, then any conclusions drawn from it may be wrong. Our error could be small and insignificant, or disastrous.
+ 
+\item Time series data collected close in time are often more similar than a model with {\iid} variation would predict. We need models that have this property, and we must work out how to test interesting hypotheses for these models.
+
+\ei
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+
+\frametitle{The AR(p) autoregressive model}
+
+\bi
+
+\item The order $p$ autoregressive model,  abbreviated to AR(p), is
+
+\vspace{2mm}
+
+[M1] $\quad\quad \quad Y_n = \phi_1 Y_{n-1}+\phi_2Y_{n-2}+\dots+\phi_pY_{n-p} + \epsilon_n$,
+
+\vspace{2mm}
+
+where $\{\epsilon_n\}$ is a white noise process. 
+
+
+\item Often, we consider the \myemph{Gaussian AR(p)} model, where  $\{\epsilon_n\}$ is a Gaussian white noise process. 
+
+\item M1 is a \myemph{stochastic difference equation}. It is a \link{https://en.wikipedia.org/wiki/Recurrence_relation}{difference equation (also known as a recurrence relation)} since each time point is specified recursively in terms of previous time points. Stochastic just means random.
+
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item To complete the model, we need to \myemph{initialize} the solution to the stochastic difference equation. Supposing we want to specify a distribution for $Y_{1:N}$, we have some choices in how to set up the \myemph{initial values}.
+
+\ei
+\begin{enumerate}
+   \item We can specify $Y_{1:p}$ explicitly, to get the recursion started.
+
+    \item We can specify $Y_{1-p:0}$ explicitly.
+
+    \item  For either of these choices, we can define these initial values either to be additional parameters in the model (i.e., not random) or to be specified random variables.
+
+    \item If we want our model is strictly stationary, we must initialize so that $Y_{1:p}$ have the proper joint distribution for this stationary model.
+
+\end{enumerate}
+
+\bi
+
+\item Assuming the initialization has mean zero, M1 implies that $\E[Y_n]=0$ for all $n$. For additional generality, we could add a constant mean $\mu$.
+
+\item Let's investigate a particular Gaussian AR(1) process, as an exercise.
+
+\vspace{2mm}
+
+[M2] $\quad\quad \quad Y_n = 0.6 Y_{n-1}+ \epsilon_n$,
+
+\vspace{2mm}
+
+where $\epsilon_n\sim \mathrm{\iid}\, N[0,1]$. We will initialize with $Y_1\sim N[0,1.56]$.
+
+\ei
+
+\end{frame} 
+
+
+
+
+\begin{frame}[fragile]{Simulating an autoregressive model}
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+Looking at simulated sample paths is a good way to get some intuition about a random process model. 
+We will do this for the AR(1) model M2.
+One approach is to use the \code{arima.sim} function in R.
+
+\mode<presentation>{
+\vspace{-1mm}
+}
+
+<< ar_arima_sim_code,echo=T,eval=F>>=
+set.seed(123456789)
+ar1 <- arima.sim(list(ar=0.6),n=100,sd=1)
+plot(ar1,type="l")
+@
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+<< ar_arima_sim,fig.width=4,fig.height=2.5,echo=F,eval=T,out.width="8cm">>=
+par(mai=c(0.8,0.8,0.1,0.1))
+<<ar_arima_sim_code>>
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+\bi
+
+\item Does your intuition tell you that these simulated data are evidence for a model with a linear trend?
+
+\item The eye looks for patterns in data, and often finds them even when there is no strong statistical evidence. 
+
+\item That is why we need statistical tests!
+
+\item It is easy to see patterns even in white noise. Dependent models produce spurious patterns even more often.
+
+\item Play with simulating different models with different seeds to train your intuition.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+We can also simulate model M2 directly by writing the model equation:
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+<< ar_sim_code,echo=T,eval=F>>=
+set.seed(123456789)
+N <- 100
+X <- numeric(N)
+X[1] <- rnorm(1,sd=sqrt(1.56))
+for(n in 2:N) X[n] <- 0.6 * X[n-1] + rnorm(1)
+plot(X,type="l")
+points(lag(ar1,-13),col="red",pch=1)
+@
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+<<ar_sim,fig.width=4,fig.height=2.5,fig.align="left",out.width="6cm",echo=F,eval=T>>=
+par(mai=c(0.5,0.8,0.1,0.1))
+<<ar_sim_code>>
+@
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+Our simulation matches \code{arima.sim} perfectly with a shift of 13 time points. Explain this. Hint: How does \code{arima.sim} initialize the simulation?
+
+\end{frame} 
+
+
+
+
+
+\begin{frame}[fragile]
+
+
+\myquestion. What are the advantages and disadvantages of using \code{arima.sim} over the direct simulation method?
+
+\answer{\vspace{40mm}}{todo}
+
+
+\end{frame}
+
+\begin{frame}
+
+\myquestion. Compute the autcovariance function for model M2.
+
+\answer{\vspace{80mm}}{todo}
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+
+\frametitle{The MA(q) moving average model}
+
+\bi
+\item The order $q$ moving average model, abbreviated to MA(q), is
+
+\vspace{2mm}
+
+[M3] $\quad\quad \quad Y_n =  \epsilon_n +\theta_1 \epsilon_{n-1} +\dots+\theta_q\epsilon_{n-q}$,
+
+\vspace{2mm}
+
+where $\{\epsilon_n\}$ is a white noise process. 
+
+\item To fully specify $Y_{1:N}$ we must specify the joint distribution of $\epsilon_{1-q:N}$.
+
+\item Often, we consider the \myemph{Gaussian MA(q)} model, where  $\{\epsilon_n\}$ is a Gaussian white noise process. 
+
+\item In M3, we've defined a zero mean process. We could add a mean $\mu$.
+
+\item Let's investigate a particular Gaussian MA(2) process, as an exercise.
+
+\vspace{2mm}
+
+[M4] $\quad\quad \quad Y_n = \epsilon_n + 1.5\epsilon_{n-1}+\epsilon_{n-2}$,
+
+\vspace{2mm}
+
+where $\epsilon_n\sim \mathrm{\iid} \,  N[0,1]$.
+\ei
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+
+\frametitle{Simulating a moving average model}
+
+We simulate M4 using the same methods as for the autoregressive model.
+
+<< ma_sim_code,eval=F,echo=T>>=
+N <- 100
+set.seed(123456789)
+X1 <- arima.sim(list(ma=c(1.5,1)),n=N,sd=1)
+set.seed(123456789)
+epsilon <- rnorm(N+2)
+X2 <- numeric(N)
+for(n in 1:N) X2[n] <- epsilon[n+2]+1.5*epsilon[n+1]+epsilon[n]
+plot(X1,type="l") ; plot(X2,type="l")
+@
+
+<< ma_sim,eval=T,echo=F,fig.width=8,fig.height=2.5,out.width="12cm">>=
+oldpars <- par(mfrow=c(1,2))
+par(mai=c(0.8,0.8,0.1,0.1))
+<<ma_sim_code>>
+par(oldpars)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+\code{X1} and \code{X2} look identical. We can check this
+<< check>>=
+all(X1==X2)
+@
+
+Do you agree that the spurious evidence for a trend that we saw for the AR(1) model is still somewhat present for the MA(2) simulation? Let's see if we can also see it in the underlying white noise process:
+
+<< noise_sim_code,echo=T,eval=F>>=
+N <- 100
+set.seed(123456789)
+epsilon <- rnorm(N)
+plot(epsilon,type="l")
+@
+
+\vspace{-2mm}
+
+<< noise_sim,fig.width=4,fig.height=2.5,out.width="6cm",echo=F,eval=T>>=
+par(mai=c(0.8,0.5,0.1,0.1))
+<<noise_sim_code>>
+@
+
+To me, the trend-like behavior is not visually apparent in the white noise that ``drives'' the AR and MA models.
+
+\end{frame} 
+
+
+\begin{frame}[fragile]
+
+\frametitle{The random walk model}
+
+
+\vspace{-3mm}
+
+\bi
+
+\item The \myemph{random walk} model is
+
+\vspace{2mm}
+
+[M5] $\quad\quad\quad Y_n = Y_{n-1} + \epsilon_n$,
+
+\vspace{2mm}
+
+where $\{\epsilon_n\}$ is white noise. Unless otherwise specified, we usually initialize with $Y_0=0$.
+
+\item If $\{\epsilon_n\}$ is Gaussian white noise, then we have a Gaussian random walk.
+
+\item The random walk model is a special case of AR(1) with $\phi_1=1$. 
+
+\item The stochastic difference equation in M5 has an exact solution,
+$$ Y_n = \sum_{k=1}^n\epsilon_k.$$
+
+\item We can also call $Y_{0:N}$ an \myemph{integrated white noise process}. We think of summation as a discrete version of integration.
+
+\item If data $\data{y_{1:N}}$ are modeled as a random walk, the value of $Y_0$ is usually an unknown. Rather than introducing an unknown parameter to our model, we may initialize our model at time $t_1$ with $Y_1=\data{y_1}$.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+\bi
+\item The \myemph{first difference} time series $z_{2:N}$ is defined by
+\begin{equation}
+z_n= \Delta \data{y_n} = \data{y_{n}}-\data{y_{n-1}}
+\end{equation}
+
+\item From a time series of length $N$, we only get $N-1$ first differences. 
+
+\item A random walk model for $\data{y_{1:N}}$ is essentially equivalent to a white noise model for $z_{2:N}= \Delta \data{y_{2:N}}$, apart from the issue of initialization.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{The random walk with drift}
+\bi
+\item The \myemph{random walk with drift} model is given by the difference equation
+
+\vspace{2mm}
+
+[M6] $\quad\quad\quad Y_n = Y_{n-1} + \mu + \epsilon_n$,
+
+\vspace{2mm}
+
+driven by a white noise process $\{\epsilon_n\}$. This has solution
+$$ Y_n = Y_0 + n\mu + \sum_{k=1}^n\epsilon_k.$$
+
+\item Here, $\mu$ is the mean of the \myemph{increments} rather than the random walk process itself.
+
+\item As for the random walk without drift, we must define $Y_0$ to initialize the model and complete the model specification. Unless otherwise specified, we usually initialize with $Y_0=0$.
+
+\ei
+
+\end{frame} 
+
+\section{Modeling financial returns using white noise}
+
+\begin{frame}[fragile]
+
+\frametitle{Modeling financial markets as a random walk}
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+The theory of efficient financial markets suggests that the logarithm of a stock market index (or the value of an individual stock, or other investment) might behave like a random walk with drift.
+We test this on daily S\&P 500 data, downloaded from \link{https://finance.yahoo.com/}{yahoo.com}.
+%% \url{http://real-chart.finance.yahoo.com/table.csv?s=%5EGSPC&d=0&e=15&f=2016&g=d&a=0&b=3&c=1950&ignore=.csv}.
+
+\vspace{-1mm}
+
+<< sp500_code,echo=T,fig.align="left",eval=F>>=
+sp <- read.table("sp500.csv",sep=",",header=TRUE)
+date <- as.Date(sp$Date)
+sp500 <- sp$Close
+plot(sp500~date,log="y",type="l",xlab="date",ylab="S&P 500")
+@
+
+\mode<presentation>{
+\vspace{-6mm}
+}
+
+\vspace{-5mm}
+
+<< sp500,echo=F,eval=T,fig.width=6,out.width="8cm">>=
+<<sp500_code>>
+@
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+To train our intuition, we compare the data with simulations from a fitted model. A simple starting point is a Gaussian random walk with drift, having parameters estimated from the data.
+
+<<sp500params_code,echo=T,eval=F>>=
+mu <- mean(diff(log(sp500)))
+sigma <- sd(diff(log(sp500)))
+N <- length(sp500)
+X1 <- log(sp500[1])+cumsum(c(0,rnorm(N-1,mean=mu,sd=sigma)))
+X2 <- log(sp500[1])+cumsum(c(0,rnorm(N-1,mean=mu,sd=sigma)))
+plot(X1,type="l") ; plot(X2,type="l")
+@
+
+\vspace{-8mm}
+
+<<sp500params,echo=F,eval=T,,fig.width=10,fig.height=4,out.width="12cm">>=
+set.seed(98)
+par(mfrow=c(1,2))
+<<sp500params_code>>
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+\bi
+\item This seems reasonable so far. Now we plot the sample autocorrelation function (sample ACF) of \code{diff(log(sp500))}. 
+
+\item It is bad style to refer to quantities using computer code notation. We should set up mathematical notation in the text. Let's try again...
+
+\item Let $\data{y_{1:N}}$ be the time series of S\&P 500 daily closing values downloaded from yahoo.com.  Let $z_n= \Delta \log \data{y_n} = \log \data{y_{n}}-\log \data{y_{n-1}}$. 
+
+\item We plot the sample autocorrelation function of the time series of S\&P 500 returns, ${z_{2:N}}$.
+<< sp500_acf_code,eval=F,echo=T>>=
+z <- diff(log(sp500))
+acf(z)
+@
+\ei
+\vspace{-1mm}
+
+<< sp500_acf,echo=F,fig.width=4,fig.height=2.5,out.width="7cm">>=
+par(mai=c(0.8,0.5,0.1,0.1))
+<<sp500_acf_code>>
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+\bi
+\item This looks close to the ACF of white noise. There is some evidence for a small nonzero autocorrelation at lags 0 and 1. 
+
+\item Here, we have have a long time series ($N=\Sexpr{N}$). For such a long time series, statistically significant effects may be practically insignificant. 
+ 
+\ei
+
+\myquestion. Why may the length of the time series be relevant when considering practical versus statistical significance? 
+
+\answer{\vspace{30mm}}{todo}
+
+\bi
+\item It seems like the S\&P 500 returns (centered, by subtracting the sample mean) may be a real-life time series well modeled by white noise.
+\ei
+
+\end{frame} 
+
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+\bi
+
+\item Looking at the absolute value of the centered returns is thought-provoking.
+
+\ei
+
+
+\myquestion. How should we interpret the following plot? To what extent does this plot refute the white noise model for the centered returns (or, equivalently, the random walk model for the log index value)?
+
+\answer{\vspace{20mm}}{todo}
+
+<< sp500_abs_return_acf_code,echo=T,eval=F>>=
+acf(abs(z-mean(z)),lag.max=200)
+@
+
+\vspace{-1mm}
+
+<< sp500_abs_return_acf,echo=F,eval=T,fig.height=2.5,fig.width=4,out.width="6cm">>=
+par(mai=c(0.8,0.5,0.1,0.1))
+<<sp500_abs_return_acf_code>>
+@
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Volatility and market inefficiencies}
+
+\bi
+
+\item Nowadays, nobody is surprised that the sample ACF of a financial return time series shows little or no evidence for autocorrelation.
+
+\item Deviations from the efficient market hypothesis, if you can find them, are of interest.
+
+\item Also, it remains a challenge to find good models for \myemph{volatility}, the conditional variance process of a financial return model.
+
+\ei
+
+\end{frame}
+
+\begin{frame}{Further reading} 
+
+\begin{itemize}
+\item Chapter~1 of \citet{shumway17} provides a complementary introduction to time series analysis.
+\item If you are relatively new to R, \citet{venables21} is a comprehensive introduction.
+\end{itemize}
+
+\end{frame} 
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w22/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
+
+
