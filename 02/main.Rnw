@@ -337,7 +337,7 @@ par(mai=c(1.1,1,0.4,1))
 
 \item There is value in relatively simple statistical analysis, which can at least help to tell us what evidence there is for how things are, or are not, changing. 
 
-\item Here is a quote from {\it Science} (18 December 2015, volume 350, page 1461; I've added some emphasis).
+\item Here is a quote from {\it Science} (18 December 2015, volume 350, page 1461) which remains pertinent.
 
 \end{itemize}
 

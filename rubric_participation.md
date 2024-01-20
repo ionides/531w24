@@ -9,7 +9,7 @@ output: html_document
 
 A goal of the participation credit is to reward and incentivize contributions that help to build a constructive learning community for the course. Another justification is that learning to communicate in a variety of ways about the material (and about statistics and data science in general) is itself a goal of the course.
 
-1. The [piazza site](piazza.com/umich/winter2024/datascistats531) is the main venue for participation in class discussions. If this site does not currently contain the discussion topics you need, then start them. The instructors will also introduce discussion topics that you may like to respond to.
+1. The [piazza site](https://piazza.com/umich/winter2024/datascistats531) is the main venue for participation in class discussions. If this site does not currently contain the discussion topics you need, then start them. The instructors will also introduce discussion topics that you may like to respond to.
 
 1. Anonymous contributions generally build community less well than signed ones, so more credit will be given to non-anonymous contributions unless for some reason the topic requires anonymity.
 

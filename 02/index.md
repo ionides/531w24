@@ -9,6 +9,7 @@ output: html_document
 | &nbsp;          | &nbsp;                            |
 |:------------|:-------------------------------------:|
 | Lecture slides  | [pdf](slides.pdf)   |
+| Annotated slides | [pdf](slides-annotated.pdf) |
 | Lecture notes   | [pdf](notes.pdf) |
 | Recording: Chapter 2, Part 1  | [(17 mins)](https://youtu.be/lKQHUlBJafo) |
 | Recording: Chapter 2, Part 2  | [(14 mins)](https://youtu.be/RiBDMz17ldM) |

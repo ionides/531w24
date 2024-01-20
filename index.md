@@ -25,11 +25,11 @@ The course outline, course information and grading policies are described in the
 
 1. [Introduction](01/index.html)
 
-<!--
 2. [Estimating trend and autocovariance](02/index.html)
 
 3. [Stationarity, white noise, and some basic time series models](03/index.html)
 
+<!--
 4. [Linear time series models and the algebra of ARMA models](04/index.html)
 
 5. [Parameter estimation and model identification for ARMA models](05/index.html)
@@ -70,10 +70,19 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 * [Homework 0](hw00/hw00.html). Setting up your computational environment. Nothing to submit.
 
+
+* [Homework 1](hw01/hw01.html), due Sun Jan 21, 11:59pm. 
+
 <!--
 
-* [Homework 1](hw01/hw01.html), due Mon Jan 17, 11:59pm. This included Participation 1. 
 [Solution](hw01/sol01.html).
+
+-->
+
+* [Participation 1](participation/participation1.html), due Sun Jan 21, 11:59pm.
+
+
+<!--
 
 * [Homework 2](hw02/hw02.html), due Mon Jan 24, 11:59pm.
 [Solution](hw02/sol02.html).

@@ -21,7 +21,7 @@ For homework, you can use as many or as few sources as you like, but you are res
 
 A **source** is anything or anyone you consulted (including classmates or office hours or any website you visited) to help you write or check your answers.
 
-(5 points). The howework is explicit about what sources were and were not used. The reader can easily tell which parts of the homework relate to which of the listed sources. This is usually done by citing the source at each point it was used, and listing the full reference at the end.
+(5 points). The howework is explicit about what sources were and were not used. The reader can easily tell which parts of the homework relate to which of the listed sources. This is usually done by citing the source at each point it was used, and listing the full reference at the end of the report. Collaborations can also be mentioned in an acknowledgment section at the end of the report.
 
 (4 points). Sources are explicit, but it is sometimes unclear which parts of the homework relate to which sources. Or, there are some points which could be improved by a suitable reference.
 
