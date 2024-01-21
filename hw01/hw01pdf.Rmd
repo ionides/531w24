@@ -10,7 +10,7 @@ editor: source
 \newcommand\var{\mathrm{Var}}
 \newcommand\cov{\mathrm{Cov}}
 
-<big>Question 1.1</big>. Recall the basic properties of covariance, $\mathrm{Cov}(X,Y) = E\big[(X-\mathbb{E}[X])(Y-\mathbb{E}[Y])\big]$, following the convention that upper case letters are random variables and lower case letters are constants:
+**Question 1.1** Recall the basic properties of covariance, $\mathrm{Cov}(X,Y) = E\big[(X-\mathbb{E}[X])(Y-\mathbb{E}[Y])\big]$, following the convention that upper case letters are random variables and lower case letters are constants:
 
 P1. $\quad \mathrm{Cov}(Y,Y)= \mathrm{Var}(Y)$,
 
@@ -40,7 +40,7 @@ $$
 
 ****
 
-<big>Question 1.2</big>. The sample autocorrelation is perhaps the second most common type of plot in time series analysis, after simply plotting the data. We investigate how R represents chance variation in the plot of the sample autocorrelation function produced by the `acf` function. We seek to check what R actually does when it constructs the dashed horizontal lines in this plot. What approximation is being made? How should the lines be interpreted statistically?
+**Question 1.2** The sample autocorrelation is perhaps the second most common type of plot in time series analysis, after simply plotting the data. We investigate how R represents chance variation in the plot of the sample autocorrelation function produced by the `acf` function. We seek to check what R actually does when it constructs the dashed horizontal lines in this plot. What approximation is being made? How should the lines be interpreted statistically?
 
 If you type `acf` in R, you get the source code for the acf function. You'll see that the plotting is done by a service function `plot.acf`. This service function is part of the package, and is not immediately accessible to you. Nevertheless, you can check the source code as follows:
 
@@ -109,8 +109,11 @@ $$
 \mu_V = \mathbb{E}[V] &= \frac{1}{N}\sum_{n=1}^{N}\mathbb{E}[Y_n^2]\\
 &= \frac{1}{N}\sum_{n=1}^N(\mathrm{Var}(Y_n) + \mathbb{E}[Y_n])\\
 &= \frac{1}{N}\sum_{i=1}^N\sigma^2\\
-&= \sigma^2\\
-\\
+&= \sigma^2\
+\end {aligned}
+$$
+$$
+\begin {aligned}
 \sigma_U^2 = \mathrm{Var}(U) &= \frac{1}{N^2} \mathrm{Var}(\sum_{n=1}^{N-h}Y_nY_{n+h})\\
 &= \frac{1}{N^2} \sum_{i=1}^{N-h} \sum_{j=1}^{N-h} \mathrm{Cov}(Y_iY_{i+h}, Y_jY_{j+h})\\
 &= \frac{1}{N^2} \sum_{i=1}^{N-h} \sum_{j=1}^{N-h}(\mathbb{E}[Y_iY_jY_{i+h}Y_{j+h}] - \mathbb{E}[Y_iY_j]\mathbb{E}[Y_jY_{j+h}])\\
@@ -130,21 +133,21 @@ $$
 
 Since:
 
-$$\widehat{\rho}(Y_{1:N}) = \frac{\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \, Y_{n+h}} {\frac{1}{N}\sum_{n=1}^{N} Y_{n}^2} = \frac{U}{V}$$ Using Taylor series approximation, let $g(U,V) = \frac{U}{V}$, 
+$$\widehat{\rho}_h(Y_{1:N}) = \frac{\frac{1}{N}\sum_{n=1}^{N-h} {Y_n} \, Y_{n+h}} {\frac{1}{N}\sum_{n=1}^{N} Y_{n}^2} = \frac{U}{V}$$ Using Taylor series approximation, let $g(U,V) = \frac{U}{V}$, 
 then:$$
 \begin {aligned}
 \hat{\rho}_h(Y_{1:N}) &\approx g(\mu_U, \mu_V) + (U- \mu_U)\frac{\partial}{\partial U}g(\mu_U,\mu_V) + (V- \mu_V)\frac{\partial}{\partial V}g(\mu_U, \mu_V)\\
 &= \frac{0}{\sigma^2} + (U-0)\cdot \frac{1}{\sigma^2} + (V-\sigma^2)\cdot (-\frac{0}{\sigma^4})\\
 &= \frac{U}{\sigma^2}\\
 \\
-\mathbb{E}[\hat{\rho}(Y_{1:N})] &= \frac{1}{\sigma^2} \mathbb{E}[V] = 0\\
+\mathbb{E}[\hat{\rho}_h(Y_{1:N})] &= \frac{1}{\sigma^2} \mathbb{E}[U] = 0\\
 \\
-\text{Sd}(\hat{\rho}(Y_{1:N})) &= \sqrt{\frac{1}{\sigma^4}\sigma_U^2} = \sqrt{\frac{N-h}{N^2}}
+\text{Sd}(\hat{\rho}_h(Y_{1:N})) &= \sqrt{\frac{1}{\sigma^4}\sigma_U^2} = \sqrt{\frac{N-h}{N^2}}
 \end {aligned}
 $$
 
 when $n\to \infty$: $$
-\text{Sd}(\hat{\rho}(Y_{1:N})) = \sqrt{\frac{N-h}{N^2}} \to \frac{1}{\sqrt{N}}
+\text{Sd}(\hat{\rho}_h(Y_{1:N})) = \sqrt{\frac{N-h}{N^2}} \to \frac{1}{\sqrt{N}}
 $$
 
 ------------------------------------------------------------------------
@@ -158,4 +161,8 @@ Plotting of the confidence interval is suppressed if ‘ci’ is zero or negativ
 
 Use a definition of a confidence interval to explain how these lines do, or do not, construct a confidence interval.
 
-------------------------------------------------------------------------
+**Solution**:
+
+The definition for the confidence interval here is that if we assume that the time series data we plot is just a set of white noise, then the sample ACF(autocorrelation function) will be in the interval with the probability of 95% given n(sample size) is large enough.  
+
+We can use the lines to construct a confidence interval and test our hypothesis like this: under the white noise hypothesis, approximately 95% of our sample ACF dots will be between the lines. If there are obvious more than 5% of our sample ACF dots appear beyond the lines, then we can reject our hypothesis that the time series data is just white noise.
