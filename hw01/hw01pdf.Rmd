@@ -166,3 +166,8 @@ Use a definition of a confidence interval to explain how these lines do, or do n
 The definition for the confidence interval here is that if we assume that the time series data we plot is just a set of white noise, then the sample ACF(autocorrelation function) will be in the interval with the probability of 95% given n(sample size) is large enough.  
 
 We can use the lines to construct a confidence interval and test our hypothesis like this: under the white noise hypothesis, approximately 95% of our sample ACF dots will be between the lines. If there are obvious more than 5% of our sample ACF dots appear beyond the lines, then we can reject our hypothesis that the time series data is just white noise.
+
+Also, I have referred to *Time Series Analysis and Its Applications* by Robert H. Shumway and David S. Stoffer.
+
+"Based on the previous result, we obtain a rough method of assessing whether peaks
+in $\hat{\rho}_h$ are significant by determining whether the observed peak is outside the interval $\pm2/\sqrt{n}$ (or plus/minus two standard errors); for a white noise sequence, approximately 95% of the sample ACFs should be within these limits."
