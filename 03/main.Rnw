@@ -686,7 +686,7 @@ par(mai=c(0.8,0.5,0.1,0.1))
 
 \begin{frame}[fragile]
 \bi
-\item This looks close to the ACF of white noise. There is some evidence for a small nonzero autocorrelation at lags 0 and 1. 
+\item This looks close to the ACF of white noise. There is some evidence for a small nonzero autocorrelation at some lags. 
 
 \item Here, we have have a long time series ($N=\Sexpr{N}$). For such a long time series, statistically significant effects may be practically insignificant. 
  
