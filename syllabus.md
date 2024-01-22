@@ -25,7 +25,7 @@ Instructor contact information:
 GSI: Jesse Wheeler
 
 * email: jeswheel@umich.edu
-* office hours: TBD
+* office hours: Tuesday, 8:30 AM - 10:00 AM; Friday, 12:30 PM - 1:55 PM; Angell Hall G219
 
 Computing support. If you have a coding problem you cannot debug, it is often helpful to develop a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) that others can run to help you. You can share this, and the error message you obtain, with your group and/or on Piazza, or by email if necessary.
 
