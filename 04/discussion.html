@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Edward L. Ionides" />
+<meta name="author" content="STATS/DATASCI 531, Winter 2022" />
 
 
-<title>Modeling and Analysis of Time Series Data DATASCI/STATS 531, Winter 2024 Chapter 3: Stationarity, white noise, and some basic time series models</title>
+<title>Chapter 4 discussion questions</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,66 +349,62 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Modeling and Analysis of Time Series
-Data<br>DATASCI/STATS 531, Winter 2024<br>Chapter 3: Stationarity, white
-noise, and some basic time series models</h1>
-<h4 class="author">Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Chapter 4 discussion questions</h1>
+<h4 class="author">STATS/DATASCI 531, Winter 2022</h4>
 
 </div>
 
 
 <hr />
-<table>
-<colgroup>
-<col width="25%" />
-<col width="74%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th align="left"> </th>
-<th align="center"> </th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">Lecture slides</td>
-<td align="center"><a href="slides.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left">Annotated slides</td>
-<td align="center"><a href="slides-annotated.pdf">pdf</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Lecture notes</td>
-<td align="center"><a href="notes.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left">Recording: Chapter 3, Part 1</td>
-<td align="center"><a href="https://youtu.be/tLCAJ74cvnA">(27
-mins)</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Recording: Chapter 3, Part 2</td>
-<td align="center"><a href="https://youtu.be/HSWLJnLbCC0">(24
-mins)</a></td>
-</tr>
-<tr class="even">
-<td align="left">Recording: Chapter 3, Part 3</td>
-<td align="center"><a href="https://youtu.be/rU8MnB6zAvM">(19
-mins)</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Discussion question</td>
-<td align="center"><a href="discussion.html">html</a></td>
-</tr>
-</tbody>
-</table>
-<hr />
-<hr />
-<p><a href="../index.html">Back to course homepage</a><br />
-<a href="../acknowledge.html">Acknowledgements</a><br />
-<a href="http://github.com/ionides/531w24/tree/master/03/">Source code
-for these notes</a></p>
+<ol style="list-style-type: decimal">
+<li><p><strong>ARMA models with a mean</strong>. The following are
+candidate ways to write an ARMA(p,q) model with mean <span class="math inline">\(\mu\)</span>. <span class="math display">\[\begin{array}{crcl}
+[A1] &amp; \hspace{15mm} Y_n &amp;=&amp; \mu + \phi_1
+Y_{n-1}+\phi_2Y_{n-2}+\dots +\phi_pY_{n-p}
+\\
+&amp; &amp;&amp; + \epsilon_n +\psi_1 \epsilon_{n-1}
++\dots+\psi_q\epsilon_{n-q}
+\\
+[A2] &amp; Y_n &amp;=&amp; \mu + \phi_1
+(Y_{n-1}-\mu)+\phi_2(Y_{n-2}-\mu)+\dots +\phi_p(Y_{n-p}-\mu)
+\\
+&amp; &amp;&amp; + \epsilon_n +\psi_1 \epsilon_{n-1}
++\dots+\psi_q\epsilon_{n-q}
+\\
+[A3] &amp; \phi(B) Y_n &amp;=&amp; \psi(B)\epsilon_n
+\\
+&amp;\phi(x)&amp;=&amp;1-\phi_1x - \phi_2 x^2 - \dots - \phi_p x^p
+\\
+&amp;\psi(x)&amp;=&amp;1+\psi_1x + \psi_2 x^2 + \dots + \psi_q x^q.
+\end{array}\]</span> Are both [A1] and [A2] reasonable alternative
+models? Is there a reason to prefer one to the other? Which one matches
+[A3]?</p></li>
+<li><p><strong>Two equivalent MA models</strong>. Consider the following
+moving average models, defined in terms of a Gaussian white noise
+process <span class="math inline">\(\epsilon_n \sim \mathrm{iid} \,
+N(0,\sigma^2)\)</span>. <span class="math display">\[\begin{array}{crcll}
+[B1]  &amp; \hspace{10mm} Y_n &amp;=&amp; \epsilon_n +
+2\epsilon_{n-1},  \hspace{5mm} &amp; \sigma^2=1.
+\\
+[B2] &amp;  Y_n &amp;=&amp; \epsilon_n + 0.5\epsilon_{n-1}, &amp;
+\sigma^2=4.
+\end{array}\]</span> Why can data never tell us which of [B1] and [B2]
+is preferable for a particular situation? Is there a practical reason to
+prefer [B1] or [B2]?</p></li>
+<li><p><strong>Over-damped AR(2) models</strong>. In Chapter 4, we saw
+that AR(2) models can describe quasi-periodic oscillatory behavior, with
+an autocorrelation function (ACF) that is an exponentially decaying
+sinusoid. You could experiment with <code>ARMAacf()</code> to find
+parameter values <span class="math inline">\(\phi_1\)</span> and <span class="math inline">\(\phi_2\)</span> for a causal AR(2) model that does
+not have a sinusoidal oscillation in its ACF. Instead, the ACF should
+decay to zero similar to an AR(1) model. Can you say anything about the
+class of all AR(2) models that do not have any oscillatory behavior? In
+other words, can you find a mathematical expression for the set of
+values of <span class="math inline">\(\phi_1\)</span> and <span class="math inline">\(\phi_2\)</span>? One way to address this in the
+context of Chapter 4 is to work out when a deterministic skeleton decays
+with no oscillations. In physics and engineering, this is called an
+over-damped system.</p></li>
+</ol>
 <hr />
 
 
