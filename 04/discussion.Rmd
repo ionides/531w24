@@ -1,0 +1,51 @@
+---
+title: "Chapter 4 discussion questions"
+author: "DATASCI/STATS 531"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+1. **ARMA models with a mean**.
+The following are candidate ways to write an ARMA(p,q) model with mean $\mu$.
+$$\begin{array}{crcl}
+ [A1] & \hspace{15mm} Y_n &=& \mu + \phi_1 Y_{n-1}+\phi_2Y_{n-2}+\dots +\phi_pY_{n-p}
+ \\
+& && + \epsilon_n +\psi_1 \epsilon_{n-1} +\dots+\psi_q\epsilon_{n-q}
+ \\
+ [A2] & Y_n &=& \mu + \phi_1 (Y_{n-1}-\mu)+\phi_2(Y_{n-2}-\mu)+\dots +\phi_p(Y_{n-p}-\mu)
+\\
+& && + \epsilon_n +\psi_1 \epsilon_{n-1} +\dots+\psi_q\epsilon_{n-q}
+\\
+ [A3] & \phi(B) Y_n &=& \psi(B)\epsilon_n
+\\
+&\phi(x)&=&1-\phi_1x - \phi_2 x^2 - \dots - \phi_p x^p
+\\
+&\psi(x)&=&1+\psi_1x + \psi_2 x^2 + \dots + \psi_q x^q.
+\end{array}$$
+Are both [A1] and [A2] reasonable alternative models? Is there a reason to prefer one to the other? Which one matches [A3]?
+
+2. **Two equivalent MA models**. Consider the following moving average models, defined in terms of a Gaussian white noise process $\epsilon_n \sim \mathrm{iid} \, N(0,\sigma^2)$.
+$$\begin{array}{crcll}
+ [B1]  & \hspace{10mm} Y_n &=& \epsilon_n + 2\epsilon_{n-1},  \hspace{5mm} & \sigma^2=1.
+\\
+ [B2] &  Y_n &=& \epsilon_n + 0.5\epsilon_{n-1}, & \sigma^2=4.
+\end{array}$$
+Why can data never tell us which of [B1] and [B2] is preferable for a particular situation? Is there a practical reason to prefer [B1] or [B2]?
+
+3. **Over-damped AR(2) models**.
+In Chapter 4, we saw that AR(2) models can describe quasi-periodic oscillatory behavior, with an autocorrelation function (ACF) that is an exponentially decaying sinusoid.
+You could experiment with `ARMAacf()` to find parameter values $\phi_1$ and $\phi_2$ for a causal AR(2) model that does not have a sinusoidal oscillation in its ACF. Instead, the ACF should decay to zero similar to an AR(1) model.
+Can you say anything about the class of all AR(2) models that do not have any oscillatory behavior? In other words, can you find a mathematical expression for the set of values of $\phi_1$ and $\phi_2$?
+One way to address this in the context of Chapter 4 is to work out when a deterministic skeleton decays with no oscillations. In physics and engineering, this is called an over-damped system.
+
+
+---------------
+

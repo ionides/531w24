@@ -1,0 +1,744 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{4}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w24/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Linear time series models and the algebra of ARMA models}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+\section{Stationary causal linear processes}
+
+\begin{frame}[fragile]
+
+\frametitle{Definition: Stationary causal linear process}
+
+\bi
+\item A \myemph{stationary causal linear process} is a time series models that can be written as
+
+\eqvspace
+
+\negListSpace [M7] $\eqspace Y_n = \mu + g_0\epsilon_n + g_1\epsilon_{n-1}+g_2\epsilon_{n-2}+g_3\epsilon_{n-3} + g_4\epsilon_{n-4}+\dots$
+
+\eqvspace
+
+where $\{\epsilon_n, n=\dots,-2,-1,0,1,2,\dots\}$ is a white noise process, defined for all integer timepoints, with variance $\myvar(\epsilon_n)=\sigma^2$.
+
+\item We do not need to define any initial values. The doubly infinite noise process $\{\epsilon_n, n=\dots,-2,-1,0,1,2,\dots\}$ is enough to define $Y_n$ for every $n$ as long as the infinite sum in [M7] converges.
+
+\ei
+
+\vspace{2mm}
+
+\myquestion. When does ``stationary'' here mean weak stationarity, and when does it mean strict stationary? 
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}   
+
+\begin{frame}[fragile]
+
+\bi
+
+\item \myemph{causal} in [M7] refers to $\{\epsilon_n\}$ being a causal driver of $\{Y_n\}$. The value of $Y_n$ depends only on noise process values already determined by time $n$.
+
+\item This matching a requirement that causes must precede effects
+(\url{wikipedia.org/wiki/Bradford_Hill_criteria}). 
+
+\item \myemph{linear} refers to linearity of $Y_n$ as a function of $\{\epsilon_n\}$. 
+
+
+\ei
+
+\end{frame}
+
+\subsection{The autocovariance of a linear process}
+
+\begin{frame}[fragile]
+
+\frametitle{The autocovariance function for a linear process}
+
+\vspace{-4mm}
+
+\begin{eqnarray}
+\gamma_h &=& \cov\big(Y_n,Y_{n+h}\big)\\
+&=& \cov\left(\sum_{j=0}^\infty g_j\epsilon_{n-j},\sum_{k=0}^\infty g_k\epsilon_{n+h-k}\right)\\
+&=& \sum_{j=0}^\infty \sum_{k=0}^\infty  g_j g_k\cov\big(\epsilon_{n-j},\epsilon_{n+h-k}\big)\\
+&=& \sum_{j=0}^\infty g_jg_{j+h} \sigma^2, \mbox{for $h\ge 0$}.
+\label{eq:linear:autocovariance}
+\end{eqnarray}
+
+
+\vspace{-1mm}
+
+\bi
+
+\item For the autocovariance function to be finite, we need
+\begin{equation}
+\sum_{j=0}^\infty g_j^2 < \infty.
+\end{equation}
+
+\item We assumed we can move $\sum_{j=0}^\infty \sum_{k=0}^\infty$ through $\cov$, discussed below.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item The interchange of expectation and infinite sums cannot be taken for granted. 
+$\cov\left(\sum_{i=1}^m X_i,\sum_{j=1}^n Y_j\right)=\sum_{i=1}^m\sum_{j=1}^n \cov(X_i,Y_j)$ is true for finite $m$ and $n$, but not necessarily for infinite sums.
+
+\item In this course, we do not focus on interchange issues, but we try to notice when we make assumptions.
+      
+\item The interchange of $\sum_{0}^\infty$ and $\cov$ can be justified by requiring a stronger condition,
+\begin{equation}
+\sum_{j=0}^\infty |g_j| < \infty.
+\end{equation}
+
+\item The MA(q) model that we defined in equation M3 is an example of a stationary, causal linear process.
+
+\item The general stationary, causal linear process model, M7, can also be called the MA($\infty$) model.
+
+\ei
+
+\end{frame}  
+
+
+\subsection{Causal and non-causal AR(1) models}
+
+ \begin{frame}[fragile]
+
+\frametitle{A stationary causal linear solution to the AR(1) model, and a non-causal solution}
+
+The stochastic difference equation defining the AR(1) model,
+    
+\eqvspace
+
+[M8] \hspace{2mm} $\eqspace Y_n = \ar Y_{n-1}+\epsilon_n$.
+
+\eqvspace
+    
+This has a causal solution,
+    
+\eqvspace
+
+[M8.1] $\eqspace Y_n = \sum_{j=0}^\infty \ar^j\epsilon_{n-j}$.
+    
+\eqvspace
+
+It also has a non-causal solution,
+    
+\vspace{2mm}
+
+[M8.2] $\eqspace Y_n = \sum_{j=1}^\infty \ar^{-j}\epsilon_{n+j}$.
+    
+\vspace{2mm}
+
+\myquestion. Work through the algebra to check that M8.1 and M8.2 both solve equation M8.
+
+\answer{\vspace{50mm}}
+
+\end{frame}   
+
+\begin{frame}[fragile]
+
+\frametitle{Convergence of the infinite sums in M8.1 and M8.2}
+
+\myquestion. For what values of $\ar$ is the causal solution M8.1 a convergent infinite sum, meaning that it converges to a random variable with finite variance? For what values is the non-causal solution M8.2 a convergent infinite sum? 
+
+\answer{\vspace{50mm}}{todo}
+
+\end{frame}   
+
+
+\begin{frame}[fragile]
+\frametitle{Using the MA($\infty$) representation to compute the autocovariance of an ARMA model}
+
+\myquestion. The linear process representation can be a convenient way to calculate autocovariance functions. Use the linear process representation in M8.1, together with our expression for the autocovariance of the general linear process M7 in equation~\ref{eq:linear:autocovariance}, to get an expression for the autocovariance function of the AR(1) model.
+
+\answer{\vspace{50mm}}{todo}
+
+\end{frame} 
+
+\section{ARMA models written using the backshift operator}
+
+\begin{frame}[fragile]
+\frametitle{The backshift operator and the difference operator}
+
+\bi
+\item The \myemph{backshift} operator $B$, also known as the \myemph{lag} operator, is given by
+\begin{equation}
+B Y_n = Y_{n-1}.
+\end{equation}
+
+\item The \myemph{difference} operator $\Delta=1-B$ is
+\begin{equation}
+\Delta Y_n = (1-B)Y_n = Y_n - Y_{n-1}.
+\end{equation}
+
+\item Powers of the backshift operator correspond to different time shifts, e.g.,
+\begin{equation}
+B^2 Y_n = B (BY_n) = B(Y_{n-1}) = Y_{n-2}.
+\end{equation}
+
+\item We can also take a second difference,
+\begin{eqnarray} \nonumber
+\Delta^2 Y_n &=& (1-B)(1-B) Y_n\\
+&=& (1-2B+B^2) Y_n = Y_n - 2Y_{n-1} + Y_{n-2}.
+\end{eqnarray}
+ 
+\item The backshift operator is linear, i.e.,  
+\begin{equation}
+B(\alpha X_n + \beta Y_n) = \alpha BX_n +\beta BY_n = \alpha X_{n-1} +\beta Y_{n-1}
+\end{equation}
+\ei
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+
+\bi
+\item Backshift operators and their powers can be added, multiplied by each other, and multiplied by a scalar. 
+
+\item Mathematically, backshift operators follow the same rules as the algebra of polynomial functions. 
+
+\item For example, a distributive rule for $\alpha+\beta B$ is
+\begin{equation}
+\negListSpace (\alpha +\beta B)Y_n = (\alpha B^0 +\beta B^1)Y_n = \alpha Y_n + \beta BY_n = \alpha Y_n + \beta Y_{n-1}.
+\end{equation}
+
+\item Mathematical properties we know about polynomials can be used to work with backshift operators.  
+
+\item The AR, MA and linear process model equations can all be written in terms of polynomials in the backshift operator.
+
+\item Write $\ar(x)= 1-\ar_1 x -\ar_2 x^2 -\dots -\ar_p x^p$,  an order $p$ polynomial,
+The equation M1 for the AR(p) model can be rearranged to give
+\begin{equation}
+ Y_n - \ar_1 Y_{n-1}- \ar_2Y_{n-2}-\dots-\ar_pY_{n-p} = \epsilon_n,
+\end{equation}
+which can be written using the backshift operator as
+
+\eqvspace
+    
+\negListSpace [M1$^\prime$] $\hspace{18mm} \ar(B) Y_n = \epsilon_n$.
+    
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item Write $\ma(x)$ for a polynomial of order $q$,
+\begin{equation}\ma(x) = 1+\ma_1 x +\ma_2 x^2 + \dots +\ma_q x^q.
+\end{equation}
+\item 
+The MA(q) equation M3 is equivalent to 
+
+\eqvspace
+
+\negListSpace [M3$^\prime$] $\hspace{18mm} Y_n = \ma(B) \epsilon_n$.
+    
+\eqvspace
+
+\item If $g(x)$ is a function defined by the \link{https://wikipedia.org/wiki/Taylor_series}{Taylor series}
+\begin{equation}
+g(x)= g_0 + g_1 x + g_2 x^2 + g_3 x^3 + g_4 x^4 + \dots,
+\end{equation}
+we can write the stationary causal linear process equation [M7] as
+
+\eqvspace
+
+\negListSpace [M7$^\prime$] $\hspace{18mm} Y_n = \mu + g(B)\epsilon_n$.
+
+\eqvspace
+
+\item Whatever you know or learn about working with Taylor series expansions helps you understand AR, MA and ARMA models.
+
+\ei
+
+\end{frame} 
+
+
+
+\subsection{The general ARMA model}
+
+\begin{frame}[fragile]
+
+\frametitle{The general ARMA model}
+
+\bi
+\item Putting together M1 and M3 suggests an \myemph{autoregressive moving average} ARMA(p,q) model given by
+
+\eqvspace
+
+\hspace{-10mm} [M9] $\hspace{1mm} Y_n = \ar_1 Y_{n-1}+\ar_2Y_{n-2}+\dots+\ar_pY_{n-p} + \epsilon_n +\ma_1 \epsilon_{n-1} +\dots+\ma_q\epsilon_{n-q}$,
+
+\eqvspace
+
+where $\{\epsilon_n\}$ is a white noise process. Using the backshift operator, we can write this more succinctly as
+
+\eqvspace
+
+\negListSpace [M9$^\prime$] $\hspace{18mm} \ar(B) Y_n = \ma(B) \epsilon_n$.
+    
+\eqvspace
+
+\item Experience with data analysis suggests that models with both AR and MA components often fit data better than a pure AR or MA process.
+
+\item The general stationary ARMA(p,q) also has a mean $\mu$ so we get
+
+\eqvspace
+
+\negListSpace [M9$^{\prime\prime}$] $\hspace{15mm} \ar(B) (Y_n-\mu) = \ma(B) \epsilon_n$.
+
+\eqvspace
+
+\ei
+
+\end{frame}   
+
+
+\begin{frame}{Obtaining the MA($\infty$) representation and autocovariance of the ARMA(1,1) model, $Y_n = \ar Y_{n-1} + \epsilon_n + \ma \epsilon_{n-1}.$}
+
+
+{\bf Step 1. Put the model in the form $Y_n = g(B) \epsilon_n$}.
+
+Formally, we can write 
+\begin{equation}   (1-\ar B)Y_n = (1+\ma B)\epsilon_n,
+\end{equation}
+which algebraically is equivalent to 
+\begin{equation}
+Y_n = \left(\frac{1+\ma B}{1-\ar B}\right)\epsilon_n.
+\end{equation}
+We can write this as
+\begin{equation}
+\label{eq:step1}
+Y_n = g(B) \epsilon_n,
+\end{equation}
+where
+\begin{equation}
+g(x) = \left(\frac{1+\ma x}{1-\ar x}\right).
+\end{equation}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+{\bf Step 2.  Work out the Taylor series expansion},
+\begin{equation}
+\label{eq:step2}
+g(x) = g_0 + g_1 x + g_2 x^2 + g_3 x^3 + \dots
+\end{equation}
+You can do this either by hand or using your favorite math software. 
+
+\vspace{3mm}
+
+{\bf Step 3. Obtain the MA($\infty$) representation}, by putting (\ref{eq:step2}) into (\ref{eq:step1}).
+
+\vspace{3mm}
+
+{\bf Step 4. Obtain the autocovariance function}, by using the general formula for an MA($\infty$) process.
+
+\vspace{5mm}
+
+Carrying out this calculation is an exercise.
+
+\end{frame} 
+
+
+\subsection{Causal, invertible ARMA models}
+
+  \begin{frame}[fragile]
+\frametitle{Causal, invertible ARMA models}
+
+\bi
+
+\item We say that the ARMA model [M9] is \myemph{causal} if its MA($\infty$) representation is a convergent series. 
+
+\item Recall that \myemph{causality} is about writing $Y_n$ in terms of the driving noise process $\{\epsilon_n,\epsilon_{n-1},\epsilon_{n-2},\dots\}$.
+
+\item \myemph{Invertibility} is about writing $\epsilon_n$ in terms of $\{Y_n, Y_{n-1}, Y_{n-2},\dots\}$. 
+
+\item To assess causality, we consider the convergence of the Taylor series expansion of $\ma(x)/\ar(x)$ in the ARMA representation
+$$ Y_n = \frac{\ma(B)}{\ar(B)} \epsilon_n.$$
+
+\item To assess invertibility, we consider the convergence of the Taylor series expansion of $\ar(x)/\ma(x)$ in the inversion of the ARMA model given by
+$$ \epsilon_n = \frac{\ar(B)}{\ma(B)} Y_n.$$
+
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+\bi
+\item Fortunately, there is a simple way to check causality and invertibility without calculating the Taylor series.
+
+ \item The ARMA model is causal if the AR polynomial,
+$$ \ar(x) = 1-\ar_1 x - \ar_2 x^2 - \dots - \ar_p x^p$$
+has all its roots (i.e., solutions to $\ar(x)=0$) outside the unit circle in the complex plane. 
+
+ \item The ARMA model is invertible if the MA polynomial,
+$$ \ma(x) = 1+\ma_1 x + \ma_2 x^2 + \dots + \ma_q x^q$$
+has all its roots outside the unit circle.
+
+\item We can check the roots using the `polyroot` function in R. For example, consider the MA(2) model,
+$ Y_n = \epsilon_n + 2\epsilon_{n-1} + 2\epsilon_{n-2}$.
+The roots to $\ma(x)= 1+2x+2x^2$ are
+
+\ei
+
+<< root>>=
+roots <- polyroot(c(1,2,2))
+roots
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item Finding the absolute value shows that we have two roots inside the unit circle, so this MA(2) model is not invertible.
+<< abs_roots>>=
+abs(roots)
+@
+
+\item In this case, you should be able to find the roots algebraically. In general, numerical evaluation of roots is useful.
+
+\ei
+
+%\end{frame}   
+
+%\begin{frame}[fragile]
+
+\myquestion. It is undesirable to use a non-invertible model for data analysis. Why?
+Hint: One answer to this question involves diagnosing model misspecification.
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}   
+
+
+\subsection{Reducible and irreducible ARMA models}
+
+\begin{frame}[fragile]
+\frametitle{Reducible and irreducible ARMA models}
+
+\bi
+\item We have seen the ARMA model written as a ratio of two polynomials,
+
+\begin{equation}
+Y_n = \frac{\ma(B)}{\ar(B)} \epsilon_n.
+\end{equation}
+
+\item If the two polynomials $\ar(x)$ and $\ma(x)$ share a common factor, it can be canceled out without changing the model. 
+
+\item The \link{https://en.wikipedia.org/wiki/Fundamental_theorem_of_algebra}{\myemph{fundamental theorem of algebra}} says that every polynomial $\ar(x) = 1-\ar_1 x - \dots - \ar_p x^p$ of degree $p$ can be written in the form
+\begin{equation}
+(1-x/\lambda_1) \times (1-x/\lambda_2) \times \dots \times (1-x/\lambda_p),
+\end{equation}
+where $\lambda_{1:p}$ are the $p$ roots of the polynomial, which may be real or complex valued.
+
+ \item The Taylor series expansion of $\ar(B)^{-1}$ is convergent if and only if $(1-B/\lambda_i)^{-1}$ has a convergent expansion for each $i\in 1:p$. This happens if $|\lambda_i|>1$ for each $i$.
+
+\ei
+
+\end{frame}
+\begin{frame}[fragile]
+\bi
+
+\item The polynomials $\ar(x)$ and $\ma(x)$ share a common factor if, and only if, they share a common root. 
+
+\item It is not clear, just from looking at the model equations, that
+\begin{equation} \textstyle
+Y_n = \frac{5}{6} Y_{n-1} -  \frac{1}{6} Y_{n-2} + \epsilon_n- \epsilon_{n-1}+\frac{1}{4} \epsilon_{n-2}
+\end{equation}
+is \myemph{exactly the same model} as
+\begin{equation} \textstyle
+Y_n = \frac{1}{3} Y_{n-1} + \epsilon_n- \frac{1}{2}\epsilon_{n-1}.
+\end{equation}
+
+\item To see this, you have to do the math! We see that the second of these equations is derived from the first by canceling out the common factor $(1-0.5B)$ in the ARMA model specification.
+<< reducibility>>=
+list(AR_roots=polyroot(c(1,-5/6,1/6)),
+     MA_roots=polyroot(c(1,-1,1/4)))
+@
+
+\ei
+
+\end{frame} 
+
+\section{AR(2) models and oscillating behavior}
+
+\subsection{The deterministic skeleton of an ARMA model}
+
+  \begin{frame}[fragile]{The deterministic skeleton: Using differential equation to study ARMA models}
+
+
+\bi
+\item Non-random physical processes evolving through time have been modeled using differential equations ever since the ground-breaking work by \citet{newton1687}.
+
+\item We have to attend to the considerable amount of randomness (unpredictability) present in data and systems we want to study. 
+
+\item However, it is helpful to study a related deterministic systems.
+
+\item The \myemph{deterministic skeleton} of a time series model is the non-random process obtained by removing randomness from a stochastic model. 
+
+\item For a discrete-time model, we can define a continuous-time deterministic skeleton by replacing the discrete-time difference equation with a differential equation.
+
+\item Rather than deriving a deterministic skeleton from a stochastic time series model, we can instead add stochasticity to a deterministic model to get a model that can explain non-deterministic phenomena.
+
+\ei
+
+\end{frame}
+
+\subsection{A second order linear differential equation for the AR(2) model}
+
+\begin{frame}[fragile]
+\frametitle{Example: Oscillatory behavior modeled using an AR(2) process}
+
+\bi
+
+\item In physics, a basic model for processes that oscillate (springs, pendulums, vibrating machine parts, etc) is simple harmonic motion. 
+
+\item The differential equation for a simple harmonic motion process $x(t)$ is
+
+\eqvspace
+  
+\negListSpace [M10] $\hspace{18mm} \displaystyle \frac{d^2}{dt^2} x(t) = -\omega^2 x(t)$.
+
+\eqvspace
+
+\item This is a second order linear differential equation with constant coefficients.
+Such equations have a closed form solution.
+You may already know that the solution to M10 is \myemph{sinusoidal}. 
+
+\item Finding the solution to a linear differential equation is very similar to the task of solving difference equations which is useful elsewhere in time series analysis. It also gives a chance to review complex numbers. Let's see how it is done.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+1. Look for solutions of the form $x(t)=e^{\lambda t}$. Substituting this into the differential equation [M10] we get
+\begin{equation}
+\lambda^2 e^{\lambda t} = -\omega^2 e^{\lambda t}.
+\end{equation}
+
+\vspace{1cm}
+
+2. Canceling the term $e^{\lambda t}$, we see that this has two solutions, with
+\begin{equation}
+\lambda = \pm \omega i, \hspace{5mm} \mbox{ where } i=\sqrt{-1}.
+\end{equation}
+
+\vspace{3mm}
+
+3. The linearity of the differential equation means that if $y_1(t)$ and $y_2(t)$ are two solutions, then $a y_1(t)+b y_2(t)$ is also a solution for any $a$ and $b$. So, the \myemph{general solution} to M10 is
+\begin{equation}
+\label{ar2:v1}
+x(t) = a e^{i\omega t} + b e^{-i\omega t}.
+\end{equation}
+Here, $a$ and $b$ could be complex numbers.
+
+\vspace{1cm}
+
+\end{frame}
+
+\begin{frame}
+
+4. We may suspect that $x(t) = a e^{i\omega t} + b e^{-i\omega t}$ is sinusoidal by recalling the identities
+\begin{equation}
+\label{eq:sin-cos-identity}
+\sin(\omega t) = \frac{1}{2i}\big(e^{i\omega t} - e^{-i\omega t}\big), 
+\quad\quad 
+\cos(\omega t) = \frac{1}{2}\big(e^{i\omega t} + e^{-i\omega t}\big).
+\end{equation}
+
+5.  For physical systems, $x(t)$ is real so we know that the complex part of (\ref{ar2:v1}) is zero. Thus, the two terms on the right in (\ref{ar2:v1}) are complex conjugates. Writing $a = (A/2) e^{i\phi}$, this implies $b=(A/2) e^{-i\phi}$ for real $A$ and $\phi$. The algebra to show this is not critical for this course, but is a good exercise if you enjoy it. The factor of $1/2$ is arbitrary. This gives
+\begin{equation}
+\label{ar2:v2}
+x(t) = \frac{A}{2} \left( e^{i(\omega t+\phi)} + e^{-i(\omega t + \phi)} \right).
+\end{equation}
+
+\vspace{3mm}
+
+6. Putting together  (\ref{ar2:v2}) and (\ref{eq:sin-cos-identity}) we get
+\begin{equation}
+x(t) = A \cos(\omega t + \phi),
+\end{equation}
+which explains why the factor of $1/2$ in (\ref{ar2:v2}) is convenient.
+
+\end{frame}
+
+\begin{frame}{Frequency, amplitude and phase for $x(t) = A\sin(\omega t + \phi)$}
+\bi
+\item 
+$\omega$ is called the \myemph{frequency}, and $\phi$ is called the \myemph{phase}.
+\item Angle is usually measured in \myemph{radians}, so the units of $\omega$ are radians per unit time, and units of $\phi$ are radians.
+\item The \myemph{period} is $2\pi/\omega$, the time for one cycle.
+\item $A$ is called the \myemph{amplitude}.
+\item The frequency of the oscillation is determined by $\omega$ in M10, but the amplitude and phase are unspecified constants which may be determined by initial conditions.
+\item It may be convenient to rescale to \myemph{cycles per unit time},
+\begin{equation}
+ x(t) = A \cos\big( 2\pi(\omega^\prime t + \phi^\prime) \big)
+ \end{equation}
+ where $\omega^\prime = \omega/2\pi$, $\phi^\prime = \phi/2\pi$.
+\ei
+\end{frame}
+
+
+\begin{frame}[fragile]
+\bi
+\item A discrete time version of M10 is a deterministic linear difference equation, replacing $\frac{d^2}{dt^2}$ by the second difference operator, $\Delta^2 = (1-B)^2$. This corresponds to a deterministic model equation,
+$$\eqspace \Delta^2 y_n = - \omega^2 y_n.$$
+
+\item Adding white noise, and expanding out $\Delta^2 = (1-B)^2$, we get a stochastic model,
+
+\eqvspace
+  
+\negListSpace [M11] $\displaystyle \hspace{15mm} Y_n = \frac{2Y_{n-1}}{1+\omega^2} - \frac{Y_{n-2}}{1+\omega^2}  + \epsilon_n$.
+    
+\eqvspace
+
+\item Model M11 may be appropriate to describe systems that have semi-regular but somewhat erratic fluctuations, called \myemph{quasi-periodic} behavior. Such behavior is evident in business cycles or wild animal populations.
+
+\ei
+\end{frame}
+
+\begin{frame}[fragile]
+
+We look at a simulation from M11 with $\omega=0.1$ and $\epsilon_n\sim \mathrm{\iid} \, N[0,1]$. From our exact solution to the deterministic skeleton, we expect that a typical period of the oscillations should be $2\pi/\omega \approx 60$.
+
+<< quasi_periodic_code,echo=T,eval=F>>=
+omega <- 0.1
+ar_coefs <- c(2/(1+omega^2), - 1/(1+omega^2))
+X <- arima.sim(list(ar=ar_coefs),n=500,sd=1)
+par(mfrow=c(1,2))
+plot(X)
+plot(ARMAacf(ar=ar_coefs,lag.max=500),type="l",ylab="ACF of X")
+@
+
+\vspace{-10mm}
+
+<< quasi_periodic,echo=F,eval=T,out.width="12cm",fig.width=8,fig.height=3.5>>=
+set.seed(8395200)
+<<quasi_periodic_code>>
+@
+
+
+
+\end{frame}
+
+\begin{frame}
+\bi
+\item Quasi-periodic fluctuations are \myemph{phase locked} when the random perturbations are not able to knock the oscillations away from being close to their initial phase.
+
+\item Eventually, the randomness should mean that the process is equally likely to have any phase, regardless of the initial phase.
+
+\ei
+
+\myquestion. 
+What is the timescale on which the simulated model shows phase locked behavior? 
+Equivalently, on what timescale does the phase of the fluctuations lose memory of its initial phase?
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}   
+
+\begin{frame}{Further reading} 
+
+\begin{itemize}
+\item Section 2.2 of \citet{shumway17} introduces the backshift operator.
+
+\item Section~3.1 develops the theory of ARMA models in a similar way to this chapter.
+
+\item Section~3.2 gives a difference equation approach to calculating ARMA autocovariance functions which gives an opportunity to practice algebra similar to our study of the AR(2) model.
+
+\end{itemize}
+
+\end{frame} 
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w24/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
+
+

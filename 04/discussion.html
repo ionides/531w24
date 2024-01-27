@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Instructor: Edward L. Ionides" />
+<meta name="author" content="DATASCI/STATS 531" />
 
 
-<title>Syllabus for DATASCI/STATS 531 (Winter 2024)  Modeling and Analysis of Time Series Data</title>
+<title>Chapter 4 discussion questions</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,204 +349,63 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Syllabus for DATASCI/STATS 531 (Winter
-2024) <br><it>Modeling and Analysis of Time Series Data</it></h1>
-<h4 class="author">Instructor: Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Chapter 4 discussion questions</h1>
+<h4 class="author">DATASCI/STATS 531</h4>
 
 </div>
 
 
-<div id="course-information" class="section level2">
-<h2>Course information</h2>
-<p>Course components will include:</p>
-<ul>
-<li>classes Mon/Wed, 10-11:30 a.m. in 1360 East Hall</li>
-<li>homework</li>
-<li><a href="https://piazza.com/umich/winter2024/datascistats531">Piazza
-discussion forum</a></li>
-<li>group midterm project, with individual peer review</li>
-<li>group final project, with individual peer review</li>
-</ul>
-<p>Instructor contact information:</p>
-<ul>
-<li>email: <a href="mailto:ionides@umich.edu" class="email">ionides@umich.edu</a></li>
-<li>web: dept.stat.lsa.umich.edu/~ionides</li>
-<li>office hours: Monday 11:30-12:30, Wednesday 1:00-2:00 in 453 West
-Hall.</li>
-</ul>
-<p>GSI: Jesse Wheeler</p>
-<ul>
-<li>email: <a href="mailto:jeswheel@umich.edu" class="email">jeswheel@umich.edu</a></li>
-<li>office hours: Tuesday, 8:30 AM - 10:00 AM; Friday, 12:30 PM - 1:55
-PM; Angell Hall G219</li>
-</ul>
-<p>Computing support. If you have a coding problem you cannot debug, it
-is often helpful to develop a <a href="https://stackoverflow.com/help/minimal-reproducible-example">minimal
-reproducible example</a> that others can run to help you. You can share
-this, and the error message you obtain, with your group and/or on
-Piazza, or by email if necessary.</p>
-<p>Course notes and lectures are posted at <a href="https://ionides.github.io/531w24/" class="uri">https://ionides.github.io/531w24/</a> with source files
-available at <a href="https://github.com/ionides/531w24" class="uri">https://github.com/ionides/531w24</a></p>
-<p>Supplementary textbook: R. Shumway and D. Stoffer <em>Time Series
-Analysis and its Applications</em>, 4th edition (2017). A <a href="https://link.springer.com/book/10.1007%2F978-3-319-52452-8">pdf</a>
-is available using the UM Library’s Springer subscription.</p>
-<p>Recommended pre-requisites:</p>
-<ul>
-<li><p>Theoretical and applied statistics. STATS 500 and prior or
-concurrent enrollment in STATS 511, or equivalent. STATS 413 and STATS
-426 is sufficient in conjunction with a strong math and computing
-background. For review, see “Mathematical Statistics and Data Analysis”
-by J. A. Rice.</p></li>
-<li><p>Linear algebra. A certain amount of basic linear algebra will be
-required. For review, see <a href="http://www.sosmath.com/matrix/matrix.html">www.sosmath.com/matrix/matrix.html</a>.</p></li>
-</ul>
-<p>Statistical computing background:</p>
-<ul>
-<li>We carry out data analysis using R. There is no formal R
-prerequisite, but we will be working with R extensively and so you
-should allow extra time for this course if you are new to R programming.
-If you are not familiar with R then it is helpful to have some
-background in Python or a similar language to learn R fairly easily. The
-R Core Team’s <a href="https://cran.r-project.org/doc/manuals/r-release/R-intro.pdf">Introduction
-to R</a> may be useful for review or study. Another resource is the <a href="https://kingaa.github.io/R_Tutorial/">Tutorial Introduction to R
-by King, Field, Bolker and Ellner</a>.</li>
-</ul>
 <hr />
-</div>
-<div id="course-outline" class="section level2">
-<h2>Course outline</h2>
 <ol style="list-style-type: decimal">
-<li><p>Introduction to time series analysis.</p></li>
-<li><p>Time series models: Estimating trend and autocovariance.</p></li>
-<li><p>Stationarity, white noise, and some basic time series
-models.</p></li>
-<li><p>Linear time series models and the algebra of autoregressive
-moving average (ARMA) models.</p></li>
-<li><p>Parameter estimation and model identification for ARMA
-models.</p></li>
-<li><p>Extending the ARMA model: Seasonality and trend.</p></li>
-<li><p>Introduction to the frequency domain.</p></li>
-<li><p>Smoothing in the time and frequency domains.</p></li>
-<li><p>Case study: An association between unemployment and
-mortality?</p></li>
-<li><p>Introduction to partially observed Markov process (POMP)
-models.</p></li>
-<li><p>Introduction to simulation-based inference for epidemiological
-dynamics via the pomp R package.</p></li>
-<li><p>Simulation of stochastic dynamic models.</p></li>
-<li><p>Likelihood for POMP models: Theory and practice.</p></li>
-<li><p>Likelihood maximization for POMP models.</p></li>
-<li><p>A case study of polio including covariates, seasonality &amp;
-over-dispersion.</p></li>
-<li><p>A case study of financial volatility and a POMP model with
-observations driving latent dynamics.</p></li>
-<li><p>A case study of measles: Dynamics revealed in long time
-series.</p></li>
+<li><p><strong>ARMA models with a mean</strong>. The following are
+candidate ways to write an ARMA(p,q) model with mean <span class="math inline">\(\mu\)</span>. <span class="math display">\[\begin{array}{crcl}
+[A1] &amp; \hspace{15mm} Y_n &amp;=&amp; \mu + \phi_1
+Y_{n-1}+\phi_2Y_{n-2}+\dots +\phi_pY_{n-p}
+\\
+&amp; &amp;&amp; + \epsilon_n +\psi_1 \epsilon_{n-1}
++\dots+\psi_q\epsilon_{n-q}
+\\
+[A2] &amp; Y_n &amp;=&amp; \mu + \phi_1
+(Y_{n-1}-\mu)+\phi_2(Y_{n-2}-\mu)+\dots +\phi_p(Y_{n-p}-\mu)
+\\
+&amp; &amp;&amp; + \epsilon_n +\psi_1 \epsilon_{n-1}
++\dots+\psi_q\epsilon_{n-q}
+\\
+[A3] &amp; \phi(B) Y_n &amp;=&amp; \psi(B)\epsilon_n
+\\
+&amp;\phi(x)&amp;=&amp;1-\phi_1x - \phi_2 x^2 - \dots - \phi_p x^p
+\\
+&amp;\psi(x)&amp;=&amp;1+\psi_1x + \psi_2 x^2 + \dots + \psi_q x^q.
+\end{array}\]</span> Are both [A1] and [A2] reasonable alternative
+models? Is there a reason to prefer one to the other? Which one matches
+[A3]?</p></li>
+<li><p><strong>Two equivalent MA models</strong>. Consider the following
+moving average models, defined in terms of a Gaussian white noise
+process <span class="math inline">\(\epsilon_n \sim \mathrm{iid} \,
+N(0,\sigma^2)\)</span>. <span class="math display">\[\begin{array}{crcll}
+[B1]  &amp; \hspace{10mm} Y_n &amp;=&amp; \epsilon_n +
+2\epsilon_{n-1},  \hspace{5mm} &amp; \sigma^2=1.
+\\
+[B2] &amp;  Y_n &amp;=&amp; \epsilon_n + 0.5\epsilon_{n-1}, &amp;
+\sigma^2=4.
+\end{array}\]</span> Why can data never tell us which of [B1] and [B2]
+is preferable for a particular situation? Is there a practical reason to
+prefer [B1] or [B2]?</p></li>
+<li><p><strong>Over-damped AR(2) models</strong>. In Chapter 4, we saw
+that AR(2) models can describe quasi-periodic oscillatory behavior, with
+an autocorrelation function (ACF) that is an exponentially decaying
+sinusoid. You could experiment with <code>ARMAacf()</code> to find
+parameter values <span class="math inline">\(\phi_1\)</span> and <span class="math inline">\(\phi_2\)</span> for a causal AR(2) model that does
+not have a sinusoidal oscillation in its ACF. Instead, the ACF should
+decay to zero similar to an AR(1) model. Can you say anything about the
+class of all AR(2) models that do not have any oscillatory behavior? In
+other words, can you find a mathematical expression for the set of
+values of <span class="math inline">\(\phi_1\)</span> and <span class="math inline">\(\phi_2\)</span>? One way to address this in the
+context of Chapter 4 is to work out when a deterministic skeleton decays
+with no oscillations. In physics and engineering, this is called an
+over-damped system.</p></li>
 </ol>
 <hr />
-</div>
-<div id="groups" class="section level2">
-<h2>Groups</h2>
-<ul>
-<li><p>Groups for the midterm project will be randomly assigned, around
-the third weak of classes.</p></li>
-<li><p>Groups for the final project will be re-randomized after the
-midterm project.</p></li>
-</ul>
-<hr />
-</div>
-<div id="grading" class="section level2">
-<h2>Grading</h2>
-<ul>
-<li>Weekly homeworks (25%, graded following a <a href="rubric_homework.html">rubric</a>).</li>
-<li>A group midterm project (20%, due 11:59pm on Friday 2/23). In
-special situations, you can request to write an individual project for
-the midterm and/or the final project. This may be appropriate if you
-have a particular dataset or scientific question that has motivated your
-interest in learning time series analysis. You can also ask your group
-if it is willing to join collaboratively on your project to make it a
-group project.</li>
-<li>Two individual anonymous peer review evaluations of other group
-midterm projects (8%, due 11:59pm on Sunday 3/10). Each should be about
-500 words, and should identify the main strengths and weaknesses of the
-project (from both technical and conceptual perspectives) as well as
-identifying points with room for improvement. The reviews should include
-discussion relating to reproducibility of the project’s numerical
-results.</li>
-<li>A group final project (30%, due 11:59pm on Tuesday 4/23).</li>
-<li>Two individual anonymous peer review evaluations of other group
-final projects (12%, due 11:59pm on Tuesday 4/30). Each should be about
-750 words, and should identify the main strengths and weaknesses of the
-project (from both technical and conceptual perspectives) as well as
-identifying points with room for improvement. The reviews should include
-discussion relating to reproducibility of the project’s numerical
-results.</li>
-<li>Participation (5%). To build a learning community, willingness to
-ask and answer questions in class is valuable. Similarly, both raising
-and answering questions on a discussion forum can help the entire class.
-The instructor and GSI will keep track of student participation
-following a <a href="rubric_participation.html">rubric</a>.</li>
-<li>Course letter grades are anticipated to be mostly in the A, A-, B+
-range customary for courses at this level. In the past, this has
-corresponded to overall scores of approximately 95% for A+, 90% for A,
-85% for A-, 80% for B+. However, the exact cutoff used will be
-determined in the context of the course for this specific semester.</li>
-</ul>
-<div id="grading-credit-for-attribution-of-sources" class="section level3">
-<h3>Grading credit for attribution of sources</h3>
-<p>Careful attribution of sources is fundamental to good scholarship.
-The grader will look for demonstrated effort in submitted homework, with
-contributions that go beyond the sources.</p>
-<ul>
-<li><p>Each homework will have a question asking about sources. You will
-be asked to explain which parts of your responses above made use of a
-source, meaning anything or anyone you consulted (including classmates
-or office hours or any website you visited) to help you write or check
-your answers. <strong>All sources are permitted. Every source must be
-documented. Full credit requires being explicit about which parts you
-did without any collaboration or other source, as well as being explicit
-about which parts used or did not use each listed
-source.</strong></p></li>
-<li><p>You should study the <a href="rubric_homework.html">posted
-rubric</a> to undertand how your homework will be graded.</p></li>
-<li><p>The midterm and final project will also have a substantial
-grading component allocated to clear and scholarly assignment of credit
-to sources.</p></li>
-<li><p>In group work, you are responsible for checking that the sources
-of your collaborators are properly documented. The whole group must take
-responsibility for material that the group submits.</p></li>
-</ul>
-</div>
-<div id="the-use-of-generative-artificial-intelligence-genai" class="section level3">
-<h3>The use of generative artificial intelligence (GenAI)</h3>
-<ul>
-<li>GenAI is a source. You are welcome to use it, but its role shoule be
-credited. Also, note that current GenAI can write poorly in some
-situations. You should be careful to edit and error-check any material
-written using GenAI. You take full responsibility for work submitted
-under your name.</li>
-</ul>
-<hr />
-</div>
-</div>
-<div id="student-mental-health-and-wellbeing" class="section level2">
-<h2>Student Mental Health and Wellbeing</h2>
-<p>University of Michigan is committed to advancing the mental health
-and wellbeing of its students. If you or someone you know is feeling
-overwhelmed, depressed, and/or in need of support, services are
-available. For help, contact Counseling and Psychological Services
-(CAPS) at 734.764.8312 and <a href="https://caps.umich.edu" class="uri">https://caps.umich.edu</a> during and after hours, on
-weekends and holidays. You may also consult University Health Service
-(UHS) at 734.764.8320 and <a href="https://www.uhs.umich.edu/mentalhealthsvcs" class="uri">https://www.uhs.umich.edu/mentalhealthsvcs</a>.</p>
-<hr />
-</div>
-<div id="acknowledgements" class="section level2">
-<h2>Acknowledgements</h2>
-<p>Many people have contributed to the development of this course,
-including all former students and instructors. See the <a href="acknowledge.html">acknowlegements page</a> for further
-details.</p>
-<hr />
-</div>
 
 
 
