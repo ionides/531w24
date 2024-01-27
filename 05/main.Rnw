@@ -1,0 +1,1011 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{5}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w24/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Parameter estimation and model identification for ARMA models}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+\section{Likelihood-based inference in the context of ARMA models}
+\begin{frame}[fragile]
+
+\frametitle{Background on likelihood-based inference}
+
+\bi
+
+\item For any data $\data{y_{1:N}}$ and any probabilistic model $f_{Y_{1:N}}(y_{1:N}\params\theta)$ we define the likelihood function to be
+$$ \lik(\theta) = f_{Y_{1:N}}(\data{y_{1:N}}\params\theta).$$
+
+\item It is often convenient to work with the logarithm to base $e$ of the likelihood, which we write as
+$$\loglik(\theta) = \log \lik(\theta).$$
+
+\item Using the likelihood function as a statistical tool is a very general technique, widely used since Fisher (1922) (\link{http://wikipedia.org/wiki/Likelihood_function}{Wikipedia: Likelihood{\textunderscore}function}).
+
+\item Time series analysis involves various situations where we can, with sufficient care, compute the likelihood function and take advantage of the general framework of likelihood-based inference.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+
+\bi
+\item Computation of the likelihood function for ARMA models is not entirely straightforward. 
+
+ \item Computationally efficient algorithms exist, using a state space model representation of ARMA models that will be developed later in this course. 
+
+ \item For now, it is enough that software exists to evaluate and maximize the likelihood function for a Gaussian ARMA model. Our immediate task is to think about how to use that capability.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+\item Before evaluation of the ARMA likelihood became routine, it was popular to use a method of moments estimator called \myemph{Yule-Walker} estimation \citep[][Section~3.5]{shumway17}. This is nowadays mostly of historical interest. 
+
+\item For massively long time series data and big ARMA models, it can be computationally infeasible to work with the likelihood function. However, we are going to focus on the common situation where we can (with due care) work with the likelihood.
+
+\item Likelihood-based inference (meaning statistical tools based on the likelihood function) provides tools for parameter estimation, standard errors, hypothesis tests and diagnosing model misspecification. 
+
+\item Likelihood-based inference often (but not always) has favorable theoretical properties. Here, we are not especially concerned with the underlying theory of likelihood-based inference. On any practical problem, we can check the properties of a statistical procedure by simulation experiments.
+
+\ei
+
+
+\end{frame}
+
+\subsection{The maximum likelihood estimator}
+
+\begin{frame}[fragile]
+
+
+\frametitle{The maximum likelihood estimator (MLE)}
+
+\bi
+
+\item A maximum likelihood estimator (MLE) is
+$$ \hat\theta(y_{1:N}) = \arg\max_\theta f_{Y_{1:N}}(y_{1:N}\params\theta),$$
+where $\arg\max_\theta g(\theta)$ means a value of argument $\theta$ at which the maximum of the function $g$ is attained, so $g\big(\arg\max_\theta g(\theta)\big) = \max_\theta g(\theta)$.
+
+\item If there are many values of $\theta$ giving the same maximum value of the likelihood, then an MLE still exists but is not unique.
+ 
+
+\item The maximum likelihood estimate (also known as the MLE) is
+\begin{eqnarray*} \estimate{\hat\theta} &=& \hat\theta(\data{y_{1:N}})
+\\
+&=& \arg\max_\theta \lik(\theta)
+\\
+&=& \arg\max_\theta \loglik(\theta).
+\end{eqnarray*}
+\ei
+
+\end{frame}   
+
+
+\begin{frame}[fragile]
+
+\myquestion. Why are $\arg\max_\theta \lik(\theta)$ and $\arg\max_\theta \loglik(\theta)$ the same?
+
+\answer{\vspace{30mm}}{todo}
+
+\bi
+
+\item We can write $\hat\theta_{MLE}$ to denote the MLE if we are considering various alternative estimation methods. However, in this course, we will most often be using maximum likelihood estimation so we let $\hat\theta$ correspond to this approach.
+
+\ei
+
+\end{frame}  
+
+ \begin{frame}[fragile]
+
+\frametitle{Standard errors for the MLE}
+\bi
+\item As statisticians, it would be irresponsible to present an estimate without a measure of uncertainty!
+
+\item Usually, this means obtaining a confidence interval, or an approximate confidence interval. 
+
+ \item It is good to say \myemph{approximate} when you present something that is not exactly a confidence interval with the claimed coverage. For example, remind yourself of the definition of a 95\% confidence interval. 
+
+ \item Saying ``approximate'' reminds you that there is some checking that could be done to assess how accurate the approximation is in your particular situation.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Three ways to quantify statistical uncertainty in an MLE}
+
+\begin{enumerate}
+\item  Fisher information. This is computationally quick, but works well only when $\hat\theta(Y_{1:N})$ is well approximated by a normal distribution.
+
+\item  Profile likelihood estimation. This is a bit more computational effort, but generally is preferable to the Fisher information.
+
+\item A simulation study, also known as a bootstrap. 
+
+\end{enumerate}
+
+\end{frame}
+
+
+\subsection{Fisher information}
+
+\begin{frame}[fragile]
+
+\frametitle{Standard errors via the observed Fisher information}
+
+\bi
+\item We suppose that $\theta\in\R^D$ and so we can write $\theta=\theta_{1:D}$.
+
+\item The \link{https://en.wikipedia.org/wiki/Hessian_matrix}{Hessian matrix}
+of a function is the matrix of its second partial derivatives. We write the Hessian matrix of the log likelihood function as $\nabla^2\loglik(\theta)$, a $D\times D$ matrix whose $(i,j)$ element is
+$$ \big[\nabla^2\loglik(\theta)\big]_{ij} =  \frac{\partial^2}{\partial\theta_i\partial\theta_j}\loglik(\theta).$$
+
+\item The observed Fisher information is
+$$ \estimate{\hat{I}} = - \nabla^2\loglik(\estimate{\hat\theta}).$$
+
+\item A standard asymptotic approximation to the distribution of the MLE for large $N$ is
+\[
+\hat\theta(Y_{1:N}) \approx N\left[\theta, \estimate{\hat{I}}^{-1}\right],
+\]
+where $\theta$ is the true parameter value.
+This asserts that the MLE is asymptotically unbiased, with variance asymptotically attaining the Cramer-Rao lower bound.
+
+\ei
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+\item Since the MLE attains the Cramer-Rao lower bound, under regularity conditions, we it is \myemph{asymptotically efficient}.
+
+\item We can interpret $\approx$ in the above normal approximation to mean ``one could write a limit statement formally justifying this approximation in a suitable limit.'' Almost equivalently, $\approx$ can mean ``this approximation is useful in the finite sample situation at hand.''
+
+\item A corresponding approximate 95\% confidence interval for $\theta_d$ is
+$\estimate{\hat\theta_d} \pm 1.96 \big( \big[{\estimate{\hat{I}}}^{-1}\big]_{dd}\big)^{1/2}$. The R function \code{arima} computes standard errors for the MLE of an ARMA model in this way.
+
+\item We usually only have one time series, with some fixed $N$, and so we cannot in practice take $N\to\infty$. When our time series model is non-stationary it may not even be clear what it would mean to take $N\to\infty$. These asymptotic results should be viewed as nice mathematical reasons to consider computing an MLE, but not a substitute for checking how the MLE behaves for our model and data. 
+\ei
+
+\end{frame}
+
+
+\subsection{Profile likelihood confidence intervals}
+
+\begin{frame}[fragile]
+\frametitle{Confidence intervals via the profile likelihood}
+\bi
+\item We consider the problem of obtaining a confidence interval for $\theta_d$, the $d$th component of $\theta_{1:D}$. 
+
+\item The \myemph{profile log likelihood function} of $\theta_d$ is defined to be 
+$$ \profileloglik{d}(\theta_d) = \max_{\phi\in\R^D: \phi_d=\theta_d}\loglik(\phi).$$
+In general, the profile likelihood of one parameter is constructed by maximizing the likelihood function over all other parameters.
+
+\item Check that $\max_{\theta_d}\profileloglik{d}(\theta_d) = \max_{\theta_{1:D}}\loglik(\theta_{1:D})$. Maximizing the profile likelihood $\profileloglik{d}(\theta_d)$ gives the MLE, $\estimate{\hat\theta_d}$.
+
+\item An approximate 95\% confidence interval for $\theta_d$ is given by
+$$ \big\{\theta_d : \loglik(\estimate{\hat\theta}) - \profileloglik{d}(\theta_d)< 1.92\big\}.$$
+
+\item This is known as a profile likelihood confidence interval.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Where does the 1.92 cutoff come from}
+
+\bi
+\item The cutoff $1.92$ is derived using \myemph{Wilks's theorem}, which we will discuss in more detail when we develop likelihood ratio tests.
+
+\item Note that $1.92 = \frac{1.96^2}{2}$.
+
+\item The asymptotic justification of Wilks's theorem is the same limit that justifies the Fisher information standard errors.
+
+\item Profile likelihood confidence intervals tend to work better than Fisher information confidence intervals when the log likelihood function is not close to quadratic near its maximum. This is more common when $N$ is not large.
+
+\ei
+
+\end{frame}   
+
+\subsection{Bootstrap standard errors}
+
+\begin{frame}[fragile]
+\frametitle{A Simulation study, also called bootstrap}
+\bi
+ \item If done carefully and well, this can be the best approach.
+
+ \item A confidence interval is a claim about reproducibility. You claim, so far as your model is correct, that on 95\% of realizations from the model, a 95\% confidence interval you have constructed will cover the true value of the parameter.
+
+ \item A simulation study can check this claim directly.
+ 
+ \item The simulation study takes time to develop and debug, time to explain, and time for the reader to understand and check what you have done. We usually carry out simulation studies to check our main conclusions only.
+\ei
+\end{frame}   
+
+\begin{frame}[fragile]
+
+\frametitle{Bootstrap methods for constructing standard errors and confidence intervals}
+\bi
+\item Suppose we want to know the statistical behavior of the estimator $\hat\theta({y_{1:N}})$ for models in a neighborhood of the MLE.
+
+\item In particular, let's consider the problem of estimating uncertainty about $\theta_1$, the first component of the vector $\theta$.
+
+\item We use simulation to assess the behavior of the maximum likelihood estimator, $\hat\theta_1({y_{1:N}})$, and possibly the coverage of an associated confidence interval estimator, $\big[\hat\theta_{1,\mathrm lo}({y_{1:N}}),\hat\theta_{1,\mathrm hi}({y_{1:N}})\big]$.
+
+\item The confidence interval estimator could be constructed using either the Fisher information method or the profile likelihood approach.
+
+\ei
+
+\end{frame}
+
+\begin{frame}
+
+\bi
+\item We can design a simulation study to address the following goals: 
+\ei
+
+\vspace{1mm}
+
+(A) Evaluate the coverage of a proposed confidence interval estimator, $[\hat\theta_{1,\mathrm lo},\, \hat\theta_{1,\mathrm hi}]$,
+
+\vspace{3mm}
+
+(B) Construct a standard error for $\estimate{\hat\theta_1}$,
+
+\vspace{3mm}
+
+(C) Construct a confidence interval for $\theta_1$ with exact local coverage.
+
+\end{frame}
+\begin{frame}
+\frametitle{A simulation study}
+
+1. Generate $J$ independent Monte Carlo simulations, 
+$$Y_{1:N}^{[j]} \sim f_{Y_{1:N}}(y_{1:N}\params\estimate{\hat\theta})\mbox{ for } j\in 1:J.$$
+
+\vspace{1mm}
+
+2. For each simulation, evaluate the maximum likelihood estimator,
+$$ \hat\theta^{[j]} = \hat\theta\big(Y_{1:N}^{[j]}\big)\mbox{ for } j\in 1:J,$$
+and, if desired, the confidence interval estimator,
+$$ \big[\hat\theta^{[j]}_{1,\mathrm lo}, \, \hat\theta^{[j]}_{1,\mathrm hi}\big] = \big[\hat\theta_{1,\mathrm lo}({Y^{[j]}_{1:N}}), \, \hat\theta_{1,\mathrm hi}({Y^{[j]}_{1:N}})\big].$$
+
+\vspace{1mm}
+
+3. For large $J$, the coverage of the proposed confidence interval is well approximated, for models in a neighborhood of $\estimate{\hat\theta}$, by the proportion of the intervals $\big[\hat\theta^{[j]}_{1,\mathrm lo}, \, \hat\theta^{[j]}_{1,\mathrm hi}\big]$ that include $\estimate{\hat\theta_1}$.
+
+\vspace{1mm}
+
+4. The sample standard deviation of $\{ \hat\theta^{[j]}_1, j\in 1:J\}$ is a natural standard error to associate with $\estimate{\hat \theta_1}$.
+
+\end{frame}
+
+\section{Model selection for ARMA models}
+
+\subsection{Likelihood ratio tests}
+
+ \begin{frame}[fragile]
+
+\frametitle{Likelihood ratio tests for nested hypotheses}
+
+\bi
+\item The whole parameter space on which the model is defined is $\Theta\subset\R^D$. 
+
+\item Suppose we have two \myemph{nested} hypotheses
+\begin{eqnarray*}
+H^{\langle 0\rangle} &:& \theta\in \Theta^{\langle 0\rangle},
+\\
+H^{\langle 1\rangle} &:& \theta\in \Theta^{\langle 1\rangle},
+\end{eqnarray*}
+defined via two nested parameter subspaces, $\Theta^{\langle 0\rangle}\subset \Theta^{\langle 1\rangle}$, with respective dimensions $D^{\langle 0\rangle}< D^{\langle 1\rangle}\le D$.
+
+\item We consider the log likelihood maximized over each of the hypotheses,
+\begin{eqnarray*}
+\ell^{\langle 0\rangle} &=& \sup_{\theta\in \Theta^{\langle 0\rangle}} \ell(\theta),
+\\
+\ell^{\langle 1\rangle} &=& \sup_{\theta\in \Theta^{\langle 1\rangle}} \ell(\theta).
+\end{eqnarray*}
+
+\ei
+\end{frame}   
+
+\begin{frame}[fragile]
+\bi
+\item A useful approximation asserts that, under the hypothesis $H^{\langle 0\rangle}$,
+$$ 
+\ell^{\langle 1\rangle} - \ell^{\langle 0\rangle} \approx (1/2) \chi^2_{D^{\langle 1\rangle}- D^{\langle 0\rangle}},
+$$
+where $\chi^2_d$ is a chi-squared random variable on $d$ degrees of freedom and $\approx$ means "is approximately distributed as."
+
+\item We will call this the \myemph{Wilks approximation}.
+
+\item The Wilks approximation can be used to construct a hypothesis test of the null hypothesis  $H^{\langle 0\rangle}$ against the alternative  $H^{\langle 1\rangle}$. 
+
+\item This is called a \myemph{likelihood ratio test} since a difference of log likelihoods corresponds to a ratio of likelihoods.
+
+\item When the data are \iid, $N\to\infty$, and the hypotheses satisfy suitable regularity conditions, this approximation can be derived mathematically and is known as \myemph{Wilks's theorem}. 
+
+
+\item The chi-squared approximation to the likelihood ratio statistic may be useful, and can be assessed empirically by a simulation study, even in situations that do not formally satisfy any known theorem.
+\ei
+
+\end{frame} 
+
+\begin{frame}[fragile]  
+
+\frametitle{Using a likelihood ratio test to construct profile likelihood confidence intervals}
+\bi
+
+\item Recall the duality between hypothesis tests and confidence intervals:
+
+\vspace{5mm}
+The estimated parameter $\data{\theta}$ does not lead us to reject a null hypothesis of $\theta=\theta^{\langle 0\rangle}$ at the 5\% level
+
+\hspace{30mm}$\Updownarrow$
+
+$\theta^{\langle 0\rangle}$ is in a 95\% confidence interval for $\theta$.
+
+\vspace{5mm}
+
+\item We can check what the 95\% cutoff is for a chi-squared distribution with one degree of freedom,
+<<chi_squared>>=
+qchisq(0.95,df=1)
+@
+
+\item We can now see how the Wilks approximation suggests a confidence interval constructed from parameter values having a profile likelihood within 1.92 log units of the maximum. 
+
+%\item It is a exercise to write out more details (to your own satisfaction) on how to use the Wilks approximation, together with the duality between hypothesis tests and confidence intervals, to derive a profile likelihood confidence interval.
+
+\ei
+
+\end{frame} 
+
+\subsection{Akaike's information criterion (AIC)}
+
+  \begin{frame}[fragile]
+
+\frametitle{Akaike's information criterion (AIC)}
+
+\bi
+\item Likelihood ratio tests provide an approach to model selection for nested hypotheses, but how about when models are not nested?
+
+\item A more general approach is to compare likelihoods of different models by penalizing the likelihood of each model by a measure of its complexity. 
+
+\item Akaike's information criterion \myemph{AIC} is given by
+$$ AIC = -2 \times \loglik(\data{\theta}) + 2D$$
+``Minus twice the maximized log likelihood plus twice the number of parameters.''
+
+\item We are invited to select the model with the lowest AIC score.
+
+\item AIC was derived as an approach to minimizing prediction error. Increasing the number of parameters leads to additional \myemph{overfitting} which can decrease predictive skill of the fitted model. 
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{A caution for using AIC}
+
+\bi
+\item 
+ Viewed as a hypothesis test, AIC may have weak statistical properties.
+
+\item It is a mistake to interpret AIC by making a claim that the favored model has been shown to provides a superior explanation of the data.
+
+\item However, viewed as a way to select a model with reasonable predictive skill from a range of possibilities, it is often useful.
+
+\ei
+
+\end{frame}   
+
+
+\begin{frame}[fragile]{Comparing AIC with likelihood ratio tests}
+
+\myquestion. Suppose we are in a situation in which we wish to choose between two nested hypotheses, with dimensions $D^{\langle 0\rangle}< D^{\langle 1\rangle}$. Suppose the Wilks approximation is valid.
+Consider the strategy of selecting the model with the lowest AIC value, and view this model selection approach as a formal statistical test.
+
+\vspace{1mm}
+
+(A) Find an expression for the size of this AIC test (i.e, the probability of rejecting the null hypothesis,  $H^{\langle 0\rangle}$, when this null hypothesis is true).
+
+\vspace{1mm}
+
+
+(B) Evaluate this expression for $D^{\langle 1\rangle} - D^{\langle 0\rangle}=1$.
+
+\answer{\vspace{40mm}}{todo}
+
+\end{frame} 
+
+
+\section{Fitting ARMA models in R}
+
+\begin{frame}[fragile]{Likelihood-based inference for ARMA models in R}
+
+\bi
+
+\item The Great Lakes are an important resource for leisure, agriculture and industry in this region. 
+
+\item A past concern has been whether human activities such as water diversion or channel dredging might be leading to a decline in lake levels. 
+
+\item A current concern has been high levels leading to coastal erosion.
+
+\item Are lake levels affected by climate change?
+
+\item The physical mechanisms are not always obvious: for example, evaporation tends to be highest when the weather is cold but the lake is not ice-covered. 
+
+\item We look at monthly time series data on the level of Lake Huron, which is essentially the same as Lake Michigan.
+\ei
+
+\end{frame}   
+
+% \end{document}
+
+\begin{frame}[fragile]{Reading in the data}
+
+Here is the head of the file \url{huron_level.csv}
+{\scriptsize
+\begin{verbatim}
+# Lake Michigan-Huron:, Monthly Average Water Levels (meters)
+year,jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec
+1860,177.285,177.339,177.349,177.388,177.425,177.461,177.473,177.416,177.355,177.26,177.16,177.111
+1861,177.077,177.105,177.224,177.254,177.382,177.431,177.47,177.544,177.449,177.413,177.342,177.291
+\end{verbatim}
+}
+<<read_data>>=
+dat <- read.table(file="huron_level.csv",sep=",",header=TRUE)
+head(dat[,1:7],2)
+@
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+ For now, we avoid monthly seasonal variation by considering an annual series of January depths. We will investigate seasonal variation later in the course, but sometimes it is best avoided.
+
+<<select_annual_code,echo=T,eval=F>>=
+huron_level <- dat$Jan
+year <- dat$Year
+plot(huron_level~year,type="l")
+@
+
+\vspace{-10mm}
+
+<<select_annual,echo=F,eval=T>>=
+<<select_annual_code>>
+@
+
+\end{frame}  
+
+\begin{frame}[fragile]
+\bi
+\item Until the recent surge in water level, there was concern about a long-run decline in lake level due to dredging or water diversion or climate change.
+\item We put ourselves back in 2014 and temporarily ignore subsequent data
+\ei
+
+<<repeat_plot,echo=F,eval=T>>=
+<<select_annual_code>>
+abline(v=2014,lty="dashed",col="red",lwd=1.5)
+
+huron_level <- huron_level[year<=2014]
+year <- year[year<=2014]
+@
+\end{frame}
+
+ \begin{frame}[fragile]
+
+\frametitle{Fitting an ARMA model}
+
+\bi
+\item Later, we will consider hypotheses of trend. For now, let's start by fitting a stationary ARMA$(p,q)$ model under the null hypothesis that there is no trend. This hypothesis, which asserts that nothing has substantially changed in this system over the last 160 years, is not entirely unreasonable from looking at the data.
+
+\item We seek to fit a stationary Gaussian ARMA(p,q) model with parameter vector $\theta=(\ar_{1:p},\ma_{1:q},\mu,\sigma^2)$ given by
+$$ \ar(B)(Y_n-\mu) = \ma(B) \epsilon_n,$$
+where 
+\begin{eqnarray*}
+\mu &=& \E[Y_n]
+\\
+\ar(x)&=&1-\ar_1 x-\dots -\ar_px^p,
+\\ 
+\ma(x)&=&1+\ma_1 x+\dots +\ma_qx^q, 
+\\
+\epsilon_n&\sim&\mathrm{ iid }\, N[0,\sigma^2].
+\end{eqnarray*}
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Choosing $p$ and $q$}
+\bi
+\item We need to decide where to start in terms of values of $p$ and $q$.
+
+\item We tabulate AIC values for a range of different choices of $p$ and $q$.
+
+\ei
+
+
+<<aic_table_code,echo=T,eval=F>>=
+aic_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+       table[p+1,q+1] <- arima(data,order=c(p,0,q))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+huron_aic_table <- aic_table(huron_level,4,5)
+require(knitr)
+kable(huron_aic_table,digits=2)
+@
+
+\end{frame}   
+
+
+\begin{frame}[fragile]
+
+<<aic_table,echo=F,eval=T>>=
+<<aic_table_code>>
+@
+
+\vspace{2mm}
+
+\myquestion. What do we learn by interpreting the results in the above table of AIC values? 
+
+\answer{\vspace{20mm}}{todo}
+
+%\end{frame}   
+
+%\begin{frame}[fragile]
+
+\myquestion. In what ways might we have to be careful not to over-interpret the results of this table?
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame} 
+
+
+
+ \begin{frame}[fragile]
+
+\bi
+
+\item Let's fit the ARMA(2,1) model recommended by consideration of AIC.
+\ei
+
+
+<<arma21fit,size="footnotesize">>=
+huron_arma21 <- arima(huron_level,order=c(2,0,1))
+huron_arma21
+@
+
+\end{frame}
+
+\subsection{Examining the AR and MA roots}
+
+\begin{frame}[fragile]
+
+\bi
+\item We can examine the roots of the AR polynomial,
+\ei
+
+<<huron_roots>>=
+AR_roots <- polyroot(c(1,-coef(huron_arma21)[c("ar1","ar2")]))
+AR_roots
+@
+
+
+\bi
+\item The roots are just outside the unit circle, suggesting we have a stationary causal fitted ARMA.
+
+\item However, the MA root is $\Sexpr{round(-1/coef(huron_arma21)["ma1"],2)}$, showing that the fitted model is at the threshold of non-invertibility.
+
+\item Do we have a non-invertibility problem? We investigate this using profile and bootstrap methods. The claimed standard error on the MA1 coefficient, from the Fisher information approach used by \code{arima}, is small. 
+
+\ei
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+\bi
+\item First, we can see if the approximate confidence interval constructed using profile likelihood is in agreement with the approximate confidence interval constructed using the observed Fisher information. 
+
+\item To do this, we need to maximize the ARMA likelihood while fixing the MA1 coefficient at a range of values. This is done using \code{arima} in the code below.
+
+\item Note that the \code{fixed} argument expects a vector of length $p+q+1$ corresponding to a concatenated vector $(\ar_{1:p},\ma_{1:q}, \mu)$. Somehow, the Gaussian white noise variance, $\sigma^2$, is not included in this representation. Parameters with \code{NA} entries in \code{fixed} are estimated.
+
+\ei
+
+
+<<huron_profile_code,echo=T,eval=F>>=
+K <- 500
+ma1 <- seq(from=0.2,to=1.1,length=K)
+profile_loglik <- rep(NA,K)
+for(k in 1:K){
+   profile_loglik[k] <- logLik(arima(huron_level,order=c(2,0,1),
+      fixed=c(NA,NA,ma1[k],NA)))
+}
+plot(profile_loglik~ma1,ty="l")
+@
+
+\end{frame}   
+
+
+\begin{frame}[fragile]
+
+<<huron_profile,echo=F,fig.width=5,fig.height=2.5,out.width="9cm">>=
+par(mai=c(0.8,0.8,0.1,0.1))
+<<huron_profile_code>>
+@
+
+\myquestion. Interpret the profile likelihood plot for $\ma_1$. 
+
+\answer{\vspace{40mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+%\frametitle{Interpreting the profile likelihood plot}
+
+\myquestion.  What do you conclude about the Fisher information confidence interval proposed by \code{arima}?
+
+\answer{\vspace{18mm}}{todo}
+
+\myquestion. In what situations is the Fisher information confidence interval reliable?
+
+\answer{\vspace{18mm}}{todo}
+
+\myquestion. Is this profile likelihood plot, and its statistical interpretation, reliable? How could you support your opinion on this?
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame} 
+
+
+  \begin{frame}[fragile]
+
+\frametitle{A simulation study}
+
+\vspace{-3mm}
+
+<<simA_code,echo=T,eval=F>>=
+set.seed(578922)
+J <- 1000
+params <- coef(huron_arma21)
+ar <- params[grep("^ar",names(params))]
+ma <- params[grep("^ma",names(params))]
+intercept <- params["intercept"]
+sigma <- sqrt(huron_arma21$sigma2)
+theta <- matrix(NA,nrow=J,ncol=length(params),
+   dimnames=list(NULL,names(params)))
+for(j in 1:J){
+ try({
+   Y_j <- arima.sim(
+      list(ar=ar,ma=ma),
+      n=length(huron_level),
+      sd=sigma
+   )+intercept
+   theta[j,] <- coef(arima(Y_j,order=c(2,0,1)))
+ })
+}
+theta <- na.omit(theta)
+hist(theta[,"ma1"],freq=FALSE) 
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<simA,echo=F,eval=T,fig.width=5,fig.height=2.5,out.width="10cm">>=
+par(mai=c(0.8,0.8,0.5,0.1))
+<<simA_code>>
+@
+
+\bi
+\item This seems consistent with the profile likelihood plot.
+
+\item A density plot shows this similarity even more clearly.
+
+\ei
+
+\end{frame}   
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+<<density_code,eval=F,echo=T>>=
+plot(density(theta[,"ma1"],bw=0.05))
+@
+
+\vspace{-3mm}
+
+<<density,echo=F,eval=T,fig.width=5,fig.height=2.5,out.width="9cm">>=
+par(mai=c(0.8,0.8,0.5,0.1))
+<<density_code>>
+@
+
+\bi
+\item Here, we look at the raw plot for instructional purposes. For a report, one should improve the default axis labels and title.
+
+\item Note that \code{arima} transforms the model to invertibility. Thus, the estimated value of $\theta_1$ can only fall in the interval $[-1,1]$.
+\ei
+
+\vspace{-1mm}
+
+<<range>>=
+range(theta[,"ma1"])
+@
+
+
+\end{frame}
+
+\begin{frame}
+
+\bi
+ \item A minor technical issue: estimated densities outside $[-1,1]$ are artifacts of the density estimation procedure. 
+\ei
+
+\myquestion. How would you refine this density estimation procedure to respect the range of the parameter estimation procedure?
+
+\answer{\vspace{40mm}}{todo}
+
+\bi
+\item We do a simulation study for which we fit ARMA(2,1) when the true model is AR(1).
+
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{Using multiple cores for simulation studies}
+
+\bi
+
+\item When doing simulation studies, \myemph{multicore computing} is helpful.
+All modern computers have multiple cores.
+
+\item A basic approach to multicore statistical computing is to tell R you want it to look for available processors, using the \code{doParallel} package.
+
+\item We can use \code{foreach} in the \code{doParallel} package to carry out a parallel \code{for} loop where jobs are sent to different processors.
+\ei
+
+<<parallel-setup,cache=FALSE>>=
+library(doParallel)
+registerDoParallel()
+@
+
+
+
+\end{frame}   
+
+\begin{frame}[fragile]
+
+
+<<simB>>=
+J <- 1000
+huron_ar1 <- arima(huron_level,order=c(1,0,0))
+params <- coef(huron_ar1)
+ar <- params[grep("^ar",names(params))]
+intercept <- params["intercept"]
+sigma <- sqrt(huron_ar1$sigma2)
+t1 <- system.time(
+  huron_sim <- foreach(j=1:J) %dopar% {
+    Y_j <- arima.sim(list(ar=ar),n=length(huron_level),
+      sd=sigma)+intercept
+    try(coef(arima(Y_j,order=c(2,0,1))))
+  }
+) 
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+\item Some of these \code{arima} calls did not successfully produce parameter estimates. The \code{try} function lets the simulation proceed despite these errors. Let's see how many of them fail:
+\ei
+
+<<out, cache=FALSE>>=
+sum(sapply(huron_sim, function(x) inherits(x,"try-error"))) 
+@
+
+
+\end{frame}   
+
+\begin{frame}[fragile]
+
+\bi
+
+\item Now, for the remaining ones, we can look at the resulting estimates of the MA1 component:
+
+\ei
+
+<<histB, cache=FALSE, eval=FALSE, echo=T>>=  
+ma1 <- unlist(lapply(huron_sim,function(x)
+   if(!inherits(x,"try-error"))x["ma1"] else NULL ))
+hist(ma1,breaks=50)  
+@
+
+\vspace{-4mm}
+
+<<histB-eval,eval=TRUE,echo=FALSE,fig.width=6,out.width="10cm">>=
+<<histB>>
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+\item When the true model is AR1 and we fit ARMA(2,1), it seems that we often obtain a model with estimated MA1 coefficient on the boundary of invertibility.
+
+\item Thus, we cannot reject an AR1 hypothesis for the Huron data, even though the Fisher information based analysis appears to give strong evidence that the data should be modeled with a nonzero MA1 coefficient. 
+
+\item It may be sensible to avoid fitted models too close to the boundary of invertibility. This is a reason not to blindly accept whatever model AIC might suggest. 
+\ei
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\myquestion. What else could we look for to help diagnose, and understand, this kind of model fitting problem? Hint: pay some more attention to the roots of the fitted ARMA(2,1) model.
+
+\answer{\vspace{40mm}}{todo}
+
+\end{frame}   
+
+\subsection{Assessing numerical correctness}
+
+\begin{frame}[fragile]
+
+\frametitle{Assessing the numerical correctness of evaluation and maximization of the likelihood function}
+
+\bi
+\item We can probably suppose that \code{arima()} has negligible numerical error in evaluating the likelihood. 
+
+ \item Likelihood evaluation is a linear algebra computation which should be numerically stable away from singularities. 
+
+ \item Possibly, numerical problems could arise for models very close to reducibility (canceling AR and MA roots).
+
+\item Numerical optimization is more problematic. 
+
+ \item \code{arima} calls the general purpose optimization routine \code{optim}. 
+
+ \item The likelihood surface can be multimodal and have nonlinear ridges, when AR and MA roots almost cancel.
+
+ \item No optimization procedure is reliable for maximizing awkward, non-convex functions.
+ 
+ \item Evidence for imperfect maximization (assuming negligible likelihood evaluation error) can be found in the AIC table, copied below.
+ \ei
+
+\end{frame} 
+
+
+
+\begin{frame}[fragile]
+
+\begin{center}
+<<repeated_aic,echo=FALSE>>=
+require(knitr)
+kable(huron_aic_table,digits=1)
+@
+\end{center}
+
+\myquestion. How is this table inconsistent with perfect maximization?
+
+\answer{\vspace{30mm}}{todo}
+
+
+\bi
+    \item Hint: recall that, for nested hypotheses $H^{\langle 0\rangle}\subset H^{\langle 1\rangle}$, the likelihood maximized over $H^{\langle 1\rangle}$ cannot be less than the likelihood maximized over $H^{\langle 0\rangle}$. 
+
+    \item Recall also the definition of AIC,
+
+AIC = -2$\times$ maximized log likelihood $+$ 2$\times$ number of parameters
+\ei
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}   
+
+
+\begin{frame}{Further reading} 
+
+\bi
+
+\item Section~3.5 of \citet{shumway17} gives a complementary discussion of parameter estimation for ARMA models.
+
+\item Section~3.7 of \citet{shumway17} takes a different perspective on selecting ARMA models, putting less emphasis on likelihood. Both perspectives can be valuable.
+
+
+\ei
+
+
+\end{frame}
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w24/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}

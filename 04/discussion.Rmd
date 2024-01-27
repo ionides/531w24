@@ -1,6 +1,6 @@
 ---
 title: "Chapter 4 discussion questions"
-author: "STATS/DATASCI 531, Winter 2022"
+author: "DATASCI/STATS 531"
 output:
   html_document:
     toc: yes

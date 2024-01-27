@@ -9,6 +9,7 @@ output: html_document
 | &nbsp;          | &nbsp;                                                                            |
 |:----------------|:---------------------------------------------------------------------------------:|
 | Lecture slides  | [pdf](slides.pdf) |
+| Annotated slides  | [pdf](slides-annotated.pdf) |
 | Lecture notes   | [pdf](notes.pdf) |
 | Annotated slides | [pdf](slides-annotated.pdf) |
 | Recording, Winter 2021: Chapter 4, Part 1  | [Video (27 mins)](https://youtu.be/dtef_fgyrIc) |
