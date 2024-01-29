@@ -1,0 +1,35 @@
+---
+title: "Chapter 6 discussion questions"
+author: "STATS/DATASCI 531, Winter 2022"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+1. **t-tests versus z-tests**. In Question 6.6 of the notes, we use a normal approximation for the statistic $\hat\beta \big/\mathrm{SE}(\hat\beta)$. When carrying out linear regression analysis, it is good and customary practice to use Student's t distribution instead. Should we do that here? What are the arguments for and against it? Think about the justification for the t-test versus the justification for the z-test. 
+
+2. **The multiplicative structure for SARIMA**. Question 6.2 raised the issue of whether there is a scientific reason to think that practical models for seasonal phenomena should have a product structure to their ARMA polynomials, leading to a preference for [S3] over [S2] that goes beyond methodological convenience. Can you suggest a reason, or alternatively suggest a specific case where a non-multiplicative model like [S2] makes more sense?
+
+3. **Testing stationarity via a test for unit roots is not necessarily good data analysis**. To test a null hypothesis of a unit root against an alternative hypothesis of a stationary causal ARMA model, one can use the Augmented Dickey-Fuller (ADF) test (e.g., Shumway & Stoffer, 2017, pages 252-253). ADF can be used to justify analyzing the differenced data, since the null hypothesis of ADF asserts that differencing is appropriate. Slide 13 of Chapter 6 discourages differencing unless there is a good scientific reason for it in the context of your data, since it may be more revealing to try to understand a trend rather than to use differencing to remove it (if it is linear) or obscure it (if it is nonlinear). Consequently, this course does not emphasize ADF. Can you think of a specific situation where making an ADF test is a good choice?
+
+4. **Annual cycles modeled by local AR(2) vs seasonal SAR(1)**. The following code shows that monthyly SAR models have an ACF with peaks at multiples of 12 lags, without correlation elsewhere. By contrast, an AR(2) model can have an oscillating ACF with period 12 months, as described in Chapter 4. How does this help us interpret the residuals on Slide 10 of Chapter 6?
+
+```{r}
+library(astsa)
+set.seed(123)
+omega <- 2*pi/12
+y1 <- sarima.sim(ar=c(2,-1)/(1+omega^2))
+acf(y1,lag.max=50)
+y2 <- sarima.sim(sar=c(0.6),S=12)
+acf(y2,lag.max=50)
+```
+
+
+---------------
