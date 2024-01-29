@@ -1,6 +1,6 @@
 ---
 title: "Chapter 3 discussion questions"
-author: "DATASCI/STATS 531, Winter 2024"
+author: "DATASCI/STATS 531"
 output:
   html_document:
     toc: yes
@@ -13,10 +13,10 @@ output:
 
 -----------
 
-1. On slide 18 of Chapter 3, we discovered that `arima.sim()` initializes using a burnin-in strategy that throws away the first 13 simulated time points. I was asked after class where this number 13 comes from, and whether it would change for a different model. This is an exercise in checking the source code. By looking at `?arima.sim` can you tell how the burn-in lag is chosen? Perhaps using some of the ideas of Chapter 4 you can intuitively explain why this might be a reasonable choice.
+1. **Burn-in.** On slide 18 of Chapter 3, we discovered that `arima.sim()` initializes using a burn-in strategy that throws away the first 13 simulated time points. Finding out where this number 13 comes from, and whether it would change for a different model, is an exercise in checking the source code. By looking at `?arima.sim` can you tell how the burn-in lag is chosen? Perhaps using some of the ideas of Chapter 4 you can intuitively explain why this might be a reasonable choice.
 
 
-2. The plots on slides 29 and 31 demonstrate that stock market returns are examples of quantities that are uncorrelated but not independent. More exactly, we showed that an appropriate model for stock market returns should have these properties. Independent and identically distributed models are relatively easy to write down, since you can just specify a marginal density for one variable, a common example being the normal density. Can you write down a mean zero, constant variance time series model (i.e., a collection of random variables) which is uncorrelated but not independent? If you can think of many choices, you can ask which may be most appropriate for these data.
+2. **Models for white noise without independence.** The plots on slides 29 and 31 of Chapter 3 demonstrate that stock market returns are examples of quantities that are uncorrelated but not independent. More exactly, we showed that an appropriate model for stock market returns should have these properties. Independent and identically distributed models are relatively easy to write down, since you can just specify a marginal density for one variable, a common example being the normal density. Can you write down a mean zero, constant variance time series model (i.e., a collection of random variables) which is uncorrelated but not independent? If you can think of many choices, you can ask which may be most appropriate for these data.
 
 
 
