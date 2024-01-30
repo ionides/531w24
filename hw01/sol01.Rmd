@@ -1,0 +1,134 @@
+---
+title: "Solution to [Homework 1](hw01.html)"
+author: "DATASCI/STATS 531, Winter 2024"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+\newcommand\Y{Y}
+\newcommand\y{y}
+
+
+--------
+
+**<big>Question 1.1</big>**.
+
+This question uses basic properties of covariance P1--P4 which are given in the homework. Many students will complete it without requiring collaboration or online sources. Simply saying "No sources used" is acceptable if that is the case.
+
+$$\begin{eqnarray}
+\var\left(\widehat{\mu}\left(\Y_{1:N}\right)\right)&=&\var\left(\frac{1}{N}\sum_{n=1}^{N}\Y_{n}\right)
+\\
+&=&\frac{1}{N^{2}}\cov\left(\sum_{m=1}^{N}\Y_{m},\sum_{n=1}^{N}\Y_{n}\right)
+\mbox{ using P1 and P3}
+\\
+&=&\frac{1}{N^{2}}\sum_{m=1}^{N}\sum_{n=1}^{N}\cov\left(\Y_{m},\Y_{n}\right)
+\mbox{ using P4}
+\\
+&=&\frac{1}{N^{2}}\left(N\gamma_{0}+2\left(N-1\right)\gamma_{1}+\ldots+2\gamma_{N-1}\right) \mbox{ using P2 to give $\gamma_h=\gamma_{-h}$}
+\\
+&=&\frac{1}{N}\gamma_{0}+\frac{2}{N^{2}}\sum_{h=1}^{N-1}\left(N-h\right)\gamma_{h}
+\end{eqnarray}$$
+
+-------------------
+
+**<big>Question 1.2</big>**.
+
+This question is not straightforward, and most students are expected to make use of collaboration and/or online sources.
+This solution is based on [ionides.github.io/531w21/hw01/sol01.html](https://ionides.github.io/531w22/hw01/sol01.html).
+It is okay to look at the previous solution, if you acknowledge it.
+In that case, it is appropriate for your report to discuss the relationship between your work and the previous solution. See the [../rubric_homework.html](homework grading rubric) for more discussion of this.
+
+If you work things out without consulting any sources, and say so, that is permitted.
+However, strong academic writing connects your own work to the wider academic community and uses relevant citations to support your arguments.
+Think of your homework report as a small piece of academic writing. You can reference the notes [1] or Shumway and Stoffer (2017) [2] where appropriate. 
+
+Referencing Wikipedia is acceptable.
+Indeed, Wikipedia is often a good source.
+It is so widely used that if you find a problem with the Wikipedia article, or an inconsistency between the Wikipedia version and other sources, that is well worth comment.
+References do not need to be internet accessible. For example, it could be a paper book. However, most references nowadays are online.
+
+Now moving on to the solution. By definition,
+$$
+\widehat{\gamma}_{h}\left(\y_{1:N}\right)=\frac{1}{N}\sum_{n=1}^{N-h}\left(\y_{n}-\widehat{\mu}_{n}\right)\left(\y_{n+h}-\widehat{\mu}_{n+h}\right).
+$$
+Here, we consider the null hypothesis where $\Y_{1:N}$ is independent and identically distributed with mean $0$ and standard deviation $\sigma$. We therefore use the estimator $\widehat\mu_n=0$ and the autocovariance function estimator becomes
+$$\begin{eqnarray}
+\widehat{\gamma}_{h}\left(\y_{1:N}\right)
+&=&
+\frac{1}{N}\sum_{n=1}^{N-h}\y_{n}\y_{n+h},
+\end{eqnarray}$$
+We let $\sum_{n=1}^{N-h}\Y_{n}\Y_{n+h}=U$ and $\sum_{n=1}^{N}\Y_{n}^{2}=V$, and carry out a first order Taylor expansion [3] of
+$$\widehat\rho_h(\Y_{1:N})
+= \frac{\widehat\gamma_h(\y_{1:N})}{\widehat\gamma_0(\y_{1:N})}
+= \frac{U}{V}$$
+about $(\E[U],\E[V])$. This gives
+$$
+\widehat{\rho}_{h}(\Y_{1:N})
+\approx\frac{\E\left(U\right)}{\E\left(V\right)}+\left(U-\E\left(U\right)\right)\left.\frac{\partial}{\partial U}\left(\frac{U}{V}\right)\right|_{\left(\E\left(U\right),\E\left(V\right)\right)}+\left(V-\E\left(V\right)\right)\left.\frac{\partial}{\partial V}\left(\frac{U}{V}\right)\right|_{\left(\E\left(U\right),\E\left(V\right)\right)}.
+$$
+We have
+$$
+\E\left(U\right)=\sum_{n=1}^{N-h}\E\left(\Y_{n}\, \Y_{n+h}\right)=0,
+$$
+$$
+\E\left(V\right)=\sum_{n=1}^{N}\E\left(\Y_{n}^{2}\right)=N\sigma^{2},
+$$
+$$
+\frac{\partial}{\partial U}\left(\frac{U}{V}\right)=\frac{1}{V},
+$$
+$$
+\frac{\partial}{\partial V}\left(\frac{U}{V}\right)=\frac{-U}{V^{2}}.
+$$
+Putting this together, we have
+$$\begin{eqnarray}
+\widehat{\rho}_{h}(\Y_{1:N})&\approx&\frac{\E\left(U\right)}{\E\left(V\right)}+\frac{U}{\E\left(V\right)}-\frac{\left(V-\E\left(V\right)\right)\E(U)}{\E(V)^{2}}
+\\
+&=&\frac{U}{N\sigma^{2}}.
+\end{eqnarray}$$
+This gives us an approximation,
+$$
+\var\left(\widehat{\rho}_{h}(\Y_{1:N})\right)\approx\frac{\var\left(U\right)}{N^{2}\sigma^{4}}.
+$$
+We now look to compute
+$$
+\var\left(U\right)= \var\left(\sum_{n=1}^{N-h}\Y_{n}\Y_{n+h}\right).
+$$
+Since $\Y_{1:N}$ are independent and mean zero, we have $\E[\Y_{n}\Y_{n+h}] = 0$ for $h\neq 0$.  Therefore, for $m\neq n$,
+$$
+\cov\left(\Y_{m}\Y_{m+h},\Y_n\Y_{n+h}\right) = \E\left[ \Y_{m}\Y_{m+h}\, \Y_n\Y_{n+h}\right] = 0.
+$$
+Thus, the terms in the sum for $\var\left(U\right)$ are uncorrelated for $m\neq n$ and we have
+$$\begin{eqnarray}
+\var\left(U\right) &=& \sum_{n=1}^{N-h} \var\left(\Y_n\Y_{n+h}\right) \\
+&=& (N-h) \, \E\left[Y_n^2Y_{n+h}^2\right] \\
+&=& (N-h) \, \sigma^4
+\end{eqnarray}$$
+Therefore,
+$$
+\var\left(\widehat{\rho}_{h}(\Y_{1:N})\right)\approx\frac{\left(N-h\right)}{N^{2}}
+$$
+When $N\rightarrow\infty$, $\var\left(\widehat{\rho}_h(\Y_{1:N})\right)\rightarrow\frac{1}{N}$, justifying a standard deviation under the null hypothesis of $1/\sqrt{N}$.
+
+B. A 95% confidence interval is a function of the data that constructs a set which (under a specified model) covers the true parameter with probability 0.95. [4]
+
+* Here, the interval $\big[-1.96/\sqrt{N},1.96/\sqrt{N}\big]$ does not depend on the data. For any given model, it therefore covers $\rho_h$ either with probability 1 or 0.
+
+* The interval $\big[\widehat\rho_h(y_{1:N})-1.96/\sqrt{N},\widehat\rho_h(y_{1:N})+1.96/\sqrt{N}\big]$ covers zero if and only if $\widehat\rho^{}_h$ falls between the dashed lines. In this sense, the dashed lines have some meaning relevant to construction of a confidence interval with local coverage of 95% at $\rho_h=0$ for $N$ large. However, the lines really represent an acceptance region of a test under a null hypothesis of independence. This is a different thing from a confidence interval.
+
+
+---------------------
+
+**<big>References</big>**.
+
+1. [Notes for STATS/DATASCI 531, Modeling and Analysis of Time Series Data](https://ionides.github.io/531w22/)
+
+2. Shumway, R.H., and Stoffer, D.S., 2017. Time series analysis and its applications (4th edition). New York: Springer.
+
+3. [LibreTexts, Taylor Polynomials of Functions of Two Variables, Equation (4)](https://math.libretexts.org/Bookshelves/Calculus/Supplemental_Modules_(Calculus)/Multivariable_Calculus/3%3A_Topics_in_Partial_Derivatives/Taylor__Polynomials_of_Functions_of_Two_Variables)
+
+4. https://en.wikipedia.org/wiki/Confidence_interval#Definition

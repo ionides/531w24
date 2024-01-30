@@ -488,15 +488,8 @@ Consider the strategy of selecting the model with the lowest AIC value, and view
 
 \begin{frame}[fragile]{Reading in the data}
 
-Here is the head of the file \url{huron_level.csv}
-{\scriptsize
-\begin{verbatim}
-# Lake Michigan-Huron:, Monthly Average Water Levels (meters)
-year,jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec
-1860,177.285,177.339,177.349,177.388,177.425,177.461,177.473,177.416,177.355,177.26,177.16,177.111
-1861,177.077,177.105,177.224,177.254,177.382,177.431,177.47,177.544,177.449,177.413,177.342,177.291
-\end{verbatim}
-}
+The file \url{huron_level.csv} gives monthly water level, in meters, for Lakes Michigan and Huron from 1860 to 2023.
+
 <<read_data>>=
 dat <- read.table(file="huron_level.csv",sep=",",header=TRUE)
 head(dat[,1:7],2)
@@ -713,10 +706,9 @@ par(mai=c(0.8,0.8,0.1,0.1))
 
 \end{frame} 
 
+\subsection{A simulation study}
 
   \begin{frame}[fragile]
-
-\frametitle{A simulation study}
 
 \vspace{-3mm}
 

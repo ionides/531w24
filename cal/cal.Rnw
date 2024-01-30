@@ -30,7 +30,7 @@ entries <- rbind(
   c(format.Date(class_date[4],format="%a %b %d"),
     "Class 4. Finish Chapter 3, start Chapter 4. ARMA models"),
   c(format.Date(class_date[5],format="%a %b %d"),
-    "Class 5. Chapter 4 continued"),
+    "Class 5. Chapter 4 continued. Start chapter 5."),
   c(format.Date(class_date[6]-1,format="%a %b %d"),
     "Homework 2 (needs chapter 3; chapter 4 to slide 15). Participation 2, due 11:59pm"), 
   c(format.Date(class_date[6],format="%a %b %d"),

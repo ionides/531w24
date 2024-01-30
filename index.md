@@ -31,12 +31,11 @@ The course outline, course information and grading policies are described in the
 
 4. [Linear time series models and the algebra of ARMA models](04/index.html)
 
-<!--
-
 5. [Parameter estimation and model identification for ARMA models](05/index.html)
 
 6. [Extending the ARMA model: Seasonality, integration and trend](06/index.html)
 
+<!--
 7. [Introduction to time series analysis in the frequency domain](07/index.html)
 
 8. [Smoothing in the time and frequency domains](08/index.html)
@@ -73,12 +72,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 
 * [Homework 1](hw01/hw01.html), due Sun Jan 21, 11:59pm. 
-
-<!--
-
 [Solution](hw01/sol01.html).
-
--->
 
 * [Participation 1](participation/participation1.html), due Sun Jan 21, 11:59pm.
 

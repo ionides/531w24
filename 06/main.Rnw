@@ -1,0 +1,542 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{6}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w24/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Extending the ARMA model: Seasonality, integration and trend}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+\section{Seasonality}
+\subsection{The SARMA model}
+\begin{frame}[fragile]{Seasonal autoregressive moving average (SARMA) models}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\bi
+\item A general SARMA$(p,q)\times(P,Q)_{12}$ model for monthly data is
+
+\vspace{2mm}
+
+\negListSpace [S1] $\hspace{10mm} \ar(B)\AR(B^{12}) (Y_n-\mu) = \ma(B)\MA(B^{12}) \epsilon_n$,
+
+\vspace{2mm}
+
+
+where $\{\epsilon_n\}$ is a white noise process and
+\begin{eqnarray*}
+\mu &=& \E[Y_n]
+\\
+\ar(x)&=&1-\ar_1 x-\dots -\ar_px^p,
+\\ 
+\ma(x)&=&1+\ma_1 x+\dots +\ma_qx^q, 
+\\
+\AR(x)&=&1-\AR_1 x-\dots -\AR_Px^P,
+\\ 
+\MA(x)&=&1+\MA_1 x+\dots +\MA_Qx^Q.
+\end{eqnarray*}
+
+\item SARMA is a special case of ARMA, where the AR and MA polynomials are factored into a \myemph{monthly} polynomial in $B$ and an \myemph{annual polynomial} (also called \myemph{seasonal polynomial}) in $B^{12}$.
+
+\item Everything we learned about ARMA models (including assessing causality, invertibility and reducibility) also applies to SARMA. 
+
+\ei
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Choosing the period for a SARMA model}
+\bi
+\item For the SARMA$(p,q)\times(P,Q)_{12}$ model, 12 is called the \myemph{period}.
+\item One could write a SARMA model for some period other than 12. 
+\item A SARMA$(p,q)\times(P,Q)_{4}$ model could be appropriate for quarterly data. 
+\item In principle, a SARMA$(p,q)\times(P,Q)_{52}$ model could be appropriate for weekly data, though in practice ARMA and SARMA may not work so well for higher frequency data. 
+\item The seasonal period should be appropriate for the system being modeled. It is usually inappropriate to fit a SARMA$(p,q)\times(P,Q)_{9}$ model just because you notice a high sample autocorrelation at lag 9.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+Consider the following two models:
+
+\vspace{2mm}
+ 
+[S2] $\eqspace Y_n = 0.5 Y_{n-1} + 0.25 Y_{n-12} + \epsilon_n$,
+\vspace{2mm}
+ 
+[S3] $\eqspace Y_n = 0.5 Y_{n-1} + 0.25 Y_{n-12} - 0.125 Y_{n-13} + \epsilon_n$,
+\vspace{2mm}
+
+\myquestion. Which of [S2] and/or [S3] is a SARMA model? 
+
+\answer{\vspace{50mm}}{todo}
+
+\end{frame}
+
+\begin{frame}
+\myquestion. Why do we assume a multiplicative structure in the SARMA model, [S1]? What theoretical and practical advantages (or disadvantages) arise from requiring that an ARMA model for seasonal behavior has polynomials that can be factored as a product of a monthly polynomial and an annual polynomial?
+
+\answer{\vspace{60mm}}{todo}
+
+\end{frame}  
+
+\begin{frame}[fragile]
+\frametitle{Fitting a SARMA model}
+
+We fit a monthly version of the Lake Huron depth data described earlier.
+
+<<read_data,echo=T>>=
+dat <- read.table(file="huron_level.csv",sep=",",header=TRUE)
+dat[1:3,1:7]
+@
+
+<<plot_data_code,echo=T,eval=F>>=
+huron_level <- as.vector(t(dat[,2:13]))
+time <- rep(dat$Year,each=12)+ rep(0:11,nrow(dat))/12
+plot(huron_level~time,type="l")
+@
+
+\end{frame}  
+
+\begin{frame}[fragile]
+
+<<plot_data,echo=F,eval=T,out.width="9cm",fig.width=5.5,fig.height=3>>=
+par(mai=c(0.8,0.8,0.1,0.1))
+<<plot_data_code>>
+abline(v=2014.99,col="red")
+@
+
+Based on our previous analysis, we try fitting AR(1) for the annual polynomial. We try ARMA(1,1) for the monthly part, giving
+\begin{equation}
+(1-\AR_1 B^{12})(1-\ar_1 B) Y_n = (1+\ma_1 B)\epsilon_n.
+\end{equation}
+
+\bi
+\item As discussed earlier, we analyze data only up to 2014, shown by a red line on the plot.
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<sarima>>=
+huron_level <- huron_level[time < 2014.99]
+time <- time[time < 2014.99]
+huron_sarma11x10 <- arima(huron_level,
+  order=c(1,0,1),
+  seasonal=list(order=c(1,0,0),period=12)
+)
+@
+<<sarima_summary,size="scriptsize">>=
+huron_sarma11x10
+@
+
+\end{frame}  
+
+\begin{frame}[fragile]{Residual analysis}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\bi
+\item
+Residual analysis is similar to non-seasonal ARMA models.
+\item
+We look for residual correlations at lags corresonding to multiples of the period (here, 12, 24, 36, ...) for misspecified annual dependence.
+\ei
+
+<<residuals,echo=F,out.width="8cm",fig.width=5,fig.height=2.5>>=
+par(mai=c(0.8,0.8,0.1,0.1))
+acf(resid(huron_sarma11x10))
+@
+
+
+\myquestion. What do you conclude from this residual analysis? What would you do next?
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame}  
+
+\section{Differencing and integration}
+
+\subsection{The ARIMA model}
+
+\begin{frame}[fragile]{ARMA models for differenced data}
+
+\mode<presentation>{
+\vspace{-1mm}
+}
+
+\bi
+\item Applying a difference operation to the data can make it look more stationary and therefore more appropriate for ARMA modeling.
+
+\item This can be viewed as a \myemph{transformation to stationarity}
+
+\item We can transform the data $\data{y_{1:N}}$ to ${z_{2:N}}$ 
+\begin{equation}
+{z_n} = \Delta \data{y_n} = \data{y_n}-\data{y_{n-1}}.
+\end{equation}
+
+\item Then, an ARMA(p,q) model $Z_{2:N}$ for the differenced data ${z_{2:N}}$ is called an \myemph{integrated autoregressive moving average} model for $\data{y_{1:N}}$ and is written as ARIMA(p,1,q).
+
+\item Formally, the ARIMA(p,d,q) model with intercept $\mu$ for $Y_{1:N}$ is
+
+\vspace{3mm}
+
+\negListSpace [S4] $\eqspace \ar(B)\big[ (1-B)^d Y_n-\mu \big] = \ma(B) \, \epsilon_n$,
+
+\vspace{3mm}
+
+where $\{\epsilon_n\}$ is a white noise process; $\ar(x)$ and $\ma(x)$ are ARMA polynomials.
+
+\item It is unusual to fit an ARIMA model with $d>1$.
+
+\ei
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\bi
+
+\item We see that an ARIMA(p,1,q) model is almost a special case of an ARMA(p+1,q) model with a \myemph{unit root} to the AR(p+1) polynomial.
+\ei
+
+\myquestion. Why ``almost'' not ``exactly'' in the previous statement?
+
+\answer{\vspace{40mm}}{todo}
+\end{frame} 
+
+ \begin{frame}[fragile]{Two reasons to fit an ARIMA(p,d,q) model with $d>0$}
+
+1. You may really think that modeling the differences is a natural approach for your data. The S\&P 500 stock market index analysis in Chapter 3 is an example of this, as long as you remember to first apply a logarithmic transform to the data.
+
+2. Differencing often makes data look ``more stationary'' and perhaps it will then look stationary enough to justify applying the ARMA machinery.
+
+\bi
+
+\item We should be cautious about this second reason. It can lead to poor model specifications and hence poor forecasts or other conclusions.
+
+\item The second reason was more compelling in the 1970s and 1980s. Limited computing power resulted in limited alternatives, so it was practical to force as many data analyses as possible into the ARMA framework and use method of moments estimators.
+
+\ei
+\end{frame} 
+
+ \begin{frame}[fragile]
+
+\frametitle{Practical advice on using ARIMA models}
+
+\bi
+
+\item ARIMA analysis is relatively simple to do. It has been a foundational component of time series analysis since the publication of the influential book ``Time Series Analysis'' \citep{box70} which developed and popularized ARIMA modeling. 
+
+\item A practical approach is:
+
+\vspace{2mm}
+
+1. Do a competent ARIMA analysis.
+
+\vspace{2mm}
+
+2. Identify potential limitations in this analysis and remedy them using more advanced methods.
+
+\vspace{2mm}
+
+3. Assess whether you have in fact learned anything from (2) that goes beyond (1).
+
+\ei
+
+\end{frame}  
+
+\subsection{The SARIMA model}
+
+ \begin{frame}[fragile]{The SARIMA$(p,d,q)\times(P,D,Q)$ model}
+
+Combining integrated ARMA models with seasonality, we can write a general SARIMA$(p,d,q)\times(P,D,Q)_{12}$ model for nonstationary monthly data, given by 
+
+\vspace{3mm}
+ 
+[S5] $\eqspace \hspace{-0mm} \ar(B)\AR(B^{12}) \big[ (1-B)^d(1-B^{12})^D Y_n-\mu \big] = \ma(B)\MA(B^{12}) \epsilon_n$,
+
+\vspace{3mm}
+ 
+where $\{\epsilon_n\}$ is a white noise process, the intercept $\mu$ is the mean of the differenced process $\{(1-B)^d(1-B^{12})^D Y_n\}$, and we have ARMA polynomials $\ar(x)$, $\AR(x)$, $\ma(x)$, $\MA(x)$ as in model [S1].
+
+\bi
+\item The SARIMA$(0,1,1)\times(0,1,1)_{12}$ model has often been used for forecasting monthly time series in economics and business. It is sometimes called the \myemph{airline model} after a data analysis by Box and Jenkins (1970).
+\ei
+
+\end{frame} 
+
+\section{Trend estimation: regression with ARMA errors}
+
+ \begin{frame}[fragile]{Modeling trend with ARMA noise}
+
+\vspace{-1.5mm}
+
+\bi
+
+\item A general \myemph{signal plus noise} model is
+
+\vspace{1mm}
+
+\negListSpace [S6] $\hspace{10mm}   Y_n = \mu_n + \eta_n$,
+
+\vspace{1mm}
+
+where $\{\eta_n\}$ is a stationary, mean zero stochastic process, and $\mu_n$ is the mean function. 
+
+\item If, in addition, $\{\eta_n\}$ is uncorrelated, then we have a \myemph{signal plus white noise} model. The usual linear trend regression model fitted by least squares in Chapter~2 corresponds to a signal plus white noise model.
+
+\item We can say \myemph{signal plus colored noise} if we wish to emphasize that we're not assuming white noise.
+
+\item Here, \myemph{signal} and \myemph{trend} are used interchangeably. In other words, we are assuming a deterministic signal. 
+
+\item At this point, it is natural for us to consider a signal plus ARMA(p,q) noise model, where $\{\eta_n\}$ is a stationary, causal, invertible ARMA(p,q) process with mean zero.
+
+\item As well as the $p+q+1$ parameters in the ARMA(p,q) model, there will usually be unknown  parameters in the mean function. 
+
+\ei
+
+\end{frame} 
+
+ \begin{frame}[fragile]
+\frametitle{Linear regression with ARMA errors}
+
+\bi
+\item When the mean function (also known as the trend) has a linear specification,
+\begin{equation}
+\mu_n = \sum_{k=1}^K Z_{n,k}\beta_k,
+\end{equation}
+the signal plus ARMA noise model is known as \myemph{linear regression with ARMA errors}.
+
+\item Writing $Y$ for a column vector of $Y_{1:N}$, $\mu$ for a column vector of $\mu_{1:N}$, $\eta$ for a column vector of $\eta_{1:N}$, and $Z$ for the $N\times K$ matrix with $(n,k)$ entry $Z_{n,k}$, we have a general linear regression model with correlated ARMA errors,
+\begin{equation} \label{eq:arma:reg}
+Y = Z\beta + \eta.
+\end{equation}
+
+\item From (\ref{eq:arma:reg}), $Y-Z\beta$ is ARMA so likelihood evaluation and numerical maximization can build on ARMA methods.
+
+\ei
+
+\end{frame} 
+
+ \begin{frame}[fragile]
+\frametitle{Inference for the linear regression model with ARMA errors}
+
+\bi
+\item Maximum likelihood estimation of $\theta = (\ar_{1:p},\ma_{1:q},\sigma^2,\beta)$ is a nonlinear optimization problem.
+
+\item  Fortunately, \code{arima} in R can do it for us.
+
+\item As usual, we should look out for signs of numerical problems.
+
+\item Data analysis for a linear regression with ARMA errors model, using the framework of likelihood-based inference, is procedurally similar to fitting an ARMA model. 
+
+\item This is a powerful technique, since the covariate matrix $Z$ can include other time series. We can evaluate associations between different time series. 
+
+\item With appropriate care (since \myemph{association is not causation}) we can draw inferences about mechanistic relationships between dynamic processes.
+\ei
+\end{frame} 
+
+ \begin{frame}[fragile]
+
+\frametitle{Evidence for systematic trend in Lake Huron level?}
+
+We return to annual data, say the January level, to avoid seasonality.
+
+<<data_subset,echo=F,out.width="8cm",fig.width=5,fig.height=2.5>>=
+huron <- dat[dat[,1]<2014.99 , 2]
+year <- dat[dat[,1]<2014.99 , 1]
+par(mai=c(0.8,0.8,0.1,0.1))
+plot(x=year,y=huron,type="l")
+@
+\bi
+\item Visually, there seems some evidence for a decreasing trend, but there are also considerable fluctuations. 
+
+\item Let's test for a trend, using a regression model with Gaussian AR(1) errors. We have previously found that this is a reasonable model for these data.
+
+\item First, for comparison, we fit a null model with no trend.
+\ei
+\end{frame} 
+
+\begin{frame}[fragile]
+
+<<h0_fit>>=
+fit0 <- arima(huron,order=c(1,0,0))
+@
+
+\mode<presentation>{
+  \vspace{-2mm}
+}
+
+<<h0_summary,echo=F,size="footnotesize">>=
+fit0
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+\item We compare \code{fit0} with a linear trend model, coded as \code{fit1}.
+\item The covariate is included via the \code{xreg} argument.
+\ei
+
+\mode<presentation>{
+\vspace{-1mm}
+}
+
+<<h1_fit>>=
+fit1 <- arima(huron,order=c(1,0,0),xreg=year)
+@
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+<<h1_summary,echo=F,size="footnotesize">>=
+fit1
+@
+
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\frametitle{Setting up a formal hypothesis test}
+
+\bi
+
+\item To talk formally about these results, we must down a model and some hypotheses. 
+\item Writing the data as $\data{y_{1:N}}$, collected at years $t_{1:N}$, the model we have fitted is
+\begin{equation}
+(1-\ar_1 B)(Y_n - \mu - \beta t_n) = \epsilon_n,
+\end{equation}
+where $\{\epsilon_n\}$ is Gaussian white noise with variance $\sigma^2$. Our null model is
+\begin{equation}
+H^{\langle 0\rangle}: \beta=0,
+\end{equation}
+and our alternative hypothesis is
+\begin{equation}
+H^{\langle 1\rangle}: \beta\neq 0.
+\end{equation}
+\ei
+
+\end{frame} 
+
+\begin{frame}[fragile]
+
+\myquestion. How do we test $H^{\langle 0\rangle}$ against $H^{\langle 1\rangle}$?
+\bi
+\item Construct two different tests using the R output above.
+
+\item Which test do you think is more accurate, and why?
+
+\ei
+
+\answer{\vspace{50mm}}{todo}
+
+\end{frame} 
+ 
+\begin{frame}[fragile]
+
+\myquestion. How would you check whether your preferred test is indeed better?
+What other supplementary analysis could you do to strengthen your conclusions?
+
+\answer{\vspace{50mm}}{todo}
+
+\end{frame} 
+
+
+\begin{frame}{Further reading} 
+
+\bi
+
+\item Section~3.9 of \citet{shumway17} discusses SARIMA modeling.
+
+\item Section~3.8 of \citet{shumway17} introduces regression with ARMA errors.
+
+\ei
+
+
+\end{frame}
+
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w24/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
+
