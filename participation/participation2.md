@@ -1,5 +1,5 @@
 ---
-title: "Participation report 1, due Tuesday 1/30, 11:59pm"
+title: "Participation report 2, due Tuesday 1/30, 11:59pm"
 author: "DATASCI/STATS 531, Winter 2024"
 output:
   html_document:

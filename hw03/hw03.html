@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
+<meta name="author" content="DATASCI/STATS 531" />
 
 
-<title>Participation report 2, due Tuesday 1/30, 11:59pm</title>
+<title>Homework 3, due Sunday 2/11, 11.59pm</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,32 +349,85 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 2, due Tuesday 1/30,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
+<h1 class="title toc-ignore">Homework 3, due Sunday 2/11, 11.59pm</h1>
+<h4 class="author">DATASCI/STATS 531</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/22 to 1/30
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
+<hr />
+<p>This homework is a small data analysis project designed as
+preparation for the midterm project. In particular, you are required to
+write your report using Rmd format, which is required for the midterm
+and final projects. Consequently you should submit two files, an Rmd
+file and the HTML document you obtain by compiling it. The Rmd file
+should be written so that the grader can run it, and therefore the data
+should be read from the homework website rather than from a local
+directory. The grader will not necessarily recompile the Rmd, but if
+they do then it should reproduce the HTML. If technical difficulties
+arise with learning to use Rmd format, please consult your peers,
+piazza, the GSI or myself.</p>
+<p>Most of you will find that editing the Rmd file in Rstudio may be the
+simplest solution. Also, the source files for this homework and all the
+notes are on the class GitHub site: if you see anything in the notes
+that you’d like to reproduce, you can take advantage of that. Opening
+the file <a href="hw03.Rmd">hw03.Rmd</a> in Rstudio and editing it to
+produce your solution is one way to proceed. You may also like to browse
+<a href="http://www.stat.cmu.edu/~cshalizi/rmarkdown/" class="uri">http://www.stat.cmu.edu/~cshalizi/rmarkdown/</a>.</p>
+<p>You will need to know some Latex to write equations in Rmarkdown.
+Many tutorials exist online, e.g. <a href="http://www.latex-tutorial.com/tutorials/">http://www.latex-tutorial.com/tutorials</a>.
+One legitimate approach is to identify equations in the notes that you
+would like to modify, and then dig out the source code from the course
+github repository. If you look at code from the slides, it will be in
+Rnw format not Rmd format: both methods combine Latex and R in similar
+ways, and the main practical difference is the symbols used to separate
+code chunks from text.</p>
+<p>Your report should contain a reference section listing sources. The
+grader should be able to clearly identify where the sources were used,
+for example using reference numbers in the text. Anything and anyone
+consulted while you are working on the homework counts as a source and
+should be credited. The homework will be graded following the <a href="../rubric_homework.html">posted rubric</a>.</p>
+<hr />
+<p><strong><big>Question 3.1</big></strong>. Try out some of the ARMA
+techniques studied in class on the Ann Arbor January Low temperature
+time series that we saw in Chapter 1 of the notes. Write a report as an
+Rmd file and submit this file on the class Canvas site. This is an
+open-ended assignment, but you’re only expected to do what you can in a
+reasonable amount of time. Some advice follows.</p>
+<ol style="list-style-type: decimal">
+<li>You can read in the data with</li>
+</ol>
+<pre class="r"><code>x &lt;- read.table(file=&quot;http://ionides.github.io/531w24/01/ann_arbor_weather.csv&quot;,header=TRUE)
+plot(Low~Year,data=x,type=&quot;l&quot;)</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li><p>Your report should involve model equations and hypotheses, and
+should define the notation used. Please be careful to distinguish
+between symbols representing random variables (usually using capital
+letters) and numbers. You are welcome to follow the notation in the
+course notes, and if you deviate from this notation it is especially
+necessary to define the notation that you choose.</p></li>
+<li><p>You are advised to try a few things from the notes, spot
+something that catches your attention, and try a few more things to
+investigate it. Write up what you found, and you’re finished!</p></li>
+<li><p>When writing up your homework report, you must choose which
+pieces of R code to include in the HTML document. To tell Rmarkdown not
+to include the R code in the HTML document, use the
+<code>echo=FALSE</code> chunk option, e.g.,</p>
+<pre><code>```{r chunk_without_code, echo=FALSE}
+cat(&quot;only the output of this code chunk will be printed\n&quot;)
+```</code></pre>
+<p>You should only display the code in the HTML document if you think
+that, in your context, the helpfulness of showing the code outweighs the
+extra burden on the reader, since the reader can work through the Rmd
+source file if necessary. For your homework report, it is helpful to
+show more code than you would in a project report. A suitable balance
+might be similar to the style of the course notes.</p></li>
+<li><p>When you have got everything you can out of the Ann Arbor January
+Low temperature time series, consider it in the context of the global
+mean annual temperature time series on the class github site:</p></li>
+</ol>
+<pre class="r"><code>global &lt;- read.table(file=&quot;http://ionides.github.io/531w24/hw03/Global_Temperature.txt&quot;,header=TRUE)
+plot(Anomaly~Year,data=global,type=&quot;l&quot;)</code></pre>
 <hr />
 
 
