@@ -6,8 +6,8 @@ output: html_document
 
 ----------------------
 
-| &nbsp;          | &nbsp;                                                                            |
-|:----------------|:---------------------------------------------------------------------------------:|
+| &nbsp;                | &nbsp;  |
+|:-------               |:----:|
 | Lecture slides  | [pdf](slides.pdf) |
 | Annotate slides  | [pdf](slides-annotated.pdf) |
 | Lecture notes   | [pdf](notes.pdf) |
