@@ -79,12 +79,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 
 * [Homework 2](hw02/hw02.html), due Tue Jan 30, 11:59pm.
-
-<!--
-
 [Solution](hw02/sol02.html).
-
--->
 
 * [Participation 2](participation/participation2.html), due Tue Jan 30, 11:59pm.
 
