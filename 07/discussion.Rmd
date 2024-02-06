@@ -1,0 +1,19 @@
+---
+title: "Chapter 7 discussion question"
+author: "DATASCI/STATS 531"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+**Time domain vs frequency domain**. It can be helpful to think of time and frequency domain analysis as two different ways to see the same thing. The data and its Fourier transform contain exactly the same information, so in principle nothing can be gained or lost by transforming the data into a collection of sines and cosines. Sometimes things are easier to see in the frequency domain, and sometimes in the time domain. This suggests looking at both. Can you think of situations where it is appropriate to focus only on the frequency domain, or only on the time domain? 
+
+
+---------------
