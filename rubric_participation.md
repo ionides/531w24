@@ -19,9 +19,17 @@ A goal of the participation credit is to reward and incentivize contributions th
 
 Participation will be documented in a brief report, in response to a Canvas assignment. At least one contribution is expected over each reporting interval.
 
-[5 points] Participation that makes an on-target substantive contribution to a course discussion (in class or on Piazza). Anonymous contributions will only count for full points if there is some evident reason why the topic demands anonymity.
+**The principle of academic scholarship that is emphasized in homework assignments also applies to participation assignments.**
+This is particularly relevant on piazza posts, where you can use outside sources when posting a question or responding to another student's question, but proper attribution should be given to outside sources when used. 
+If it is determined that the participation report is based on comments from outside sources that were not properly cited, you may lose some, or all, of points for a particular participation assignment.
+ChatGPT---or other natural language models---may be used to answer piazza posts, but the student must indicate that such software was used. 
+Furthermore, in order to recieve full participation points, the student must demonstrate how they went beyond simply entering a question on an existing piazza post as input into ChatGPT and posting the given output, or posting the first result obtained from a google search of the given question. 
+This can be as simple as giving evidence of what they searched in order to get a correct solution, or summarizing what they found utilizing the termonology and language that is used in our class. 
 
-[4 points] Participation that builds class community without satisfying (5). For example, asking or answering an administrative question.
+
+[5 points] Participation that makes an on-target substantive contribution to a course discussion (in class or on Piazza). Anonymous contributions will only count for full points if there is some evident reason why the topic demands anonymity. If outside sources are used, full credit will only be awarded if relevant sources are cited and effort is made to explain how the student went beyond performing a simple search or ChatGPT query that could be performed by the person who asked the original question. 
+
+[4 points] Participation that builds class community without satisfying (5). Examples may include: asking or answering an administrative question, or simply copying and pasting the output of ChatGPT without further demonstrating a meaningful contribution. 
 
 [3 points] A contribution which does not quite meet expectations. For example, a small comment which turns out not to be helpful for starting or answering a class discussion. Probably in the least-well-constructed 25% of all class contributions.
 
