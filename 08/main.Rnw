@@ -1,0 +1,579 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+\newcommand\ev{u}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{8}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w24/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Smoothing in the time and frequency domains}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+\section{Smoothing a time series}
+%\subsection{}
+
+\begin{frame}{Introduction to smoothing in time series analysis}
+
+
+
+\bi
+\item   Estimating a nonparametric trend from a time series is known as smoothing. We will review some standard smoothing methods.
+
+\item We also smooth the periodogram to estimate a spectral density.
+
+\item Smoothers have convenient interpretation in the frequency domain. A smoother typically shrinks high frequency components and preserves low frequency components.
+
+\ei
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+\frametitle{A motivating example}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\bi
+\item The economy fluctuates between periods of rapid expansion and periods of slower growth or contraction. 
+
+\item High unemployment is one of the most visible signs of a dysfunctional economy, in which labor is under-utilized, leading to hardships for many individuals and communities.
+
+\item Economists, politicians, businesspeople and the general public therefore have an interest in understanding fluctuations in unemployment.
+
+\item Economists try to distinguish between fundamental structural changes in the economy and the shorter-term cyclical booms and busts that appear to be a natural part of capitalist business activity.
+
+\item Monthly US unemployment figures are published by the \link{https://data.bls.gov/timeseries/LNU04000000}{Bureau of Labor Statistics (BLS)}.
+
+\item Measuring unemployment has subtleties, but these are not our immediate focus.
+\ei
+
+\end{frame}
+\begin{frame}[fragile]
+
+\vspace{-3mm}
+
+<<data_unadj-file-code,echo=T,eval=F>>=
+system("head unadjusted_unemployment.csv",intern=TRUE)
+@
+
+\vspace{-3mm}
+
+<<data_unadj-file-eval,echo=F,eval=T>>=
+<<data_unadj-file-code>>
+@
+
+\vspace{-3mm}
+
+<<data_unadj-read-code,echo=T,eval=F>>=
+U1 <- read.table(file="unadjusted_unemployment.csv",
+  sep=",",header=TRUE)
+head(U1,3)
+@
+
+\vspace{-3mm}
+
+<<data_unadj-read-eval,echo=F,eval=T>>=
+<<data_unadj-read-code>>
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+\myquestion. A coding exercise: Explain how the tabulated data in \code{U1} are converted to a time series, below.
+
+\answer{\vspace{15mm}}{todo}
+
+
+<<reshape_code,echo=T,eval=F>>=
+u1 <- t(as.matrix(U1[2:13]))
+dim(u1) <- NULL
+date <- seq(from=1948,length=length(u1),by=1/12)
+plot(date,u1,type="l",ylab="Unemployment rate (unadjusted)")
+@
+
+\vspace{-3mm}
+
+<<reshape,echo=F,fig.width=7,fig.height=3.5,out.width="9cm">>=
+par(mai=c(0.8,0.8,0.2,0.2))
+<<reshape_code>>
+@
+
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+
+\vspace{-3mm}
+
+\bi
+\item We see seasonal variation and economic cycles on top of a trend.
+
+\item The seasonal variation looks like an additive effect, say an annual fluctation with amplitude around 1 percentage point. 
+
+\item Sometimes, we may prefer to look at monthly seasonally adjusted unemployment, \link{https://data.bls.gov/timeseries/LNS14000000}{also provided by BLS}.
+\ei
+
+\vspace{-2mm}
+
+<<data_adj_read,echo=T>>=
+U2 <- read.table(file="adjusted_unemployment.csv",sep=",",
+  header=TRUE)
+u2 <- t(as.matrix(U2[2:13]))
+@
+
+\vspace{-4mm}
+
+<<data_adj_code,echo=F,eval=T,fig.width=7,fig.height=3.5,out.width="9cm">>=
+dim(u2) <- NULL
+par(mai=c(0.5,0.8,0.8,0.1))
+plot(date,u1,type="l",ylab="percent",xlab="",col="black")
+lines(date,u2,type="l",col="red")
+title("Unemployment. Raw (black) and seasonally adjusted (red)")
+@
+
+\vspace{-2mm}
+
+\bi
+\item
+We can wonder how the BLS adjusts the data, and if this introduces any artifacts that a careful statistician should be aware of.
+\ei
+\end{frame}
+
+
+\section{Seasonal adjustment in the frequency domain}
+
+\begin{frame}[fragile]
+
+
+\vspace{-2mm}
+
+\bi
+
+\item To help understand the seasonal adjustment, we look at what it does to the smoothed periodogram.
+
+\item Using the \code{ts} class we can tell R the units of time.
+
+\ei
+
+\vspace{-1mm}
+
+<<adjustment_spectrum_code,eval=F,echo=T,out.width="9.5cm">>=
+u1_ts <- ts(u1,start=1948,frequency=12)
+u2_ts <- ts(u2,start=1948,frequency=12)
+spectrum(ts.union(u1_ts,u2_ts),spans=c(3,5,3),
+  main="Unemployment: raw (black), seasonally adjusted (red)")
+@
+
+\vspace{-3mm}
+
+<<adjustment_spectrum,eval=T,echo=F,fig.width=8,fig.height=3.5,out.width="11cm">>=
+par(mai=c(1,1,0.6,0.1))
+<<adjustment_spectrum_code>>
+@
+
+
+\end{frame}
+
+\begin{frame}{Comments on the smoothed periodogram}
+
+\bi
+\item Note: For a report, we should add units to plots. Extra details (like \code{bandwith} in the periodogram plot) should be explained or removed.
+\ei
+
+\vspace{1mm}
+
+\myquestion. Why does the unadjusted spectrum have peaks at 2,3,4,5,6 cycles per year as well as 1 cycle per year?
+
+\answer{\vspace{20mm}}{todo}
+
+
+\myquestion. Comment on what you learn from comparing these smoothed periodograms.
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}
+
+\subsection{The frequency response function of a smoother}
+
+\begin{frame}{The frequency response function}
+
+\vspace{-2mm}
+
+\bi
+\item The ratio of the periodograms of the smoothed and unsmoothed time series is the \myemph{frequency response} of the smoother.
+
+\item The frequency response function tells us how much the smoother contracts (or inflates) the sine and cosine components at each frequency $\omega$.
+
+\item A frequency response may involve change in phase as well as magnitude, but here we consider only magnitude.
+
+\item Linear, time invariant transformations do not move power between frequencies, so they are characterized by their frequency response function.
+
+\item Smoothers are linear and time invariant, at least approximately. If we scale or shift the data, we expect the smoothed estimate to have the same scale or shift. We expect a smooth approximation to the sum of two time series to be approximately the sum of the two smoothed series.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{Calculating a frequency response function}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\bi
+\item We investigate the frequency response of the smoother used by Bureau of Labor Statistics to deseasonalize the unemployment data.
+\ei
+
+<<bls_filter>>=
+s <- spectrum(ts.union(u1_ts,u2_ts),plot=FALSE)
+@
+
+\bi
+\item We find the parts of \code{s} that we need to plot the frequency response.
+\ei
+
+<<s_names-code,echo=T,eval=F>>=
+names(s)
+@
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+<<s_names-eval,echo=F,eval=T>>=
+<<s_names-code>>
+@
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+<<s_transfer_code,eval=F,echo=T>>=
+plot(s$freq,s$spec[,2]/s$spec[,1],type="l",log="y",
+  ylab="frequency ratio", xlab="frequency",  
+  main="frequency response (red lines at 0.8 and 1.2)")
+abline(h=c(0.8,1.2),col="red")
+@
+
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<s_transfer,eval=T,echo=F,out.width="10cm">>=
+<<s_transfer_code>>
+@
+
+\vspace{-3mm}
+
+\myquestion. What do you learn from this frequency response plot?
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame}
+
+\section{Loess smoothing}
+
+\begin{frame}[fragile]
+
+\frametitle{Estimating trend by Loess smoothing}
+
+\bi
+
+\item Loess is a \myemph{Local linear regression} approach (perhaps an acronym for LOcal Estimation by Smoothing) also known as \myemph{Lowess} (perhaps LOcallyWEighted Sum of Squares). 
+
+\item At each point in time, Loess computes a linear regression (a constant, linear or quadratic trend estimate) using only neighboring times. 
+
+\item We can imagine a moving window of points included in the regression.
+
+\item \code{loess} is an R implementation, with the fraction of points included in the moving window being scaled by the \code{span} argument. 
+
+\item We can choose a value of the span that visually separates long term trend from business cycle.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{A Loess smooth of unemployment}
+
+<<loess_code,echo=T,eval=F>>=
+u1_loess <- loess(u1~date,span=0.5)
+plot(date,u1,type="l",col="red")
+lines(u1_loess$x,u1_loess$fitted,type="l")
+@
+
+<<loess,echo=F,out.width="11cm",fig.width=7,fig.height=3,echo=F,eval=T>>=
+par(mai=c(0.8,0.8,0.1,0.1))
+<<loess_code>>
+@
+\end{frame}
+
+\begin{frame}[fragile]
+
+Now, we compute the frequency response function for what we have done.
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+<<loess_transfer_code,echo=T,eval=F>>=
+s2 <- spectrum(ts.union(
+  u1_ts,ts(u1_loess$fitted,start=1948,frequency=12)),
+  plot=FALSE)
+plot(s2$freq,s2$spec[,2]/s$spec[,1],type="l",log="y",
+  ylab="frequency ratio", xlab="frequency", xlim=c(0,1.5),
+  main="frequency response (red line at 1.0)")
+abline(h=1,lty="dashed",col="red")
+@
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+<<loess_transfer,eval=T,echo=F,out.width="10cm">>=
+par(mai=c(0.8,0.8,0.6,0.1))
+<<loess_transfer_code>>
+@
+
+\myquestion. Describe the frequency domain behavior of this filter.
+
+\answer{\vspace{50mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Extracting business cycles: A band pass filter}
+
+\bi
+
+\item For the unemployment data, high frequency variation might be considered ``noise'' and low frequency variation might be considered trend.
+
+\item A band of mid-range frequencies might be considered to correspond to the business cycle.
+
+\item We build a smoothing operation in the time domain to extract business cycles, and then look at its frequency response function.
+\ei
+
+<<cycles_code,echo=T,eval=F>>=
+u_low <- ts(loess(u1~date,span=0.5)$fitted,
+  start=1948,frequency=12)
+u_hi <- ts(u1 - loess(u1~date,span=0.1)$fitted,
+  start=1948,frequency=12)
+u_cycles <- u1 - u_hi - u_low
+plot(ts.union(u1, u_low,u_hi,u_cycles),
+  main="Decomposition of unemployment as trend + noise + cycles")
+@
+
+\vspace{10mm}
+
+\end{frame}
+
+
+\subsection{Business cycles in detrended economic data}
+
+\begin{frame}[fragile]
+
+<<cycles,echo=F,eval=T,fig.width=7,fig.height=5,out.width="11cm">>=
+par(mai=c(0.8,0.8,0.5,0.1))
+<<cycles_code>>
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<freq_response,echo=F,out.width="10cm">>=
+spec_cycle <- spectrum(ts.union(u1_ts,u_cycles),
+  spans=c(3,3),
+  plot=FALSE)
+freq_response_cycle <- spec_cycle$spec[,2]/spec_cycle$spec[,1]
+#plot(spec_cycle$freq,freq_response_cycle,
+#  type="l",log="y",  ylab="spectrum ratio", xlab="frequency", xlim=c(0,1.2), ylim=c(5e-6,1.1), main="frequency response (dashed line at 1.0)")
+# abline(h=1,lty="dashed",col="red")  
+
+@
+
+<<find_range,echo=F,out.width="10cm">>=
+cut_fraction <- 0.5
+hi <- freq_response_cycle>cut_fraction
+hi_range <- range(seq_along(hi)[hi])
+l_frac <-(freq_response_cycle[hi_range[1]]-cut_fraction)/(freq_response_cycle[hi_range[1]]-freq_response_cycle[hi_range[1]-1])
+r_frac <-(freq_response_cycle[hi_range[2]]-cut_fraction)/(freq_response_cycle[hi_range[2]]-freq_response_cycle[hi_range[2]+1])
+l_interp <- spec_cycle$freq[hi_range[1]] * (1-l_frac) +  spec_cycle$freq[hi_range[1]-1] * l_frac
+r_interp <- spec_cycle$freq[hi_range[2]] * r_frac +  spec_cycle$freq[hi_range[2]+1] * (1-r_frac)
+@
+
+<<print_range,echo=F>>=
+kable(matrix(c(l_interp,r_interp),nrow=1,
+  dimnames=list("frequency range, region for ratio greater than 0.5",c("low","hi"))), digits=3)
+@
+
+<<show_range,echo=F,fig.width=7,fig.height=3,out.width="10cm">>=
+par(mai=c(0.8,0.8,0.3,0.1))
+plot(spec_cycle$freq,freq_response_cycle,
+  type="l",log="y",
+  ylab="spectrum ratio", xlab="frequency", xlim=c(0,1.2), ylim=c(1e-5,1.1),
+  main="")
+abline(h=1,lty="dashed",col="blue")
+abline(v=c(l_interp,r_interp),lty="dashed",col="blue") 
+abline(h=cut_fraction,lty="dashed",col="blue")
+@
+
+\myquestion. Describe the frequencies (and corresponding periods) that this decomposition identifies as business cycles. Note: units of frequency are omitted to give you an exercise!
+
+\answer{\vspace{15mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+Below is a smoothed periodogram for the raw unemployment data, plotted up to 0.7 cycles per year to focus on relevant frequencies.
+
+<<zoomed_spectrum,echo=F,fig.width=6,fig.height=3,out.width="9cm">>=
+s1 <- spectrum(u1_ts,spans=c(3),plot=FALSE)
+par(mai=c(1,0.8,0.1,0.1))
+plot(s1,xlim=c(0,0.7),ylim=c(1e-2,max(s1$spec)),main="")
+@
+
+\vspace{-1mm}
+
+\myquestion. Comment on the evidence for and against the concept of a business cycle in the above figure.
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Common smoothers in R}
+
+\bi
+
+\item Above, we have used the \myemph{local regression smoother} \code{loess} but there are other similar options.
+
+\item \code{ksmooth} is a \myemph{kernel smoother}. The default periodogram smoother in \code{spectrum} is also a kernel smoother. See \url{https://en.wikipedia.org/wiki/Kernel_smoother}
+
+\item \code{smooth.spline} is a \myemph{spline smoother}.
+\url{https://en.wikipedia.org/wiki/Smoothing_spline}
+
+\item You can learn about alternative smoothers, and try them out if you like, but \code{loess} is a good practical choice for many smoothing applications.
+
+\ei
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Bandwidth for a smoother}
+\bi
+\item All these smoothers have some concept of a \myemph{bandwidth}, which is a measure of the size of the neighborhood of time points in which data affect the smoothed value at a particular time point. 
+
+\item The concept of bandwidth is most obvious for kernel smoothers, but exists for other smoothers.
+
+\item We usually only interpret bandwidth up to a constant. For a particular smoothing algorithm and software implementation, you learn by experience to interpret the comparative value. Smaller bandwidth means less smoothing. 
+
+\item Typically, when writing reports, it makes sense to focus on the tuning parameter for the smoother in question, which is not the bandwidth unless you are doing kernel smoothing.
+
+\ei
+\end{frame}
+
+\begin{frame}{Further reading} 
+
+\bi
+
+\item Section~2.3 of \citet{shumway17} discusses smoothing of time series, in the time domain.
+
+\item Section~4.2 of \citet{shumway17} presents a frequency response function for linear filters, related to this chapter but in a different context.
+
+\ei
+
+
+\end{frame}
+
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w24/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
