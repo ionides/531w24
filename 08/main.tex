@@ -1,0 +1,674 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+\newcommand\ev{u}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{8}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w24/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Smoothing in the time and frequency domains}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+
+
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+
+
+\section{Smoothing a time series}
+%\subsection{}
+
+\begin{frame}{Introduction to smoothing in time series analysis}
+
+
+
+\bi
+\item   Estimating a nonparametric trend from a time series is known as smoothing. We will review some standard smoothing methods.
+
+\item We also smooth the periodogram to estimate a spectral density.
+
+\item Smoothers have convenient interpretation in the frequency domain. A smoother typically shrinks high frequency components and preserves low frequency components.
+
+\ei
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+\frametitle{A motivating example}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\bi
+\item The economy fluctuates between periods of rapid expansion and periods of slower growth or contraction. 
+
+\item High unemployment is one of the most visible signs of a dysfunctional economy, in which labor is under-utilized, leading to hardships for many individuals and communities.
+
+\item Economists, politicians, businesspeople and the general public therefore have an interest in understanding fluctuations in unemployment.
+
+\item Economists try to distinguish between fundamental structural changes in the economy and the shorter-term cyclical booms and busts that appear to be a natural part of capitalist business activity.
+
+\item Monthly US unemployment figures are published by the \link{https://data.bls.gov/timeseries/LNU04000000}{Bureau of Labor Statistics (BLS)}.
+
+\item Measuring unemployment has subtleties, but these are not our immediate focus.
+\ei
+
+\end{frame}
+\begin{frame}[fragile]
+
+\vspace{-3mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{system}\hlstd{(}\hlstr{"head unadjusted_unemployment.csv"}\hlstd{,}\hlkwc{intern}\hlstd{=}\hlnum{TRUE}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\vspace{-3mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{verbatim}
+ [1] "# Data extracted on: February 7, 2024"                      
+ [2] "# from http://data.bls.gov/timeseries/LNU04000000"          
+ [3] "# Labor Force Statistics from the Current Population Survey"
+ [4] "# Not Seasonally Adjusted"                                  
+ [5] "# Series title:        (Unadj) Unemployment Rate"           
+ [6] "# Series Id:           LNU04000000"                         
+ [7] "# Labor force status:  Unemployment rate"                   
+ [8] "# Type of data:        Percent or rate"                     
+ [9] "# Age:                 16 years and over"                   
+[10] "Year,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"       
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+\vspace{-3mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{U1} \hlkwb{<-} \hlkwd{read.table}\hlstd{(}\hlkwc{file}\hlstd{=}\hlstr{"unadjusted_unemployment.csv"}\hlstd{,}
+  \hlkwc{sep}\hlstd{=}\hlstr{","}\hlstd{,}\hlkwc{header}\hlstd{=}\hlnum{TRUE}\hlstd{)}
+\hlkwd{head}\hlstd{(U1,}\hlnum{3}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\vspace{-3mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{verbatim}
+ Year Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+ 1948 4.0 4.7 4.5 4.0 3.4 3.9 3.9 3.6 3.4 2.9 3.3 3.6
+ 1949 5.0 5.8 5.6 5.4 5.7 6.4 7.0 6.3 5.9 6.1 5.7 6.0
+ 1950 7.6 7.9 7.1 6.0 5.3 5.6 5.3 4.1 4.0 3.3 3.8 3.9
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+\myquestion. A coding exercise: Explain how the tabulated data in \code{U1} are converted to a time series, below.
+
+\answer{\vspace{15mm}}{todo}
+
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{u1} \hlkwb{<-} \hlkwd{t}\hlstd{(}\hlkwd{as.matrix}\hlstd{(U1[}\hlnum{2}\hlopt{:}\hlnum{13}\hlstd{]))}
+\hlkwd{dim}\hlstd{(u1)} \hlkwb{<-} \hlkwa{NULL}
+\hlstd{date} \hlkwb{<-} \hlkwd{seq}\hlstd{(}\hlkwc{from}\hlstd{=}\hlnum{1948}\hlstd{,}\hlkwc{length}\hlstd{=}\hlkwd{length}\hlstd{(u1),}\hlkwc{by}\hlstd{=}\hlnum{1}\hlopt{/}\hlnum{12}\hlstd{)}
+\hlkwd{plot}\hlstd{(date,u1,}\hlkwc{type}\hlstd{=}\hlstr{"l"}\hlstd{,}\hlkwc{ylab}\hlstd{=}\hlstr{"Unemployment rate (unadjusted)"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\vspace{-3mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=9cm]{tmp/figure/reshape-1} 
+
+}
+
+
+\end{knitrout}
+
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+
+\vspace{-3mm}
+
+\bi
+\item We see seasonal variation and economic cycles on top of a trend.
+
+\item The seasonal variation looks like an additive effect, say an annual fluctation with amplitude around 1 percentage point. 
+
+\item Sometimes, we may prefer to look at monthly seasonally adjusted unemployment, \link{https://data.bls.gov/timeseries/LNS14000000}{also provided by BLS}.
+\ei
+
+\vspace{-2mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{U2} \hlkwb{<-} \hlkwd{read.table}\hlstd{(}\hlkwc{file}\hlstd{=}\hlstr{"adjusted_unemployment.csv"}\hlstd{,}\hlkwc{sep}\hlstd{=}\hlstr{","}\hlstd{,}
+  \hlkwc{header}\hlstd{=}\hlnum{TRUE}\hlstd{)}
+\hlstd{u2} \hlkwb{<-} \hlkwd{t}\hlstd{(}\hlkwd{as.matrix}\hlstd{(U2[}\hlnum{2}\hlopt{:}\hlnum{13}\hlstd{]))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\vspace{-4mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=9cm]{tmp/figure/data_adj_code-1} 
+
+}
+
+
+\end{knitrout}
+
+\vspace{-2mm}
+
+\bi
+\item
+We can wonder how the BLS adjusts the data, and if this introduces any artifacts that a careful statistician should be aware of.
+\ei
+\end{frame}
+
+
+\section{Seasonal adjustment in the frequency domain}
+
+\begin{frame}[fragile]
+
+
+\vspace{-2mm}
+
+\bi
+
+\item To help understand the seasonal adjustment, we look at what it does to the smoothed periodogram.
+
+\item Using the \code{ts} class we can tell R the units of time.
+
+\ei
+
+\vspace{-1mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{u1_ts} \hlkwb{<-} \hlkwd{ts}\hlstd{(u1,}\hlkwc{start}\hlstd{=}\hlnum{1948}\hlstd{,}\hlkwc{frequency}\hlstd{=}\hlnum{12}\hlstd{)}
+\hlstd{u2_ts} \hlkwb{<-} \hlkwd{ts}\hlstd{(u2,}\hlkwc{start}\hlstd{=}\hlnum{1948}\hlstd{,}\hlkwc{frequency}\hlstd{=}\hlnum{12}\hlstd{)}
+\hlkwd{spectrum}\hlstd{(}\hlkwd{ts.union}\hlstd{(u1_ts,u2_ts),}\hlkwc{spans}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{3}\hlstd{,}\hlnum{5}\hlstd{,}\hlnum{3}\hlstd{),}
+  \hlkwc{main}\hlstd{=}\hlstr{"Unemployment: raw (black), seasonally adjusted (red)"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\vspace{-3mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=11cm]{tmp/figure/adjustment_spectrum-1} 
+
+}
+
+
+\end{knitrout}
+
+
+\end{frame}
+
+\begin{frame}{Comments on the smoothed periodogram}
+
+\bi
+\item Note: For a report, we should add units to plots. Extra details (like \code{bandwith} in the periodogram plot) should be explained or removed.
+\ei
+
+\vspace{1mm}
+
+\myquestion. Why does the unadjusted spectrum have peaks at 2,3,4,5,6 cycles per year as well as 1 cycle per year?
+
+\answer{\vspace{20mm}}{todo}
+
+
+\myquestion. Comment on what you learn from comparing these smoothed periodograms.
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}
+
+\subsection{The frequency response function of a smoother}
+
+\begin{frame}{The frequency response function}
+
+\vspace{-2mm}
+
+\bi
+\item The ratio of the periodograms of the smoothed and unsmoothed time series is the \myemph{frequency response} of the smoother.
+
+\item The frequency response function tells us how much the smoother contracts (or inflates) the sine and cosine components at each frequency $\omega$.
+
+\item A frequency response may involve change in phase as well as magnitude, but here we consider only magnitude.
+
+\item Linear, time invariant transformations do not move power between frequencies, so they are characterized by their frequency response function.
+
+\item Smoothers are linear and time invariant, at least approximately. If we scale or shift the data, we expect the smoothed estimate to have the same scale or shift. We expect a smooth approximation to the sum of two time series to be approximately the sum of the two smoothed series.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{Calculating a frequency response function}
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\bi
+\item We investigate the frequency response of the smoother used by Bureau of Labor Statistics to deseasonalize the unemployment data.
+\ei
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{s} \hlkwb{<-} \hlkwd{spectrum}\hlstd{(}\hlkwd{ts.union}\hlstd{(u1_ts,u2_ts),}\hlkwc{plot}\hlstd{=}\hlnum{FALSE}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\bi
+\item We find the parts of \code{s} that we need to plot the frequency response.
+\ei
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{names}\hlstd{(s)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{verbatim}
+ [1] "freq"      "spec"      "coh"       "phase"     "kernel"   
+ [6] "df"        "bandwidth" "n.used"    "orig.n"    "series"   
+[11] "snames"    "method"    "taper"     "pad"       "detrend"  
+[16] "demean"   
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{plot}\hlstd{(s}\hlopt{$}\hlstd{freq,s}\hlopt{$}\hlstd{spec[,}\hlnum{2}\hlstd{]}\hlopt{/}\hlstd{s}\hlopt{$}\hlstd{spec[,}\hlnum{1}\hlstd{],}\hlkwc{type}\hlstd{=}\hlstr{"l"}\hlstd{,}\hlkwc{log}\hlstd{=}\hlstr{"y"}\hlstd{,}
+  \hlkwc{ylab}\hlstd{=}\hlstr{"frequency ratio"}\hlstd{,} \hlkwc{xlab}\hlstd{=}\hlstr{"frequency"}\hlstd{,}
+  \hlkwc{main}\hlstd{=}\hlstr{"frequency response (red lines at 0.8 and 1.2)"}\hlstd{)}
+\hlkwd{abline}\hlstd{(}\hlkwc{h}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0.8}\hlstd{,}\hlnum{1.2}\hlstd{),}\hlkwc{col}\hlstd{=}\hlstr{"red"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=10cm]{tmp/figure/s_transfer-1} 
+
+}
+
+
+\end{knitrout}
+
+\vspace{-3mm}
+
+\myquestion. What do you learn from this frequency response plot?
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame}
+
+\section{Loess smoothing}
+
+\begin{frame}[fragile]
+
+\frametitle{Estimating trend by Loess smoothing}
+
+\bi
+
+\item Loess is a \myemph{Local linear regression} approach (perhaps an acronym for LOcal Estimation by Smoothing) also known as \myemph{Lowess} (perhaps LOcallyWEighted Sum of Squares). 
+
+\item At each point in time, Loess computes a linear regression (a constant, linear or quadratic trend estimate) using only neighboring times. 
+
+\item We can imagine a moving window of points included in the regression.
+
+\item \code{loess} is an R implementation, with the fraction of points included in the moving window being scaled by the \code{span} argument. 
+
+\item We can choose a value of the span that visually separates long term trend from business cycle.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{A Loess smooth of unemployment}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{u1_loess} \hlkwb{<-} \hlkwd{loess}\hlstd{(u1}\hlopt{~}\hlstd{date,}\hlkwc{span}\hlstd{=}\hlnum{0.5}\hlstd{)}
+\hlkwd{plot}\hlstd{(date,u1,}\hlkwc{type}\hlstd{=}\hlstr{"l"}\hlstd{,}\hlkwc{col}\hlstd{=}\hlstr{"red"}\hlstd{)}
+\hlkwd{lines}\hlstd{(u1_loess}\hlopt{$}\hlstd{x,u1_loess}\hlopt{$}\hlstd{fitted,}\hlkwc{type}\hlstd{=}\hlstr{"l"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=11cm]{tmp/figure/loess-1} 
+
+}
+
+
+\end{knitrout}
+\end{frame}
+
+\begin{frame}[fragile]
+
+Now, we compute the frequency response function for what we have done.
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{s2} \hlkwb{<-} \hlkwd{spectrum}\hlstd{(}\hlkwd{ts.union}\hlstd{(}
+  \hlstd{u1_ts,}\hlkwd{ts}\hlstd{(u1_loess}\hlopt{$}\hlstd{fitted,}\hlkwc{start}\hlstd{=}\hlnum{1948}\hlstd{,}\hlkwc{frequency}\hlstd{=}\hlnum{12}\hlstd{)),}
+  \hlkwc{plot}\hlstd{=}\hlnum{FALSE}\hlstd{)}
+\hlkwd{plot}\hlstd{(s2}\hlopt{$}\hlstd{freq,s2}\hlopt{$}\hlstd{spec[,}\hlnum{2}\hlstd{]}\hlopt{/}\hlstd{s}\hlopt{$}\hlstd{spec[,}\hlnum{1}\hlstd{],}\hlkwc{type}\hlstd{=}\hlstr{"l"}\hlstd{,}\hlkwc{log}\hlstd{=}\hlstr{"y"}\hlstd{,}
+  \hlkwc{ylab}\hlstd{=}\hlstr{"frequency ratio"}\hlstd{,} \hlkwc{xlab}\hlstd{=}\hlstr{"frequency"}\hlstd{,} \hlkwc{xlim}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{1.5}\hlstd{),}
+  \hlkwc{main}\hlstd{=}\hlstr{"frequency response (red line at 1.0)"}\hlstd{)}
+\hlkwd{abline}\hlstd{(}\hlkwc{h}\hlstd{=}\hlnum{1}\hlstd{,}\hlkwc{lty}\hlstd{=}\hlstr{"dashed"}\hlstd{,}\hlkwc{col}\hlstd{=}\hlstr{"red"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=10cm]{tmp/figure/loess_transfer-1} 
+
+}
+
+
+\end{knitrout}
+
+\myquestion. Describe the frequency domain behavior of this filter.
+
+\answer{\vspace{50mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Extracting business cycles: A band pass filter}
+
+\bi
+
+\item For the unemployment data, high frequency variation might be considered ``noise'' and low frequency variation might be considered trend.
+
+\item A band of mid-range frequencies might be considered to correspond to the business cycle.
+
+\item We build a smoothing operation in the time domain to extract business cycles, and then look at its frequency response function.
+\ei
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{u_low} \hlkwb{<-} \hlkwd{ts}\hlstd{(}\hlkwd{loess}\hlstd{(u1}\hlopt{~}\hlstd{date,}\hlkwc{span}\hlstd{=}\hlnum{0.5}\hlstd{)}\hlopt{$}\hlstd{fitted,}
+  \hlkwc{start}\hlstd{=}\hlnum{1948}\hlstd{,}\hlkwc{frequency}\hlstd{=}\hlnum{12}\hlstd{)}
+\hlstd{u_hi} \hlkwb{<-} \hlkwd{ts}\hlstd{(u1} \hlopt{-} \hlkwd{loess}\hlstd{(u1}\hlopt{~}\hlstd{date,}\hlkwc{span}\hlstd{=}\hlnum{0.1}\hlstd{)}\hlopt{$}\hlstd{fitted,}
+  \hlkwc{start}\hlstd{=}\hlnum{1948}\hlstd{,}\hlkwc{frequency}\hlstd{=}\hlnum{12}\hlstd{)}
+\hlstd{u_cycles} \hlkwb{<-} \hlstd{u1} \hlopt{-} \hlstd{u_hi} \hlopt{-} \hlstd{u_low}
+\hlkwd{plot}\hlstd{(}\hlkwd{ts.union}\hlstd{(u1, u_low,u_hi,u_cycles),}
+  \hlkwc{main}\hlstd{=}\hlstr{"Decomposition of unemployment as trend + noise + cycles"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\vspace{10mm}
+
+\end{frame}
+
+
+\subsection{Business cycles in detrended economic data}
+
+\begin{frame}[fragile]
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=11cm]{tmp/figure/cycles-1} 
+
+}
+
+
+\end{knitrout}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+
+
+
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+\begin{tabular}{l|r|r}
+\hline
+  & low & hi\\
+\hline
+frequency range, region for ratio greater than 0.5 & 0.051 & 0.17\\
+\hline
+\end{tabular}
+
+\end{knitrout}
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=10cm]{tmp/figure/show_range-1} 
+
+}
+
+
+\end{knitrout}
+
+\myquestion. Describe the frequencies (and corresponding periods) that this decomposition identifies as business cycles. Note: units of frequency are omitted to give you an exercise!
+
+\answer{\vspace{15mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\mode<presentation>{
+\vspace{-2mm}
+}
+
+Below is a smoothed periodogram for the raw unemployment data, plotted up to 0.7 cycles per year to focus on relevant frequencies.
+
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}
+
+{\centering \includegraphics[width=9cm]{tmp/figure/zoomed_spectrum-1} 
+
+}
+
+
+\end{knitrout}
+
+\vspace{-1mm}
+
+\myquestion. Comment on the evidence for and against the concept of a business cycle in the above figure.
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Common smoothers in R}
+
+\bi
+
+\item Above, we have used the \myemph{local regression smoother} \code{loess} but there are other similar options.
+
+\item \code{ksmooth} is a \myemph{kernel smoother}. The default periodogram smoother in \code{spectrum} is also a kernel smoother. See \url{https://en.wikipedia.org/wiki/Kernel_smoother}
+
+\item \code{smooth.spline} is a \myemph{spline smoother}.
+\url{https://en.wikipedia.org/wiki/Smoothing_spline}
+
+\item You can learn about alternative smoothers, and try them out if you like, but \code{loess} is a good practical choice for many smoothing applications.
+
+\ei
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Bandwidth for a smoother}
+\bi
+\item All these smoothers have some concept of a \myemph{bandwidth}, which is a measure of the size of the neighborhood of time points in which data affect the smoothed value at a particular time point. 
+
+\item The concept of bandwidth is most obvious for kernel smoothers, but exists for other smoothers.
+
+\item We usually only interpret bandwidth up to a constant. For a particular smoothing algorithm and software implementation, you learn by experience to interpret the comparative value. Smaller bandwidth means less smoothing. 
+
+\item Typically, when writing reports, it makes sense to focus on the tuning parameter for the smoother in question, which is not the bandwidth unless you are doing kernel smoothing.
+
+\ei
+\end{frame}
+
+\begin{frame}{Further reading} 
+
+\bi
+
+\item Section~2.3 of \citet{shumway17} discusses smoothing of time series, in the time domain.
+
+\item Section~4.2 of \citet{shumway17} presents a frequency response function for linear filters, related to this chapter but in a different context.
+
+\ei
+
+
+\end{frame}
+
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version 4.2.3.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w24/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}

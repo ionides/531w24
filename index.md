@@ -35,10 +35,11 @@ The course outline, course information and grading policies are described in the
 
 6. [Extending the ARMA model: Seasonality, integration and trend](06/index.html)
 
-<!--
 7. [Introduction to time series analysis in the frequency domain](07/index.html)
 
 8. [Smoothing in the time and frequency domains](08/index.html)
+
+<!--
 
 9. [Case study: An association between unemployment and mortality?](09/index.html)
 
@@ -79,12 +80,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 
 * [Homework 2](hw02/hw02.html), due Tue Jan 30, 11:59pm.
-
-<!--
-
 [Solution](hw02/sol02.html).
-
--->
 
 * [Participation 2](participation/participation2.html), due Tue Jan 30, 11:59pm.
 

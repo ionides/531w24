@@ -172,7 +172,7 @@ It also has a non-causal solution,
     
 \vspace{2mm}
 
-[M8.2] $\eqspace Y_n = \sum_{j=1}^\infty \ar^{-j}\epsilon_{n+j}$.
+[M8.2] $\eqspace Y_n = -\sum_{j=1}^\infty \ar^{-j}\epsilon_{n+j}$.
     
 \vspace{2mm}
 

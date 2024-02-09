@@ -1,0 +1,774 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+\newcommand\ev{u}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{7}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w24/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Introduction to time series analysis in the frequency domain}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+\section{Frequency components}
+%\subsection{}
+
+\begin{frame}{Frequency components of a time series}
+
+\begin{enumerate}
+\item A time series dataset (like any other sequence of numbers) can be written as a sum of sine and cosine functions with varying frequencies.
+\item This is called the \myemph{Fourier representation} or \myemph{Fourier transform} of the data.
+\item The coefficients corresponding to the sine and cosine at each frequency are called \myemph{frequency components} of the data.
+\item   Looking at which frequencies have large and small components can help to identify appropriate models.
+\item Looking at the frequency components present in our models can help to assess whether they are doing a good job of describing our data.
+
+\end{enumerate}
+
+\end{frame}
+
+\subsection{Eigenvalues and eigenvectors of a stationary covariance matrix}
+
+\begin{frame}[fragile]{What is the spectrum of a time series model?}
+
+\mode<presentation>{
+\vspace{-1mm}
+}
+
+\bi
+\item  We begin by reviewing eigenvectors and eigenvalues of covariance matrices. This eigen decomposition also arises elsewhere in statistics, e.g. principle component analysis.
+
+\item  A univariate time series model is a vector-valued random variable $Y_{1:N}$ which we suppose has a covariance matrix $V$ which is an $N\times N$ matrix with entries $V_{mn}=\cov(Y_m,Y_n)$.
+
+\item  $V$ is a non-negative definite symmetric matrix, and therefore has $N$ non-negative eigenvalues $\lambda_1,\dots,\lambda_N$ with corresponding eigenvectors $\ev_1,\dots,\ev_N$ such that
+\begin{equation} V \ev_n = \lambda_n \ev_n.\end{equation}
+
+\item  A basic property of these eigenvectors is that they are orthogonal, i.e.,
+\begin{equation} \ev_m^\transpose \ev_n = 0 \mbox{ if $m\neq n$}.\end{equation}
+
+\item  We may work with \myemph{normalized} eigenvectors that are scaled such that $\ev_n^\transpose \ev_n = 1$.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+\item  We can also check that the components of $Y$ in the directions of different eigenvectors are uncorrelated.
+
+\item Since $\cov(AY,BY)=A\cov(Y,Y)B^\transpose$, we have
+\begin{eqnarray*}
+\cov(\ev_m^\transpose Y, \ev_n^\transpose Y) &=& \ev_m^\transpose \cov(Y,Y) \ev_n
+\\
+&=& \ev_m^\transpose V \ev_n
+\\
+&=&\lambda_n \ev_m^\transpose \ev_n
+\\
+&=& \left\{
+  \begin{array}{cc} 
+    \lambda_n & \mbox{if $m=n$} \\
+    0 & \mbox{if $m\neq n$}
+  \end{array}
+\right.
+\end{eqnarray*}
+For the last equality, we have supposed that the eigenvectors are normalized.
+
+\item  If we knew $V$, we could convert the model to a representation where the observable random variables are uncorrelated. 
+
+\item  Transforming the data into its components in the directions of the eigenvectors of the model allows us to use an uncorrelated model. In the Gaussian case, we have independence.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Eigenvectors for the covariance matrix of an AR(1) model with $N=100$ and $\phi=0.8$}
+
+\vspace{-1mm}
+
+<<eigen_code,echo=T,eval=F>>=
+N <- 100;  phi <- 0.8;  sigma <- 1
+V <- matrix(NA,N,N)
+for(m in 1:N) for(n in 1:N) V[m,n]<-sigma^2*phi^abs(m-n)/(1-phi^2)
+V_eigen <- eigen(V,symmetric=TRUE)
+matplot(V_eigen$vectors[,1:5],type="l")
+matplot(V_eigen$vectors[,6:9],type="l")
+@
+
+\vspace{-2mm}
+
+<<eigen,echo=F,fig.width=6,fig.height=2.5,out.width="11cm">>=
+oldpars <- par(mfrow=c(1,2))
+par(mai=c(0.8,1.2,0.1,0.1))
+<<eigen_code>>
+par(oldpars)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Eigenvalues for the covariance matrix of an AR(1) model with $N=100$ and $\phi=0.8$}
+
+\bi
+\item  We see that the eigenvectors, plotted as functions of time, look like sine wave oscillations.
+
+\item  The eigenvalues are
+<<evals>>=
+round(V_eigen$values[1:9],2)
+@
+
+\item  We see that the eigenvalues are decreasing. For this model, the components of $Y_{1:N}$ with highest variance correspond to long-period oscillations.
+
+\item  Are the sinusoidal eigenvectors a special feature of this particular time series model, or something more general?
+
+\ei
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{The eigenvectors for a long stationary time series model}
+
+\mode<presentation>{
+\vspace{-2.5mm}
+}
+
+\bi
+\item  Suppose $\{Y_n,-\infty<n<\infty\}$ has a stationary autocovariance function $\gamma_h$. Write $\Gamma$ for the infinite array with entries
+\begin{equation} \Gamma_{m,n} = \gamma_{m-n} \quad \mbox{for all integers $m$ and $n$}.\end{equation}
+\item To focus on concepts over technical details, we assume infinite sums converge and order of summation can be exchanged, so infinite arrays behave like finite matrices.
+\item  An eigenvector for $\Gamma$ is a sequence $\ev=\{\ev_n, -\infty<n<\infty\}$ with corresponding eigenvalue $\lambda$ such that
+\begin{equation}\Gamma \ev = \lambda \ev,\end{equation}
+or, writing out the matrix multiplication explicitly,
+
+\mode<presentation>{
+\vspace{-3mm}
+}
+
+\begin{equation}\sum_{n=-\infty}^\infty \Gamma_{m,n} \ev_n = \lambda \ev_m\quad \mbox{for all $m$}.\end{equation}
+
+\mode<presentation>{
+\vspace{-1mm}
+}
+
+\item  We look for a sinusoidal solution, $\ev_n = e^{2\pi i\omega n}$, where $\omega$ is cycles per unit time.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-3mm}
+
+\begin{eqnarray*} \textstyle
+\sum_{n=-\infty}^\infty \Gamma_{m,n} \ev_n 
+&=&
+\textstyle
+\sum_{n=-\infty}^\infty \gamma_{m-n} \ev_n 
+\\
+&=&
+\textstyle
+\sum_{h=-\infty}^\infty \gamma_{h}  \ev_{m-h} \quad \mbox{setting $h=m-n$}
+\\
+&=&
+\textstyle
+\sum_{h=-\infty}^\infty \gamma_{h}  e^{2\pi i\omega(m-h)}
+\\
+&=&
+\textstyle
+e^{2\pi i\omega m} \sum_{h=-\infty}^\infty \gamma_{h}  e^{-2\pi i\omega h}
+\\
+&=&
+\textstyle
+\ev_m \lambda(\omega) \hspace{3mm} \mbox{ for } \lambda(\omega)= \sum_{h=-\infty}^\infty \gamma_{h}  e^{-2\pi i\omega h}
+\end{eqnarray*}
+
+\myquestion. Why does this calculation show that 
+$\ev_n(\omega) = e^{2\pi i\omega n}$
+is an eigenvector for $\Gamma$ for any choice of $\omega$.
+
+\answer{\vspace{40mm}}{todo}
+
+\end{frame}
+\begin{frame}[fragile]
+
+\bi
+\item 
+The eigenvalue at frequency $\omega$ is
+\begin{equation}
+\label{eq:ft1}
+\lambda(\omega)= \sum_{h=-\infty}^\infty \gamma_{h} \,  e^{-2\pi i\omega h}\end{equation}
+\item Viewed as a function of $\omega$, this is called the \myemph{spectral density function}.
+
+\item $\lambda(\omega)$ is the \myemph{Fourier transform} of $\gamma_h$.
+
+\item An integral version of (\ref{eq:ft1}) is used in applied math and engineering:
+\begin{equation}
+\label{eq:ft2}
+\lambda(\omega) = \int_{-\infty}^{\infty} \gamma(x) \, e^{-2\pi i\omega x}\, dx.
+\end{equation}
+\item We obtain (\ref{eq:ft1}) from (\ref{eq:ft2}) when $\gamma(h)$ has a point mass $\gamma_h$ when $h$ is an integer, and $\gamma(x)=0$ for non-integer $x$.
+\ei
+
+\end{frame}
+
+\begin{frame}
+
+\bi
+\item  It was convenient to do this calculation with complex exponentials. However, writing
+\begin{equation} e^{2\pi i\omega n} = \cos(2\pi\omega n) + i \sin(2\pi\omega n),\end{equation}
+and noting that $\gamma_h$ is real, we see that the real and imaginary parts of $\lambda(\omega)= \sum_{h=-\infty}^\infty \gamma_{h}  e^{-2\pi i\omega h}$ give us two real eigenvectors, $\cos(2\pi\omega n)$ and $\sin(2\pi\omega n)$.
+\ei
+
+\vspace{2mm}
+
+\myquestion. Review: how would you demonstrate the correctness of the identity
+$e^{2\pi i\omega} = \cos(2\pi\omega)+i\,\sin(2\pi\omega)$.
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item  Assuming that this computation for an infinite sum represents a limit of increasing dimension for finite matrices, we have found that the eigenvectors for any long, stationary time series model are approximately sinusoidal.
+
+\item  For the finite time series situation, we only expect $N$ eigenvectors for a time series of length $N$. We have one eigenvector for $\omega=0$, two eigenvectors corresponding to sine and cosine functions with frequency
+\begin{equation}\omega_{n} = n/N, \mbox{ for $0<n<N/2$},\end{equation}
+and, if $N$ is even,  a final eigenvector with frequency
+\begin{equation}
+\omega_{(N/2)} = 1/2.
+\end{equation}
+
+\item  These sine and cosine vectors are the \myemph{Fourier basis}.
+
+\item The time series  $\data{y}_{1:N}$ is the \myemph{time domain} representation of the data. Transforming to the Fourier basis gives the \myemph{frequency domain} representation.
+
+\ei
+
+\end{frame}
+
+\section{The Fourier transform}
+
+\begin{frame}[fragile]
+\frametitle{Frequency components and the Fourier transform}
+
+\bi
+\item  The \myemph{frequency components} of $Y_{1:N}$ are the components in the directions of these eigenvectors, given by
+\begin{eqnarray*}
+C_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N Y_k\cos(2\pi \omega_n k) \mbox{ for $0\le n\le N/2$},
+\\
+S_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N Y_k\sin(2\pi \omega_n k) \mbox{ for $1\le n\le N/2$}.
+\end{eqnarray*}
+
+\item  Similarly, the \myemph{frequency components} of data $\data{y_{1:N}}$ are 
+\begin{eqnarray*}
+{c_n} &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N \data{y_k}\cos(2\pi \omega_n k) \mbox{ for $0\le n\le N/2$},
+\\
+{s_n} &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N \data{y_k}\sin(2\pi \omega_n k) \mbox{ for $1\le n\le N/2$}.
+\end{eqnarray*}
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+\bi
+\item  The frequency components of the data can be written as real and imaginary parts of the \myemph{discrete Fourier transform},
+\begin{eqnarray*}
+{d_n} &=& \frac{1}{\sqrt{N}} \sum_{k=1}^N \data{y_k} e^{-2\pi i k n/N}
+\\
+&=&{c_n} - i{s_n}
+\end{eqnarray*}
+
+\item  The normalizing constant of $1/\sqrt{N}$ is convenient for a central limit theorem.
+
+\item Various choices about signs and factors of $2\pi$, $\sqrt{2\pi}$ and $\sqrt{N}$ can be made in the definition of the Fourier transform. For example, the \code{fft} command in {\Rlanguage} does not include this constant. 
+
+\item  \code{fft} is an implementation of the fast Fourier transform algorithm, which enables computation of all the frequency components with order $N\log(N)$ computation. Computing the frequency components may appear to require a matrix multiplication involving order $N^3$ additions and multiplications. When $N=10^5$ or $N=10^6$ this difference becomes important!
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item  The first frequency component, $C_0$, is a special case, since it has mean $\mu=\E[Y_n]$ whereas the other components have mean zero.
+
+\item  In practice, we subtract a mean before computing the frequency components, which is equivalent to removing the frequency component for frequency zero.
+
+\item  The frequency components $(C_{0:N/2},S_{1:N/2})$ are asymptotically uncorrelated. They are constructed as a sum of a large number of terms, with the usual  $1/\sqrt{N}$ scaling for a central limit theorem. So, it may not be surprising that a central limit theorem applies, giving asymptotic justification for the following normal approximation. 
+
+\item  Moving to the frequency domain (i.e., transforming the data to its frequency components) has \myemph{decorrelated} the data. Statistical techniques based on assumptions of independence are appropriate when applied to frequency components.
+\ei
+
+\end{frame}
+
+\subsection{ A normal approximation}
+
+\begin{frame}[fragile]{Normal approximation for the frequency components}
+
+\bi
+
+\item  $(C_{1:N/2},S_{1:N/2})$ are approximately independent, mean zero, Normal random variables with
+\begin{equation} \myvar(C_n) = \myvar(S_n) \approx 1/2 \lambda(\omega_n).\end{equation}
+
+\item  $C_0\big/ \sqrt{N}$ is approximately Normal, mean $\mu$, independent of $(C_{1:N/2},S_{1:N/2})$, with
+\begin{equation}\myvar(C_0\big/ \sqrt{N}) \approx \lambda(0)\big/ N.\end{equation}
+
+
+
+\item  It follows from the normal approximation that, for $1\le n\le N/2$,
+\begin{equation}
+\label{eq:cs:chi-squared}
+C_n^2 + S_n^2 \approx \lambda(\omega_n) \frac{\chi^2_2}{2},\end{equation}
+where $\chi^2_2$ is a chi-squared random variable on two degrees of freedom.
+
+\item  Taking logs, we have
+\begin{equation}
+\label{eq:cs:log-chi-squared}
+\log\big(C_n^2 + S_n^2 \big) \approx \log \lambda(\omega_n) + \log(\chi^2_2/2).\end{equation}
+
+\ei
+\end{frame}
+
+\section{The periodogram to estimate the spectral density}
+
+\begin{frame}{The periodogram}
+
+\bi
+\item  The chi-squared property in (\ref{eq:cs:chi-squared}) motivates the \myemph{periodogram},
+\begin{equation} I_n = {{c_n}}^2 + {{s_n}}^2 = \big|  {d_n}\big|^2\end{equation}
+as an estimator of the spectral density. 
+
+\item  From (\ref{eq:cs:log-chi-squared}), $\log I_n$ is as an estimator of the log spectral density with a convenient statistical property: asymptotically independent, identically distributed errors at each Fourier frequency.
+
+\item  Therefore, a signal-plus-white-noise model is appropriate for estimating the log spectral density using the log periodogram.
+
+\item The periodogram is an \myemph{inconsistent estimator} of the spectrum. We can smooth the periodogram to borrow strength between nearby frequencies.
+
+\ei
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+\frametitle{Interpreting the spectral density as a power spectrum}
+
+\bi
+
+\item  The power of a wave is proportional to the square of its amplitude. 
+
+\item  The spectral density gives the mean square amplitude of the components at each frequency, and therefore gives the expected power.
+
+\item  The spectral density function can therefore be called the \myemph{power spectrum}.
+
+\ei
+
+\end{frame}
+
+\begin{frame}
+\myquestion. Consider the AR(1) model, $\phi(B)Y_n = \epsilon_n$ with $\phi(B)=1-\phi_1B$ and $\epsilon_n \sim \mathrm{WN}(\sigma^2)$, i.e., white noise with variance $\sigma^2$. Show that the spectrum of $Y$ is
+\begin{equation}
+\lambda(\omega)=\frac{\sigma^2}{\big|\phi\big( e^{2\pi i \omega}\big)\big|^2}
+= \frac{\sigma^2}{1+\phi_1^2 - 2\phi_1\cos(2\pi\omega)}.
+\end{equation}
+
+\answer{\vspace{60mm}}{todo}
+
+\end{frame}
+
+\begin{frame}{ARMA models have a rational spectrum}
+\bi
+\item The calculation for the AR(1) model generalizes. We give the result without proof.
+\item Let $Y_n$ be an ARMA(p,q) model, $\ar(B)Y_n = \ma(B)\epsilon_n$ with $\epsilon_n\sim \mathrm{WN}(\sigma^2)$. The spectrum of $Y$ is
+\begin{equation} \label{eq:arma_spec}
+\lambda(\omega) = \sigma^2 \left| \frac{\psi\big( e^{2\pi i \omega} \big)}{\phi\big( e^{2\pi i \omega} \big)} \right|^2.
+\end{equation}
+\item The so-called \myemph{rational spectrum} of ARMA models is computationally convenient.
+\item A stationary, causal ARMA model cannot have roots on the unit circle. If a root approaches the unit circle, the denominator in (\ref{eq:arma_spec}) becomes close to zero.
+\item The special case of $\phi(x)=\psi(x)=1$ gives $\lambda(\omega)=\sigma^2$. \myemph{White noise has a constant spectrum}, matching the analogy that white light has uniform intensity across the visible light spectrum.
+
+\ei
+
+\end{frame}
+
+\section{Frequency domain data analysis}
+
+\begin{frame}[fragile]
+
+\frametitle{Michigan winters revisited: Frequency domain methods}
+
+<<weather_data_file,eval=F,echo=F>>=
+system("head ann_arbor_weather.csv",intern=TRUE)
+@
+
+<<weather_data>>=
+y <- read.table(file="ann_arbor_weather.csv",header=TRUE)
+head(y[,1:9],3)
+@
+
+\bi
+
+\item  We have to deal with the NA measurement for 1955. A simple approach is to replace the NA by the mean.
+
+\item  What other approaches can you think of for dealing with this missing observation?
+
+\item What are the strengths and weaknesses of these approaches?
+
+\ei
+
+<<replace_na>>=
+low <- y$Low
+low[is.na(low)] <- mean(low, na.rm=TRUE)
+@
+
+\end{frame}
+
+\subsection{Smoothing the periodogram}
+
+\begin{frame}[fragile]
+
+<<periodogram>>=
+spectrum(low, main="Unsmoothed periodogram")
+@
+
+\bi
+\item  To smooth, we use the default periodogram smoother in {\Rlanguage}
+\ei
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+\vspace{-3mm}
+
+<<smoothed_periodogram_code,echo=T,eval=F>>=
+spectrum(low, spans=c(3,5,3), main="Smoothed periodogram",
+  ylim=c(15,100))
+@
+
+\vspace{-4mm}
+
+<<smoothed_periodogram,echo=F,fig.width=6,fig.height=3,out.width="10cm">>=
+par(mai=c(0.8,0.8,0.5,0.1))
+<<smoothed_periodogram_code>>
+@
+\bi
+\item The bar is a 95\% pointwise confidence interval which we can slide to any frequency of interest.
+\item The chi-squared property (\ref{eq:cs:log-chi-squared}) means this CI is the same width for each frequency, on the log scale. Note it is asymmetric.
+\ei
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+\myquestion.  What is the default periodogram smoother in {\Rlanguage}?
+
+\answer{\vspace{20mm}}{todo}
+
+\myquestion.  How should we use it?
+
+\answer{\vspace{20mm}}{todo}
+
+\myquestion. Why is that default chosen?
+
+\answer{\vspace{20mm}}{todo}
+
+\end{frame}
+
+\subsection{Tapering before calculating the  periodogram}
+
+\begin{frame}[fragile]
+\frametitle{More details on computing and smoothing the periodogram}
+\bi
+\item  To see what {\Rlanguage} actually does to compute and smooth the periodogram, type \code{?spectrum}. 
+
+\item  This will lead you to type \code{?spec.pgram}.
+
+\item  You will see that, by default, {\Rlanguage} removes a linear trend, fitted by least squares. This may often be a sensible thing to do. Why?
+
+\item  You will see that {\Rlanguage} then multiplies the data by a quantity called a \myemph{taper}, computed by \code{spec.taper}. 
+
+\item The taper smooths the ends of the time series and removes high-frequency artifacts arising from an abrupt start and end to the time series.
+
+\item Formally, from the perspective of the Fourier transform, the time series takes the value zero outside the observed time points $1{\mycolon}N$. The sudden jump to and from zero at the start and end produces unwanted effects in the frequency domain.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+The default taper in {\Rlanguage} smooths the first and last $p=0.1$ fraction of the time points, by modifying the detrended data $\data{y_{1:N}}$ to tapered version ${z_{1:N}}$ defined by
+\begin{equation} \nonumber
+{z_n} =
+  \left\{
+  \begin{array}{ll}
+    \data{y_n} \big(1-\cos(\pi n/Np)\big)/2 & \mbox{ if $1\le n< Np$ } \\
+    \data{y_n}  & \mbox{ if $Np \le n \le N(1-p)$ } \\
+    \data{y_n} \big(1-\cos(\pi [N+1-n]/Np)\big)/2 & \mbox{ if $N(1-p)<n\le N$ }
+  \end{array}\right.
+\end{equation}
+
+\vspace{-3mm}
+
+<<taper_plot_code,echo=T,eval=F>>=
+plot(spec.taper(rep(1,100)),type="l",
+  main="Default taper in R, for a time series of length 100")
+abline(v=c(10,90),lty="dotted",col="red") 
+@
+
+\vspace{-3mm}
+
+<<taper_plot,echo=F,fig.width=5,fig.height=2.5,out.width="8cm">>=
+par(mai=c(0.4,0.8,0.5,0.4)) 
+<<taper_plot_code>>
+@
+
+\end{frame}
+
+
+\subsection{Fitting an AR model to estimate the spectrum}
+
+\begin{frame}[fragile]{Spectral density estimation by fitting a model}
+
+Another standard way to estimate the spectrum is to fit an AR(p) model with $p$ selected by AIC.
+
+\vspace{-2mm}
+
+<<ar_periodogram_code,eval=F,echo=T>>=
+spectrum(low,method="ar",
+  main="Spectrum estimated via AR model picked by AIC")
+@
+
+\vspace{-2mm}
+
+<<ar_periodogram,echo=F,fig.width=5,fig.height=2.5,out.width="11cm">>=
+par(mai=c(0.4,0.8,0.5,0.4))
+<<ar_periodogram_code>>
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\frametitle{Units of frequency and period}
+
+\bi
+
+\item When we call $\omega$ the frequency in cycles per unit time, we really mean \myemph{cycles per unit observation}.
+
+\item  Suppose the time series consists of equally spaced observations, with $t_{n}-t_{n-1}=\Delta$ years. Then, the frequency is $\omega/\Delta$ \myemph{cycles per year}. 
+
+\item  The \myemph{period} of an oscillation is the time for one cycle,
+\begin{equation} \mbox{period} = \frac{1}{\mbox{frequency}}.\end{equation}
+
+\item  When the observation intervals have a time unit (years, seconds, etc) we usually use that unit for the period, and its inverse for the frequency.
+
+\ei
+
+\end{frame}
+
+\begin{frame}{Further reading} 
+
+\bi
+
+\item Sections~4.1 to 4.3 of \citet{shumway17} cover similar topics to this chapter.
+
+\ei
+
+
+\end{frame}
+
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w24/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% some extra stuff to go somewhere. maybe solutions to hw3?
+
+\begin{frame}[fragile]
+
+\frametitle{Fitting a signal plus white noise model}
+
+\bi
+
+\item  Since this time series is well modeled by white noise, we could fit a signal plus white noise model. This might be a more sensitive way to look for a trend.
+
+\item  Let's try some low-order polynomial trend specifications.
+
+\ei
+
+<<poly_fit>>=
+lm0 <- lm(Low~1,data=y)
+lm1 <- lm(Low~Year,data=y)
+lm2 <- lm(Low~Year+I(Year^2),data=y)
+lm3 <- lm(Low~Year+I(Year^2)+I(Year^3),data=y)
+poly_aic <- matrix( c(AIC(lm0),AIC(lm1),AIC(lm2),AIC(lm3)), nrow=1,
+   dimnames=list("<b>AIC</b>", paste("order",0:3)))
+require(knitr)
+kable(poly_aic,digits=1)
+@
+
+\bi
+\item  Still no evidence suggesting anything other than a white noise model.
+
+\item  Now, let's remind ourselves what the data look like.
+
+\ei
+
+<<plot_jan_temp,fig.width=5>>=
+plot(Low~Year,data=y,type="l")
+@
+
+\bi
+
+\item  Our eye may see a trend, and recall that it looks a bit like the global temperature trend.
+
+\item  Let's try fitting global temperature as an explanatory variable.
+
+\ei
+
+<<read_glob_temp>>=
+Z <- read.table("Global_Temperature.txt",header=TRUE)
+global_temp <- Z$Annual[Z$Year %in% y$Year]
+lm_global <- lm(Low~global_temp,data=y)
+AIC(lm_global)
+@
+
+\bi
+
+\item  Got it! We have an explantion of the trend that makes scientific sense. However, the model is prefered by AIC but is not quite statistically significant viewed as a 2-sided test against a null of white noise via a t-statistic for the estimated coefficient:
+
+\ei
+
+<<glob_temp_fit>>=
+summary(lm_global)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+
+\myquestion. Is a 2-sided test or a 1-sided test more reasonable here?
+
+\answer{\vspace{30mm}}{todo}
+\bi
+\item  What is the p-value for the 1-sided test?
+\ei
+\answer{\vspace{20mm}}{todo}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+\bi
+
+\item  Perhaps we now have a satisfactory understanding of Ann Arbor January low temperatures: random, white noise, variation around the global mean temperature trend.
+
+\item  With noisy data, uncovering what is going on can take careful data analysis together with scientific reasoning.
+
+\item  What could we do to improve the signal to noise ratio in this analysis?
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\myquestion. Why might you expect the estimated coefficient to be statistically insignificant in this analysis, even if the model with global mean temperature plus trend is correct?
+Hint: notice the standard error on the coefficient, together with consideration of possible values of the coefficient in a scientifically plausible model.
+
+\answer{\vspace{40mm}}{todo}
+
+\end{frame}
+
+
+
+
+
+
+

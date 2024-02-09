@@ -1,0 +1,181 @@
+---
+title: "Solution to [Homework 2](hw02.html)"
+author: "STATS/DATASCI 531, Winter 2022"
+output:
+  html_document:
+    toc: yes
+bibliography: sol02.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+```{r knitr-opts,include=FALSE,cache=FALSE,purl=FALSE}
+# library(pomp)
+library(knitr)
+prefix <- "HW2"
+opts_chunk$set(
+progress=TRUE,
+prompt=FALSE,tidy=FALSE,highlight=TRUE,
+strip.white=TRUE,
+warning=FALSE,
+message=FALSE,
+error=FALSE,
+echo=TRUE,
+cache=TRUE,
+cache_extra=rand_seed,
+results='markup',
+fig.show='asis',
+size='small',
+fig.lp="fig:",
+fig.path=paste0("figure/",prefix,"-"),
+cache.path=paste0("cache/",prefix,"-"),
+fig.pos="h!",
+fig.align='center',
+fig.height=4,fig.width=6.83,
+dpi=300,
+dev='png',
+dev.args=list(bg='transparent')
+)
+
+set.seed(2050320976)
+```
+```{r opts,include=FALSE,cache=FALSE}
+options(
+keep.source=TRUE,
+encoding="UTF-8"
+)
+```
+--------
+
+
+**<big>Question 2.1</big>**.
+
+**A**. Since $\{\epsilon_{n}\}$ is white noise with variance $\sigma^{2}$,
+then 
+$$\begin{eqnarray}
+\gamma_{h}&=& \cov (X_{n},\ X_{n+h})\\
+&=& \cov (X_{n},\phi X_{n+h-1}+\epsilon_{n+h})\\
+&=&\phi\mathrm{\cov}(X_{n},\ X_{n+h-1})+ \cov (X_{n},\ \epsilon_{n+h})\\
+&=&\phi\gamma_{h-1}, 
+\end{eqnarray}$$
+noting that causality implies $\cov(X_{n},\ \epsilon_{n+h})=0$.
+We can get $\gamma_{0}$ by a similar calculation,
+$$\begin{eqnarray}
+\gamma_{0}&=& \cov (X_{n},\ X_{n})\\
+\gamma_{0}&=& \cov (\phi X_{n-1}+\epsilon_{n},\ \phi X_{n-1}+\epsilon_{n})\\
+\gamma_{0}&=&\phi^{2} \cov (X_{n-1},\ X_{n-1})+ \cov (\epsilon_{n},\ \epsilon_{n})\\
+\gamma_{0}&=&\phi^{2}\gamma_{0}+\sigma^{2}\\
+(1\ -\phi^{2})\gamma_{0}&=&\sigma^{2}\\
+\gamma_{0}&=&\frac{\sigma^{2}}{1-\phi^{2}}.
+\end{eqnarray}$$
+So far, this follows closely the approach used for Question 3.9 of [@notes531]. The solution to this difference equation could be seen by inspection. However, the question asks us to proceed with a general method, looking for solutions of the form $A\lambda^{h}$, that works also for harder problems.
+
+Let $\gamma_{h}=A\lambda^{h}$, then
+$$\begin{eqnarray}
+A\lambda^{h}&=&\phi\mathrm{R}\lambda^{h-1}\\
+\lambda^{h}&=&\phi\lambda^{h-1}\\
+\lambda&=&\phi.
+\end{eqnarray}$$
+
+Applying $\gamma_{0}$ as an initial condition, then
+$$\begin{eqnarray}
+A\ \lambda^{0}&=&\gamma_{0}\\
+&=&\frac{\sigma^{2}}{1-\phi^{2}}.
+\end{eqnarray}$$
+Therefore,
+\[
+\gamma_{h}=\frac{\sigma^{2}}{1-\phi^{2}}\phi^{h}.
+\]
+
+**B**. We use a Taylor series expansion (e.g., [ [@openstax-calc2]](https://openstax.org/books/calculus-volume-2/pages/6-3-taylor-and-maclaurin-series)),
+$$
+g(x)=g(0)+g^\prime(0)x + \frac{1}{2}g^{(2)}(0)x^{2}+\frac{1}{3!}g^{(3)}(0)x^{3}+...
+$$
+Since
+$$\begin{eqnarray}
+g^{(n)}(0)&=&\frac{d^{n}}{dt^{n}}\frac{1}{1-\phi x}\\
+&=&n!\phi^{n}x^{n},
+\end{eqnarray}$$
+we have
+$$
+g(x)\ =\sum_{n=0}^{\infty}\phi^{n}x^{n}.
+$$
+We then use this Taylor series expansion to provide an expansion of $(1-\phi B)^{-1}$ which gives the following MA $(\infty)$ representation of the AR(1) model.
+$$\begin{eqnarray}
+X_{n}&=&\phi X_{n-1}+\epsilon_{n}\\
+&=&\phi BX_{n}+\epsilon_{n}\\
+(1-\phi B)X_{n}&=&\epsilon_{n}\\
+X_{n}&=&(1-\phi B)^{-1}\epsilon_{n}\\
+&=&\epsilon_{n}+\phi B\epsilon_{n}+\phi^{2} B^2\epsilon_{n}+...\\
+&=&\epsilon_{n}+\phi\epsilon_{n-1}+\phi^{2}\epsilon_{n-2}+...\\
+&=&\sum_{j=0}^{\infty}\phi^{j}\epsilon_{n-j}.
+\end{eqnarray}$$
+Then, apply the general formula for the autocovariance function of
+the MA $(\infty)$ process (e.g., [@notes531], Chapter 4, equation 4) with the constraint $-1<\phi<1$,
+$$\begin{eqnarray}
+\gamma_{h}&=&\sum_{j=0}^{\infty}\psi_{j}\psi_{j+h}\sigma^{2}\\
+&=&\sum_{j=0}^{\infty}\phi^{2j+h}\sigma^{2}\\
+&=&\phi^{h}\sigma^{2}\sum_{j=0}^{\infty}\phi^{2j}\\
+&=&\frac{\phi^{h}\sigma^{2}}{1-\phi^{2}},
+\end{eqnarray}$$
+which is the same as the answer in A.
+
+C. Normalizing the autocovariance derived above to give an autocorrelation function, for $h\ge 0$ we have
+$$\begin{eqnarray}
+\rho_{h}&=&\frac{\gamma_{h}}{\gamma_{0}}\\
+&=&\frac{\frac{\phi^{h}\sigma^{2}}{1-\phi^{2}}}{\frac{\sigma^{2}}{1-\phi^{2}}}\\
+&=&\phi^{h}
+\end{eqnarray}$$
+
+which is the same as R funtion ARMAacf by the following code.
+
+```{r checkequality}
+set.seed(12345)
+ar_coefs <- 0.8
+phi <-ar_coefs
+acf <- phi^(0:100)
+Racf <- ARMAacf(ar=ar_coefs,lag.max=100)
+all(abs(acf-Racf)<1e-6)
+plot(acf,type="l", col='red', xlab ="lag")
+lines(Racf, lty =2, col='blue')
+legend("topright", legend = c("ACF", "RACF"), col = c("red","blue"), lty =c(1,2))
+```
+
+
+
+-------------------
+
+**<big>Question 2.2</big>**.
+The solution of stochastic difference equation of the random walk
+model is
+$$
+X_{n}=\sum_{k=1}^{n}\epsilon_{k}.
+$$
+Therefore,
+$$\begin{eqnarray}
+\gamma_{mn}&=&\mathrm{Cov}(X_{m},X_{n})\\
+&=&\cov\left(\sum_{i=1}^{m}\epsilon_{i},\sum_{j=1}^{n}\epsilon_{j}\right)\\
+&=& \sum_{i=1}^{m}\sum_{j=1}^{n}\cov\left(\epsilon_{i},\epsilon_{j}\right)\\
+&=&\sum_{i=1}^{\min(m,n)}\var(\epsilon_{i})\\
+&=&\min(m,n)\, \sigma^{2}.
+\end{eqnarray}$$
+
+
+----------------------
+
+**<big>Sources</big>**.
+
+The calculations in Homework 2 use only fairly standard techniques, and it is expected that many well prepared student may choose to solve them independently. Even an independently written solution can usually be improved by some appropriate references, but full points were possible for a statement that no sources were used.
+
+As for homework 1, no points were given for sources if the homework was entirely missing any statement of sources. To see why this is necessary, consider how to grade a homework which is rather close to online solutions and does not give a statement of sources. Such a homework loses the scholarship points for an explicit statement of sources, without us having to jump to conclusions about whether the solution is too close to an un-referenced source. This situation is not unusual. 
+
+Points could also be taken off if the sources were not referenced at specific points in the solution. The reasoning for this becomes clear if you think of it from the point of view of the grader. The grader should not have to do detective work to find the relationship between the report and the referenced sources - it should be clearly presented for a report earning full points for scholarship.
+
+This solution is based on the [Winter 2021 solution](https://ionides.github.io/531w21/hw02/hw02.html).
+
+**<big>References</big>**.
+
