@@ -44,7 +44,7 @@ You should only display the code in the HTML document if you think that, in your
 5.  When you have got everything you can out of the Ann Arbor January Low temperature time series, consider it in the context of the global mean annual temperature time series on the class github site:
 ```{r read_global_data, eval=FALSE}
 global <- read.table(file="http://ionides.github.io/531w24/hw03/Global_Temperature.txt",header=TRUE)
-plot(Anomaly~Year,data=global,type="l")
+plot(Annual~Year,data=global,type="l")
 ```
 
 -----------
