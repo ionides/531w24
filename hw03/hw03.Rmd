@@ -1,9 +1,14 @@
 ---
 title: "Homework 3, due Sunday 2/11, 11.59pm"
-author: "DATASCI/STATS 531"
-output:
-  html_document:
-    toc: yes
+author: "DATASCI/STATS 531, Liangqi Tang"
+format: 
+  html:
+    toc: TRUE
+    toc-depth: 5
+    code-fold: TRUE
+    code-summary: "Code"
+    code-tools: TRUE
+    embed-resources: TRUE
 ---
 
 \newcommand\prob{\mathbb{P}}
@@ -36,15 +41,364 @@ plot(Low~Year,data=x,type="l")
 3.  You are advised to try a few things from the notes, spot something that catches your attention, and try a few more things to investigate it. Write up what you found, and you're finished!
 
 4.  When writing up your homework report, you must choose which pieces of R code to include in the HTML document. To tell Rmarkdown not to include the R code in the HTML document, use the `echo=FALSE` chunk option, e.g.,
-<pre><code>```{r chunk_without_code, echo=FALSE}
+
+```{r chunk_without_code, echo=FALSE}
 cat("only the output of this code chunk will be printed\n")
-```</code></pre>
+```
+
 You should only display the code in the HTML document if you think that, in your context, the helpfulness of showing the code outweighs the extra burden on the reader, since the reader can work through the Rmd source file if necessary. For your homework report, it is helpful to show more code than you would in a project report. A suitable balance might be similar to the style of the course notes.
 
 5.  When you have got everything you can out of the Ann Arbor January Low temperature time series, consider it in the context of the global mean annual temperature time series on the class github site:
+
 ```{r read_global_data, eval=FALSE}
 global <- read.table(file="http://ionides.github.io/531w24/hw03/Global_Temperature.txt",header=TRUE)
 plot(Annual~Year,data=global,type="l")
 ```
 
------------
+****
+
+**Answer**:
+
+**Besides ARMA models, I first tried simple regression model and random walk model to study the time series, get some intuitions and deepen my understanding of it.** 
+
+# plot and observe
+
+First I load the data and plot the data using the code provided above (cite: the Homework3 html file, Question3.1 1.):
+
+```{r}
+Jan <- read.table(file="http://ionides.github.io/531w24/01/ann_arbor_weather.csv",header=TRUE)
+plot(Low~Year,data=Jan,type="l", ylab = "AA Jan low temperature", main = "AA Jan low temperature time series")
+```
+
+It's obvious that the time series has a trend of increasing on the first look. So firstly, I want to try a Linear Regression model and **suppose that there is no autocorrelation in this time series and they can be viewed as iid samples**. 
+
+# models for January
+
+## 1. Linear Trend
+
+### definition
+
+- Define $Y_t$ as Ann Arbor January Low temperature at time $t$.
+- Define $T$ as time
+- Define $y_t$ as the specific numbers of $Y_t$.
+- Define $w_t$ as the residues of the regression
+
+### assumption/hypothesis
+
+- 1. The regression model is of linear form
+- 2. the residues $w_t \overset{iid}{\sim} N(0, \sigma^2)$
+(cite: Julian J Faraway - Linear Models with R - Taylor & Francis 2014, chapter 1: Introduction, 2.2 Matrix Representation)
+
+### model equation
+
+then the mean value expression of the linear regression model can be written as:
+(cite: [wikipedia, OLS](https://en.wikipedia.org/wiki/Ordinary_least_squares#))
+
+$$
+Y_t = \beta_0 + \beta_1 T + w_t
+$$
+
+### model fitting
+
+(cite: Shumway, R.H., and Stoffer, D.S., 2017, Chapter 2, Example 2.1)
+
+```{r}
+# fit the model
+summary(fit <- lm(Low ~ Year, data = Jan))
+# plot the data and regression line
+plot(Low~Year,data=Jan,type="l", ylab = "AA Jan low temperature", main = "AA Jan low temperature time series")
+abline(fit)
+```
+
+### discussion
+
+- pros: The simple OLS (ordinary least square) model can picture that the time $t$ has an effect on the temperature. Clearly, from the summary of the regression model we can find that the coefficient of $t$ is positive, which is consistent with our observation. And the regression line can show the general trend of the time series.
+
+- cons: The coefficent of Year is not significant here. So the result is not convincing. Besides, OLS model is only reasonable and appropriate under very strong assumption, which is often unrealistic with the data from real life. 
+
+Although we do not diagnosed the model here, we will continue discussing some time series models with autocorrelation and will be against the model assumption, in which we omit the autocorrelation.
+
+#
+
+Now, with closer observation on the time series, we can find that the data points seems to be around the trend randomly. To see the it more clearly, we do the following plots:
+(cite: Shumway, R.H., and Stoffer, D.S., 2017, Chapter 2, Example 2.4)
+
+```{r}
+plot(resid(fit), type = "l", main = "detrended")
+plot(diff(Jan$Low), type = "l", main = "first differnce")
+```
+
+This prompts us that maybe after detrending the time series, it will be stationary. i.e., we can try *trend stationary*(cite: Shumway, R.H., and Stoffer, D.S., 2017, Chapter 2, section 2.2) on the time series. *Random walk with drift* is a good choice.
+
+## 2. Random walk with drift
+
+### definition
+
+- Define $Y_t$ as Ann Arbor January Low temperature at time $t$.
+- Define $y_t$ as the specific numbers of $Y_t$.
+- Define $w_t$ as the Gaussian white noise $N(0, \sigma^2)$.
+- Define $\sigma$ as the drift.
+
+### assumption/hypothesis
+
+The time series is a trend stationary time series and it's a very simple form: random walk with drift. So we include the autocorrelation of the series into the model but we only consider the first difference.
+
+### model equation
+
+(cite: Shumway, R.H., and Stoffer, D.S., 2017, Chapter 2, (2.26))
+
+$$
+Y_t = \sigma + Y_{t-1} + w_t
+$$
+
+### model fitting
+
+(cite: [Notes on random walk model](https://people.duke.edu/~rnau/Notes_on_the_random_walk_model--Robert_Nau.pdf))
+Based on the model equation, we just need to compute the $\sigma$ using first difference.
+
+```{r}
+sigma <- mean(diff(Jan$Low), na.rm = TRUE)
+sigma2 <- var(diff(Jan$Low), na.rm = TRUE)
+sigma
+sigma2
+```
+
+Thus the model estimation is:
+
+$$
+y_t = 0.016 + y_{t-1} + N(0, 112)
+$$
+
+We can try to simulate the model and compare the result with real data:
+
+```{r}
+set.seed(123)
+N <- length(Jan$Low)
+w <- rnorm(N, mean = 0, sd = sd(diff(Jan$Low), na.rm = TRUE))
+y <- numeric(N)
+for (n in 2:N) {
+  y[n] <- y[n-1] + sigma + w[n]
+}
+plot(Jan$Year, y, type = "l", xlab = "Year", ylab = "temperature", main = "Random walk with drift: Simulation")
+```
+
+### discussion
+
+We can check and evaluate our Random walk with drift model compared with detrended model (by OLS) using acf plots below:
+
+(cite: Shumway, R.H., and Stoffer, D.S., 2017, Chapter 2, Example 2.5, R code)
+
+```{r}
+acf(resid(fit)[!is.na(resid(fit))], 48, main = "detrended")
+acf(diff(Jan$Low)[!is.na(diff(Jan$Low))], 48, main = "first difference")
+```
+
+Through the simulation result, it's not realistic. And compare the acf plots we find that random walk with drift does not improve the result of linear regression.
+Perhaps the reason that the random walk with drift model is not appropriate here is that the first difference of the Low temperature has very large variance, which is not suitable to estimate with Gaussian white noise.
+
+#
+
+Maybe there is much more about the autocorrelation and stationarity of the time series. We can plot the scatterplot matrix of the data:
+
+```{r}
+library(astsa)
+lag1.plot(Jan$Low[!is.na(Jan$Low)], 9)
+```
+
+This prompts us that we need more comprehensive models to better depict the characters of the time series. Thus here I tried some ARIMA models to fit the time series.
+
+## 3. ARIMA
+
+### definition
+
+- Define $Y_t$ as Ann Arbor January Low temperature at time $t$.
+- Define $y_t$ as the specific numbers of $Y_t$.
+- Define $\epsilon_t$ as Gaussian white noise at time $t$, i.e. $\epsilon_n \overset{iid}{\sim}N(0. \sigma^2)$.
+- Define $\mu$ as the expectation value of $Y_t$.
+- Define $\phi(x) = 1- \phi_1x - \phi_2 x^2 - \cdots - \phi_px^p$.
+- Define $\psi(x) = 1+ \psi_1x + \psi_2 x^2 + \cdots + \psi_qx^q$.
+- Define $B$ as the backshift operater, $By_t = y_{t-1}$.
+- Define $\phi_i$ as the coefficient of $y_{t-i}$.
+- Define $\psi_j$ as the coefficient of $\epsilon_{t-j}$
+
+### assumption/hypothesis
+
+- The model is stationary
+- The model is causal
+- The model is invertible
+
+(cite:[Autoregressive Moving-average Model](https://en.wikipedia.org/wiki/Autoregressive_moving-average_model#ARMA_model))
+
+### model equation
+
+ARMA($p$,$q$):
+
+$$
+Y_t = \phi_1 Y_{t-1}+ \phi_2 Y_{t-2} + \cdots + \phi_p Y_{t-p} + \epsilon_t + \psi_1\epsilon_{t-1} + \cdots + \psi_q \epsilon_{t-q} + \mu(1-\phi_1 -\cdots - \phi_p)
+$$
+
+or equivalently (cite: [Lecture Slides 5, page 28](https://ionides.github.io/531w24/05/slides.pdf)):
+
+$$
+\phi(B)(Y_t - \mu) = \psi(B)\epsilon_t
+$$
+
+### model fitting
+
+Basicly, I tried to choose $p$ and $q$ based on the AIC values for a range of different choices of $p$ and $q$ like the notes did: (cite: [[Lecture Slides 5, page 29](https://ionides.github.io/531w24/05/slides.pdf)], debug: [Stackoverflow](https://stackoverflow.com/questions/7233288/non-stationary-seasonal-ar-part-from-css-error-in-r))
+
+```{r,warning = FALSE, message = FALSE}
+temp <- Jan$Low[!is.na(Jan$Low)]
+aic_table <- function(data,P,Q){
+table <- matrix(NA,(P+1),(Q+1))
+for(p in 0:P) {
+for(q in 0:Q) {
+table[p+1,q+1] <- tryCatch( {arima(data,order=c(p,0,q), method = "ML")$aic}, 
+                            error = function(e){return(NA)})
+}
+}
+dimnames(table) <- list(paste("AR",0:P, sep=""),
+paste("MA",0:Q,sep=""))
+table
+}
+temp_aic_table <- aic_table(temp,4,4)
+require(knitr)
+kable(temp_aic_table,digits=2)
+```
+
+Based on the table, I finally choose the ARMA(0,0) (Thus it will just be a white noise), ARMA(1,0), ARMA(0,1) and ARMA(2,2) since they have the smallest AIC value. Now I output the result of the model:
+(cite: [Lecture Slides 1, page 20](https://ionides.github.io/531w24/01/slides.pdf))
+
+```{r}
+arima00 <- arima(temp, order = c(0,0,0))
+arima10 <- arima(temp, order = c(1,0,0))
+arima01 <- arima(temp, order = c(0,0,1))
+arima22 <- arima(temp, order = c(2,0,2))
+
+# plot the residues
+par(mfrow = c(2,2))
+plot(arima00$resid, main = "ARMA(0,0)", xlab = "Time", ylab = "resid")
+plot(arima01$resid, main = "ARMA(0,1)", xlab = "Time", ylab = "resid")
+plot(arima10$resid, main = "ARMA(1,0)", xlab = "Time", ylab = "resid")
+plot(arima22$resid, main = "ARMA(2,2)", xlab = "Time", ylab = "resid")
+
+# plot the acf of the models
+par(mfrow = c(2,2))
+acf(arima00$resid, 48, main = "ARMA(0,0)")
+acf(arima01$resid, 48, main = "ARMA(0,1)")
+acf(arima10$resid, 48, main = "ARMA(1,0)")
+acf(arima22$resid, 48, main = "ARMA(2,2)")
+```
+
+Basically, the acfs lie in the confidence interval. However, since the AIC of all the models here are quite large, it seems that they all do not fit very well.
+
+Here we select AMRA(2,2) to do the simulation and compare it with our original data:
+
+```{r}
+arima22
+
+arma22 <- arima.sim(list(ar = c(0.1698, 0.5476), ma = c(-0.1166, -0.5686)), n = length(Jan$Low), sd = 1)
+
+plot(Jan$Year, arma22 - 2.84, type = "l", xlab = "Year", ylab = "simulation temp", main = "ARMA(2,2) simulation")
+```
+
+Compared with original data, the variance of simulation becomes smaller.
+
+# models for global
+
+```{r}
+global <- read.table(file="http://ionides.github.io/531w24/hw03/Global_Temperature.txt",header=TRUE)
+plot(Annual~Year,data=global,type="l",ylab = "global temperature", main = "global temperature time series")
+lag1.plot(global$Annual, 9)
+```
+
+Basically the definition, hypothesis and model equations are the same.
+
+## 1. Linear Trend
+
+### model fitting
+
+```{r}
+# fit the model
+summary(fit <- lm(Annual ~ Year, data = global))
+# plot the data and regression line
+plot(Annual~Year,data=global,type="l", ylab = "global temperature", main = "global temperature time series")
+abline(fit)
+```
+
+### discussion
+
+Now the OLS performs better on global data set since the coefficients become significant.
+
+## 2. Random walk with drift
+
+### model fitting
+
+```{r}
+sigma <- mean(diff(global$Annual), na.rm = TRUE)
+sigma2 <- var(diff(global$Annual), na.rm = TRUE)
+sigma
+sigma2
+```
+
+Thus the model estimation is:
+
+$$
+y_t = 0.007 + y_{t-1} + N(0, 0.012)
+$$
+
+We can try to simulate the model and compare the result with real data:
+
+```{r}
+set.seed(123)
+N <- length(global$Annual)
+w <- rnorm(N, mean = 0, sd = sd(diff(global$Annual), na.rm = TRUE))
+y <- numeric(N)
+for (n in 2:N) {
+  y[n] <- y[n-1] + sigma + w[n]
+}
+plot(global$Year, y, type = "l", xlab = "Year", ylab = "temperature", main = "Random walk with drift: Simulation")
+```
+
+### discussion
+
+```{r}
+acf(resid(fit)[!is.na(resid(fit))], 48, main = "detrended")
+acf(diff(global$Annual), 48, main = "first difference")
+```
+
+We can find that random walk with drift this time performs far better than OLS and it's appropriate here.
+
+## 3. ARIMA
+
+### model fitting
+
+```{r,warning = FALSE, message = FALSE}
+gtemp <- global$Annual
+temp_aic_table <- aic_table(gtemp,10,10)
+require(knitr)
+kable(temp_aic_table,digits=2)
+```
+
+### discussion
+
+For the global data set, the ARMA models have smaller AIC values and generally fit better. Based on the AIC table, the best models are ARMA(5,4), ARMA(5,5), ARMA(6,4).
+
+
+# Reference
+
+1. [Homework3, DATASCI/STATS 531](https://ionides.github.io/531w24/hw03/hw03.html)
+
+2. Shumway, R.H., and Stoffer, D.S., 2017. Time series analysis and its applications (4th edition). New York: Springer.
+
+3. [wikipedia, OLS](https://en.wikipedia.org/wiki/Ordinary_least_squares#)
+
+4. Julian J Faraway, 2014, Linear Models with R, Taylor & Francis
+
+5. [Notes on random walk model](https://people.duke.edu/~rnau/Notes_on_the_random_walk_model--Robert_Nau.pdf)
+
+6. [Autoregressive Moving-average Model](https://en.wikipedia.org/wiki/Autoregressive_moving-average_model#ARMA_model)
+
+7. [Lecture Slides 5](https://ionides.github.io/531w24/05/slides.pdf)
+
+8. [Lecture Slides 1, page 20](https://ionides.github.io/531w24/01/slides.pdf)
