@@ -1,0 +1,49 @@
+---
+title: "Homework 4, due Sunday 2/18, 11:59 pm"
+author: "DATASCI/STATS 531"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+This homework gives you some experience at manipulating models and data in the frequency domain. Submit to Canvas both an Rmd and a version of your report compiled to HTML. The Rmd file should be written so that the grader can run it, so the data should be read from the homework website rather than from a local directory. The grader will not necessarily recompile the Rmd, but if they do then it should reproduce the HTML.
+
+If you want to use bibtex to manage your references, you can also submit a bib file, and in that case you will also need a csl (citation style language) file which can be included via a web link. An example is provided in the [Rmd](../hw02/sol02.Rmd) and [bib](../hw02/sol02.bib) source files for the [solutions to Homework 2](../hw02/sol02.html).
+
+Your report should contain a reference section listing sources. The grader should be able to clearly identify where the sources were used, for example using reference numbers in the text. Anything and anyone consulted while you are working on the homework counts as a source and should be credited. The homework will be graded following the grading scheme in the [syllabus](../syllabus.html).
+
+--------
+
+**<big>Question 4.1</big>**. 
+
+<b>A</b>. Compute and plot the spectral density function of a stationary AR2 model,
+$$ X_n =  1.5 X_{n-1} - 0.8X_{n-2} + \epsilon_n,$$
+where $\{\epsilon_n\}$ is white noise with $\var(\epsilon_n)=\sigma^2$.
+You can use software to do this, or carry out some computations analytically. 
+It is up to you how much (or little) algebra you choose to work through, but please explain fully how you carried out your calculation.
+Also, plot the autocovariance function.
+
+<b>B</b>. Compute and plot the spectral density function of an MA(2) moving mean,
+$$ X_n = \epsilon_{n-2} + \epsilon_{n-1}+\epsilon_n,$$
+where $\{\epsilon_n\}$ is white noise with $\var(\epsilon_n)=\sigma^2$.
+As in part (A), you can use software to do this or carry out some computations analytically. 
+Also, plot the autocovariance function.
+
+
+<b>C</b>. Comment briefly on what you find in parts A and B.
+
+
+--------
+
+**<big>Question 4.2</big>**. Estimate a spectral density function for the sunspot time series in [sunspots.txt](sunspots.txt). Comment on your choice of estimator, and discuss comparisons with alternative approaches. Comment on scientific interpretations of the resulting estimate. As statisticians, we may not have domain-specific expertise but we should still try to think and talk about the scientific implications of the statistical inferences. These data, as well as some background on the historical and current interest in sunspot activity, are described at https://www.sidc.be/SILSO/home.
+
+------------
+
+-----------------

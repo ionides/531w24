@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Instructor: Edward L. Ionides" />
+<meta name="author" content="DATASCI/STATS 531" />
 
 
-<title>DATASCI/STATS 531 (Winter 2024)  ‘Modeling and Analysis of Time Series Data’</title>
+<title>Participation report 3, due Sunday 2/18, 11:59pm</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,208 +349,37 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 (Winter 2024)
-<br>‘Modeling and Analysis of Time Series Data’</h1>
-<h4 class="author">Instructor: Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Participation report 3, due Sunday 2/18,
+11:59pm</h1>
+<h4 class="author">DATASCI/STATS 531</h4>
 
 </div>
 
-<div id="TOC">
-<ul>
-<li><a href="#course-description" id="toc-course-description">Course
-description</a></li>
-<li><a href="#class-notes-and-recorded-lectures" id="toc-class-notes-and-recorded-lectures">Class notes and recorded
-lectures</a></li>
-<li><a href="#homework-and-participation-assignments" id="toc-homework-and-participation-assignments">Homework and
-participation assignments</a></li>
-<li><a href="#midterm-project" id="toc-midterm-project">Midterm
-project</a></li>
-<li><a href="#acknowledgements-and-license" id="toc-acknowledgements-and-license">Acknowledgements and
-License</a></li>
-</ul>
-</div>
 
+<p>Submit your participation report for the time interval 1/31 to 2/11
+as a pdf via Canvas. Please copy-paste in your report the contributions
+you have made (if any) to the class Piazza site. A simple and acceptable
+format is a screen shot of your contribution which includes your name.
+This will be an efficient way for the grader to keep track of
+participation. You can also list here any other contributions you have
+made to our DATASCI/STATS 531 learning community during this interval,
+including contributions in class. However, Piazza is expected to be the
+most common form of active participation. If there is no discussion on
+the Piazza site that you want to join, start a new one! Thoughts you
+have about the notes are worth sharing. Or you can share thoughts about
+how the development of ideas in class relates to the textbook by Shumway
+and Stoffer, or any other online resource.</p>
+<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
+expectation is that you should have at least one constructive
+contribution to the class community each reporting period. Participation
+is not evaluated on whether it is right or wrong, indeed it is an
+opportunity to obtain feedback on your thoughts when you don’t know if
+they are correct or not.</p>
+<p>The usual rules for scholarship apply to Piazza posts and responses.
+You are encouraged to use sources; even GenAI can supply useful
+material. However, you should cite sources. You should not put your own
+name to material that was not written by you.</p>
 <hr />
-<div id="course-description" class="section level2">
-<h2>Course description</h2>
-<p>This course gives an introduction to time series analysis using time
-domain methods and frequency domain methods. The goal is to acquire the
-theoretical and computational skills required to investigate data
-collected as a time series. The first half of the course will develop
-classical time series methodology, including auto-regressive moving
-average (ARMA) models, regression with ARMA errors, and estimation of
-the spectral density. The second half of the course will focus on state
-space model techniques for fitting structured dynamic models to time
-series data. We will progress from fitting linear, Gaussian dynamic
-models to fitting nonlinear models for which Monte Carlo methods are
-required. Examples will be drawn from ecology, economics, epidemiology,
-finance and elsewhere.</p>
-<p>The course outline, course information and grading policies are
-described in the <a href="syllabus.html">syllabus</a>.</p>
-<hr />
-</div>
-<div id="class-notes-and-recorded-lectures" class="section level2">
-<h2>Class notes and recorded lectures</h2>
-<ol style="list-style-type: decimal">
-<li><p><a href="01/index.html">Introduction</a></p></li>
-<li><p><a href="02/index.html">Estimating trend and
-autocovariance</a></p></li>
-<li><p><a href="03/index.html">Stationarity, white noise, and some basic
-time series models</a></p></li>
-<li><p><a href="04/index.html">Linear time series models and the algebra
-of ARMA models</a></p></li>
-<li><p><a href="05/index.html">Parameter estimation and model
-identification for ARMA models</a></p></li>
-<li><p><a href="06/index.html">Extending the ARMA model: Seasonality,
-integration and trend</a></p></li>
-<li><p><a href="07/index.html">Introduction to time series analysis in
-the frequency domain</a></p></li>
-<li><p><a href="08/index.html">Smoothing in the time and frequency
-domains</a></p></li>
-</ol>
-<!--
-
-9. [Case study: An association between unemployment and mortality?](09/index.html)
-
-10. [Introduction to partially observed Markov process models](10/index.html)
-
-11. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](11/index.html)
-
-12. [Simulation of stochastic dynamic models](12/index.html)
-
-13. [Likelihood for POMP models: Theory and practice](13/index.html)
-
-14. [Likelihood maximization for POMP models](14/index.html)
-
-15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
-
-16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
-
-17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
-
-There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).
-
--->
-<hr />
-</div>
-<div id="homework-and-participation-assignments" class="section level2">
-<h2>Homework and participation assignments</h2>
-<p>Please read the <a href="rubric_homework.html">grading rubric</a>
-before submitting homework.</p>
-<ul>
-<li><p><a href="hw00/hw00.html">Homework 0</a>. Setting up your
-computational environment. Nothing to submit.</p></li>
-<li><p><a href="hw01/hw01.html">Homework 1</a>, due Sun Jan 21, 11:59pm.
-<a href="hw01/sol01.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation1.html">Participation 1</a>,
-due Sun Jan 21, 11:59pm.</p></li>
-<li><p><a href="hw02/hw02.html">Homework 2</a>, due Tue Jan 30, 11:59pm.
-<a href="hw02/sol02.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation2.html">Participation 2</a>,
-due Tue Jan 30, 11:59pm.</p></li>
-<li><p><a href="hw03/hw03.html">Homework 3</a>, due Sun Feb 11,
-11:59pm.</p></li>
-</ul>
-<!--
-[Solution](hw03/sol03.html).
--->
-<ul>
-<li><p><a href="participation/participation3.html">Participation 3</a>,
-due Sun Feb 11, 11:59pm.</p></li>
-<li><p><a href="hw04/hw04.html">Homework 4</a>, due Sun Feb 18,
-11:59pm.</p></li>
-</ul>
-<!--
-[Solution](hw04/sol04.html).
--->
-<ul>
-<li><a href="participation/participation4.html">Participation 4</a>, due
-Sun Feb 18, 11:59pm.</li>
-</ul>
-<!--
-* [Homework 5](hw05/hw05.html), due Mon Mar 14, 11:59pm.
-[Solution](hw05/sol05.html).
-
-* [Participation 5](participation/participation5.html), due Mon Mar 21, 11:59pm.
-
-* [Homework 6](hw06/hw06.html), due Mon Mar 21, 11:59pm. 
-[Solution](hw06/sol06.html).
-
-
-* [Homework 7](hw07/hw07.html), due Mon Mar 28, 11:59pm.
-[Solution](hw07/sol07.html).
-
-* [Participation 6](participation/participation6.html), due Mon Apr 4, 11:59pm.
-
-* [Homework 8](hw08/hw08.pdf), due Mon Apr 4, 11:59pm.
-[Solution](hw08/sol08.pdf).
-
-* [Participation 7](participation/participation7.html), due Mon Apr 18, 11:59pm.
-
-* There is no assigned homework for the last two weeks of the semester. You should work on your final project. The remaining lectures contain material that will be useful for your final projects.
-
--->
-<hr />
-</div>
-<div id="midterm-project" class="section level2">
-<h2>Midterm project</h2>
-<ul>
-<li><p><a href="midterm_project/midterm_project_info.html">Information</a>.</p></li>
-<li><p><a href="midterm_project/midterm_review.html">Midterm peer review
-report instructions</a></p></li>
-</ul>
-<!--
-* [2024 midterm projects](midterm_project/index.html)
--->
-<ul>
-<li>You are welcome to browse previous midterm projects. The <a href="http://ionides.github.io/531w22/midterm_project/">2022 midterm
-projects</a> and <a href="http://ionides.github.io/531w21/midterm_project/">2021 midterm
-projects</a> have a posted summary of peer review comments. Earlier
-projects are also available, from <a href="http://ionides.github.io/531w16/midterm_project/">2016</a>, <a href="http://ionides.github.io/531w18/midterm_project/">2018</a> and <a href="http://ionides.github.io/531w20/midterm_project/">2020</a>.</li>
-</ul>
-<hr />
-<!--
-
-## Final project
-
-
-* [Information](final_project/final_project_info.html)
-
-* [Final review report instructions](final_project/final_review.html)
-
-* [2024 final projects](final_project/index.html)
-
-* You're welcome to browse previous final projects. The [2021 final projects](http://ionides.github.io/531w21/final_project/) have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
-
-If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. The changes from **pomp 2.0** to the current **pomp 4.x** are smaller.
-
---------
--->
-<!--
-
-## Using the Great Lakes cluster
-
-* Great Lakes access will be set up after the midterm project and used for the second half of the course.
-
-* [Introductory notes](greatlakes/index.html) for using our class account on the greatlakes cluster. This is optional but may be helpful for your final project.
-
-* If you are already familiar with using R on Great Lakes, all you need to know is the class account: ```stats531w24_class```.
-
-* You are expected to use our class account only for computations related to DATASCI/STATS 531.
-
-* Please share knowledge about cluster computing between group members, and/or on piazza, to help everyone who wants to learn these skills.
-
-* Cluster-related questions can also be emailed to hpc-support@umich.edu.
-
----------
--->
-</div>
-<div id="acknowledgements-and-license" class="section level2">
-<h2>Acknowledgements and License</h2>
-<p>This course and the code involved are made available with an <a href="LICENSE">MIT license</a>. Some components follow a Creative
-Commons Attribution non-commercial license. A longer list of
-acknowledgments is <a href="acknowledge.html">available</a>.</p>
-</div>
 
 
 
