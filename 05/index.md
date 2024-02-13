@@ -1,5 +1,5 @@
 ---
-title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531, Winter 2024<br>Chapter 5: Parameter estimation and model identification for ARMA models"
+title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531.<br>Chapter 5: Parameter estimation and model identification for ARMA models"
 author: "Edward L. Ionides"
 output: html_document
 ---
@@ -16,6 +16,10 @@ output: html_document
 | Recording, Winter 2021: Chapter 5, Part 3  | [(33 mins)](https://youtu.be/jtu96XUX3Vg) |
 | Discussion questions | [html](discussion.html)
 ----------------------
+
+<!--
+| Annotated slides | [pdf](slides-annotated.pdf) |
+-->
 
 
 ----------------------

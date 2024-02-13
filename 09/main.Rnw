@@ -1,0 +1,758 @@
+\input{../header}
+
+\newcommand\eqspace{\hspace{3mm}}
+\newcommand\eqvspace{\vspace{1mm}}
+\newcommand\negListSpace{\hspace{-4mm}}
+
+\newcommand\ev{u}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\newcommand\CHAPTER{9}
+% \newcommand\answer[2]{\textcolor{blue}{#2}} % to show answers
+% \newcommand\answer[2]{\textcolor{red}{#2}} % to show answers
+ \newcommand\answer[2]{#1} % to show blank space
+\usepackage{bbm} % for blackboard bold 1
+
+
+\title{\vspace{2mm} \link{https://ionides.github.io/531w22/}{Modeling and Analysis of Time Series Data}\\ \vspace{2mm}
+Chapter \CHAPTER: Case study: An association between unemployment and mortality?}
+\author{Edward L. Ionides}
+\date{}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+
+<<,echo=F>>=
+set.seed(2050320976)
+@
+
+
+\section{Introduction to business cycles and mortality}
+
+\begin{frame}{Historical investigations linking business cycles to mortality}
+
+\vspace{-2mm}
+
+\bi
+
+\item \myemph{Pro-cyclical} mortality occurs if death rates are statistically above trend when economic activity is above trend. An early report was \citet{ogburn22}.
+
+\item  Procyclical mortality, if it exists, shows that a key measure of population health is worse in economic booms than in recessions.
+
+\item Both the economy and life expectancy have grown over the last century. However, these phenomena have not always occurred simultaneously. For example, 1950--1980 saw rapid growth in life expectancy in India and China, combined with relatively slow economic growth. Improvement in life expectancy has slowed during their recent economic surges.
+
+
+\item The link between economic growth and health improvement is controversial, since it has political implications. Economists and epidemiologists have argued both sides of this debate, using time series methods.
+
+\ei
+
+\end{frame}
+
+\begin{frame}{Implications of pro-cyclical mortality}
+
+\vspace{-1mm}
+
+\bi
+
+\item If our goal is population health and happiness, how much should our policies focus on gross domestic product (GDP) growth? 
+
+    \item Evidence supporting the view that economic growth is the critical engine for other improvements in living conditions would make a moral argument in favor of economic growth.
+
+    \item Evidence that there are other major factors involved in improving living conditions suggest that economic growth should be only one political consideration, among others.
+
+\item We aim to study the effect of the economy on mortality, not vice versa. Before the COVID-19 pandemic, the effect of mortality fluctuations on the economy was considered negligible. We study data up to 2018.
+
+\ei
+
+\end{frame}
+
+\section{Data}
+
+\begin{frame}[fragile]{A time series of life expectancy in the USA}
+
+
+<<read_data_e>>=
+e_data <- read.table(file="life_expectancy_usa.csv",header=TRUE)
+head(e_data,n=4)
+@
+
+\bi
+\item \link{life_expectancy_usa.csv}{Data} are from the \link{https://www.mortality.org/hmd/USA/STATS/E0per.txt}{Human Mortality Database}.
+
+\item \code{e0} is \myemph{life expectancy at birth (LEB)} for civilians, 
+
+\item \code{e0F} and \code{e0M} are LEB for females and males, but we focus on \code{e0}.
+
+\item LEB is an actuarial calculation based on a fictitious individual having mortality rates at each age matching census age-specific mortality rates for the current year.
+
+\item LEB is a standard way to combine all the age-specific mortality rates into a single number.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<read_data_u>>=
+u_data <- read.table(file="unadjusted_unemployment.csv",
+  sep=",",header=TRUE)
+head(u_data,4)
+@
+
+\bi
+
+\item We consider unadjusted unemployment from Bureau of Labor Statistics.
+
+\item Unemployment is just one component of the state of the economy. One could consider other measurements.
+
+\item Write ${e_n}$ for life expectancy in year $t_n=1947+n$. 
+
+
+\item Write ${u_n}$ for mean unemployment in year $t_n$.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{A time plot of the raw data}
+
+\vspace{-2mm}
+
+<<clean_data>>=
+t <- intersect(e_data$Year,u_data$Year)
+e <- e_data$e0[e_data$Year %in% t]
+u <- apply(u_data[u_data$Year %in% t, 2:13],1,mean)
+@
+
+\vspace{-10mm}
+
+<<data_plots,fig.height=5,fig.width=6,out.width="8cm",echo=F>>=
+plot(ts(cbind(e,u),start=1948),main="",xlab="")
+@
+
+\vspace{-10mm}
+
+\bi
+
+\item We are interested in changes over business cycle timescales, once trends have been removed. 
+
+\ei
+
+\end{frame}
+
+\section{Detrending the data}
+
+\begin{frame}[fragile]{The Hodrick-Prescott filter}
+
+\bi
+\item To extract the cyclical component, we use an econometric method: the \myemph{Hodrick-Prescott (HP) filter} \citep{hodrick97}.
+
+
+\item For a time series $\data{y_{1:N}}$, the HP filter is the time series $\data{s_{1:N}}$ defined as
+\begin{equation}
+\negListSpace \data{s_{1:N}} =  \argmin_{s_{1:N}}
+  \left\{ 
+    \sum^{N}_{n=1}\big(\data{y_n}-s_{n}\big)^2 + \lambda\sum^{N-1}_{n=2}\big(s_{n+1}-2s_{n}+s_{n-1}\big)^2 
+  \right\}.\end{equation}
+
+\item The HP filter is a \myemph{smoothing spline}. 
+Later, we see it can also be viewed as a state space model.
+
+\item A standard econometric choice of $\lambda$ for removing nonlinear trend, for extracting the business cycle component, in annual data is $\lambda=100$.
+
+\item An R implementation of the Hodrick-Prescott filter is \code{hpfilter} in the R package \code{mFilter}. This can be installed by
+
+<<mFilter,eval=FALSE,echo=TRUE>>=
+devtools::install_github("mbalcilar/mFilter")
+@
+
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item We use the Hodrick-Prescott filter to define the HP-detrended life expectancy, $e^{HP}_{1:N}$, and unemployment, $u^{HP}_{1:N}$.
+
+
+\ei
+
+<<hp>>=
+library(mFilter)
+e_hp <- hpfilter(e, freq=100,type="lambda",drift=F)$cycle
+u_hp <- hpfilter(u, freq=100,type="lambda",drift=F)$cycle
+@
+
+\bi
+
+\item Plotting two time series on a single graph is not always advisable, but here it is helpful.
+
+\ei
+
+<<hpplots-code,eval=F,echo=T>>=
+plot(t,u_hp,type="l",xlab="",ylab="detrended unemployment")
+par(new=TRUE)
+plot(t,e_hp,col="red",type="l",axes=FALSE,xlab="",ylab="")
+axis(side=4, col="red",col.ticks="red",col.axis="red")
+mtext("detrended e0",side=4,col="red",line=3)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<hpplots,echo=F,eval=T, fig.width=7,fig.height=3,out.width="11cm">>=
+par(mai=c(0.8,0.8,0.1,0.8))
+<<hpplots-code>>
+@
+Detrended unemployment (black; left axis) and detrended life expectancy at birth (red; right axis).
+
+\bi
+
+\item Looking at this figure may suggest that detrended life expectancy and detrended unemployment cycle together. 
+
+\item We make a formal statistical test to check our eyes are not deceiving us.
+
+\ei
+
+\end{frame}
+
+\section{Hypothesis testing: regression with ARMA errors}
+
+
+\begin{frame}[fragile]{A regression with ARMA errors model}
+
+
+\vspace{-1mm}
+
+\bi
+
+\item We can investigate the dependence of $e^{HP}_{1:N}$ on  $u^{HP}_{1:N}$ using a regression with ARMA errors model,
+\begin{equation} E^{HP}_n = \alpha + \beta u^{HP}_n + \epsilon_n,\end{equation}
+where $\{\epsilon_n\}$ is a Gaussian ARMA process. 
+We use an ARMA(1,0) model, as discussed in the supplementary analysis.
+
+\ei
+
+<<hp_b>>=
+a0 <- arima(e_hp,xreg=u_hp,order=c(1,0,0))
+@
+\vspace{-2mm}
+
+<<hp_b_summary,echo=F>>=
+z1 <- a0$coef["u_hp"]
+z2 <- sqrt(a0$var.coef["u_hp","u_hp"])
+mysummary(a0,print.sigma=T,loglik=T,coef.label=T)
+@
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item The standard error (computed via observed Fisher information) gives a $z$-statistic of $\Sexpr{myround(z1,4)}/\Sexpr{myround(z2,4)} = \Sexpr{myround(z1/z2,2)}$ for the coefficient of detrended unemployment.
+
+\item We can also compute a p-value from a likelihood ratio test,
+
+\ei
+
+<<lrt>>=
+log_lik_ratio <- as.numeric(
+   logLik(arima(e_hp,xreg=u_hp,order=c(1,0,0))) -
+   logLik(arima(e_hp,order=c(1,0,0)))
+)
+LRT_pval <- 1-pchisq(2*log_lik_ratio,df=1)
+@
+
+\bi
+
+\item This gives a p-value of \Sexpr{myround(LRT_pval,5)}.
+
+\item We have clear statistical evidence for a positive association between detrended unemployment and detrended life expectancy.
+
+\item For all observational studies, interpretation of association needs care.
+
+\ei
+
+\end{frame}
+
+\section{Association and causation}
+
+\begin{frame}{Association and causation}
+
+\bi
+
+\item We have been careful to talk about \myemph{association}, since observational data giving firm statistical evidence of an assocation between $X$ and $Y$ cannot readily distinguish between three possibilities:
+\ei
+\begin{enumerate}
+  \item  $X$ causes $Y$.
+
+  \item $Y$ causes $X$.
+
+  \item Both $X$ and $Y$ are caused by a third variable $Z$ that is unmeasured or has been omitted from the analysis. In this case, $Z$ is called a \myemph{confounding variable}.
+\end{enumerate}
+\bi
+\item Here, it is not considered plausible that mortality fluctations drive economic fluctuations (the \myemph{reverse causation} possibility).
+
+\item Unemployment is a \myemph{proxy variable} for economic fluctuations. Increased unemployment itself is necessarily directly causing reduced mortality: all proxy variables for economic activity are confounded in this analysis.
+
+\ei
+
+\end{frame}
+
+\section{Looking for dependence in bivariate time series}
+
+\subsection{Cross-correlation}
+
+\begin{frame}{Potential lagged relationships}
+
+\bi
+
+\item A potential confounding variable is lagged economic activity. 
+Theoretically, reduction in mortality for an current economic down-turn could result from delayed health progress caused by the previous economic boom.
+
+\item A lag relationship between two time series $x_{1:N}$ and $y_{1:N}$ can be identified from the \myemph{sample cross-correlation function (CCF)}
+\begin{equation}
+\hat\rho_{xy}(h) =
+  \frac{\sum_{n=1}^{N-h} (x_{n+h}-\bar x)(y_{n}-\bar y)}{\sqrt{\sum_{n=1}^{N} (x_{n}-\bar x)^2 \sum_{n=1}^N (y_{n}-\bar y)^2}}
+\end{equation}
+
+\item $\hat\rho_{xy}(h)$ estimates $\rho_{XY}(h)=\mathrm{Cor}\big(X_{n+h},Y_n\big)$, the cross-correlation at lag $h$ for a \myemph{bivariate stationary time series model}, consisting of a pair of random variables $\big(X_n,Y_n\big)$ at each time $n$.
+
+\ei
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+
+<<ccf_code,eval=F,echo=T>>=
+ccf(e_hp,u_hp)
+@
+
+\vspace{-2mm}
+
+<<ccf_eval,eval=T,echo=F,fig.width=7,fig.height=3.5,out.width="10cm">>=
+par(mai=c(0.8,0.8,0.8,0.1))
+<<ccf_code>>
+@
+
+\bi
+\item The strong positive cross-correlation at lag zero supports pro-cyclical mortality.
+
+\item The oscillatory pattern is not significant pointwise but might be more evident in the frequency domain.
+
+\ei
+
+\end{frame}
+
+\subsection{The cross-spectrum, coherence and phase}
+
+\begin{frame}{Cross-covariance and the cross-spectrum}
+\bi
+\item The \myemph{cross-covariance function} of a stationary bivariate time series model, $\big(X_n,Y_n\big)$, is
+\begin{equation}
+\gamma_{XY}(h)=\mathrm{Cov}\big(X_{n+h},Y_n\big).
+\end{equation}
+
+\item The \myemph{cross-spectrum} is the Fourier transform of the cross-covariance,
+\begin{equation}
+\lambda_{XY}(\omega) = \sum_{h=-\infty}^{\infty} e^{-2\pi i \omega h} \gamma_{XY}(h).
+\end{equation}
+
+\item The cross-spectrum can be estimated by smoothing the bivariate periodogram, using \code{spectrum} in {\Rlanguage}.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{Coherency, coherence and phase}
+
+\bi
+\item The \myemph{coherency} is the normalized cross-spectrum,
+\begin{equation}
+\rho_{XY}(\omega)= \frac{\lambda_{XY}(\omega)}{\sqrt{\lambda_{XX}(\omega)\, \lambda_{YY}(\omega)}}.
+\end{equation}
+
+\item Coherency measures correlation between frequency components of two time series at each frequency $\omega$. It is complex-valued.
+
+\item The magnitude of the coherency is called the \myemph{coherence}. It measures whether a large amplitude at frequency $\omega$ for $x_{1:N}$ is associated with a large amplitude at $\omega$ for $y_{1:N}$.
+
+\item The angle of the coherency (in the complex plane) is called the \myemph{phase}. A phase of $0$ means that peaks at frequency $\omega$ tend to occur simultaneously for $x_{1:N}$ and $y_{1:N}$. A phase of $\pm\pi$ at frequency $\omega$ means that peaks for the frequency component of $x_{1:N}$ coincide with troughs for $y_{1:N}$
+
+\item The coherence and phase are estimated is estimated from the smoothed cross-periodogram and marginal periodograms.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+<<coherency_code,echo=T,eval=F>>=
+s <- spectrum(cbind(e_hp,u_hp),spans=c(3,5,3),plot=F)
+plot(s,plot.type="coherency",main="")
+@
+
+\vspace{-1mm}
+
+
+<<coherency_eval,echo=F,eval=T,fig.width=7,fig.height=2.5,out.width="11cm">>=
+par(mai=c(0.8,0.8,0.1,0.1))
+<<coherency_code>>
+@
+
+\bi
+\item R calculates squared coherence, the squared absolute coherency. This is like reporting $r^2$ for regression, rather than $|r|$.
+\ei
+
+\myquestion. Interpret the squared coherence plot.
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+<<phase_code,eval=F,echo=T>>=
+plot(s,plot.type="phase",main="")
+abline(h=0,col="red")
+@
+
+\vspace{-2mm}
+
+<<phase_eval,eval=T,echo=F,fig.width=7,fig.height=2.5,out.width="11cm">>=
+par(mai=c(0.8,0.8,0.1,0.1))
+<<phase_code>>
+@
+
+\myquestion. Interpret the phase plot.
+
+\answer{\vspace{30mm}}{todo}
+
+\end{frame}
+
+
+
+\begin{frame}{Conclusions}
+
+\bi
+\item There is strong evidence of pro-cyclical mortality at a national level in the USA from 1948 to 2018. For example, the Great Recession of 2009-2010 led to high unemployment, but these two years had above-trend values of life expectancy at birth.
+
+\item We have argued that this evidence supports a claim that above-trend economic growth CAUSES above-trend mortality.
+
+\item We CANNOT infer that unemployment reduces mortality for those who lose their jobs. Adverse individual-level effects of unemployment can be reconciled with our result \citep{tapia14}.
+
+\item More data might give statistical precision to investigate sub-populations more accurately than can be done with a national-level dataset. For example, \myemph{panel data analysis} combining time series for each state \citep{ionides13-aoas}.
+
+\ei
+
+\end{frame}
+
+\section{Supplementary analysis}
+
+\subsection{Model selection by AIC}
+
+\begin{frame}[fragile]{Explaining the choice of an ARMA(1,0) error model}
+
+\bi
+\item Model selection by AIC for regression with ARMA errors follows the same approach as for ARMA models.
+\ei
+
+<<aic_table_code,echo=T,eval=F>>=
+aic_table <- function(data,P,Q,xreg=NULL){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+       table[p+1,q+1] <- arima(data,order=c(p,0,q),xreg=xreg)$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+e_aic_table <- aic_table(e_hp,4,5,xreg=u_hp)
+require(knitr)
+kable(e_aic_table,digits=2)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+<<aic_table_eval,echo=F,eval=T>>=
+<<aic_table_code>>
+@
+
+\vspace{1mm}
+
+\bi
+
+\item ARMA(1,0) gives the best AIC among small models.
+
+\item Some larger models have better AIC, but notice inconsistencies in the AIC table.  For example, consider ARMA(3,1) errors:
+
+\ei
+
+<<arma31>>=
+a3 <- arima(e_hp,xreg=u_hp,order=c(3,0,1))
+@
+
+\vspace{-2mm}
+
+<<arma31_summary,echo=F>>=
+mysummary(a3,print.sigma=T,loglik=T,coef.label=F)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item The estimated ARMA(3,1) is at the boundary of invertiblity, with an MA1 coefficient on the unit circle.
+
+\item This is reminiscent of our earlier analysis of the Lake Huron depth data.
+
+\item Likely the ARMA(3,1) analysis is not very stable. A simulation study might find that the Fisher confidence intervals are not reliable.
+
+\ei
+
+\end{frame}
+
+
+\subsection{Consistency through time}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item A useful relationship should be consistent through time. We check this by repeating the analysis on temporal subsets.
+
+\ei
+
+<<hp_t1>>=
+t1 <- 1:35 
+a1 <- arima(e_hp[t1],xreg=u_hp[t1],order=c(1,0,0))
+@
+
+\vspace{-2mm}
+
+<<hp_t1_summary,echo=F>>=
+mysummary(a1,print.sigma=F,loglik=F,coef.label=F)
+@
+
+<<hp_t2>>=
+t2 <- 37:71
+a2 <- arima(e_hp[t2],xreg=u_hp[t2],order=c(1,0,0))
+@
+
+\vspace{-2mm}
+
+<<hp_t2_summary,echo=F>>=
+mysummary(a2,print.sigma=F,loglik=F,coef.label=F)
+@
+
+\bi
+
+\item The difference is small compared to the standard error. Overall there is consistency through this 71 year interval, though the pattern is weak in the 1990s.
+
+\ei
+
+\end{frame}
+
+\subsection{Residual analysis}
+
+\begin{frame}[fragile]{Residual analysis}
+
+\vspace{-2mm}
+
+\bi
+
+\item We inspect the residuals for the fitted model, and look at their sample autocorrelation.
+
+\ei
+
+<<resid_code,eval=F,echo=T>>=
+r <- resid(arima(e_hp,xreg=u_hp,order=c(1,0,0)))
+plot(r)
+@
+
+<<resid_eval,eval=T,echo=F,out.width="9cm",fig.width=7,fig.height=3>>=
+par(mai=c(0.5,0.8,0.1,0.1))
+<<resid_code>>
+@
+
+
+\bi
+
+\item There is some evidence for fluctuations decreasing in amplitude over time. This is an example of \myemph{heteroskedasticity}. It is not extreme here, but could be studied in a future analysis.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\vspace{-2mm}
+
+<<acf_code,eval=F,echo=T>>=
+acf(r)
+@
+
+\vspace{-1mm}
+
+<<acf_eval,eval=T,echo=F,out.width="9cm",fig.width=5,fig.height=2.5>>=
+par(mai=c(0.8,0.8,0.1,0.1))
+<<acf_code>>
+@
+
+\bi
+
+\item It is not a major model violation to have one out of 18 lags narrowly outside the dashed lines showing pointwise acceptance regions at the 5\% level under a null hypothesis of Gaussian white noise.
+
+\item The presence of some small amount of sample autocorrelation is consistent with the AIC table, which finds the possibility of gains by fitting larger models to the regression errors.
+
+\ei
+
+\end{frame}
+
+\begin{frame}[fragile]{Analysis of temporal differences}
+
+\bi
+
+\item One might model annual changes in life expectancy, rather than difference from a trend. In this case, we consider the variable 
+\begin{equation}
+\Delta {e_n} = {e_n} - {e_{n-1}},
+\end{equation}
+computed as
+<<clean_data_again>>=
+delta_e <- e - e_data$e0[e_data$Year %in% (t-1)]
+@
+
+\ei
+
+<<plot_diff,echo=F,fig.height=3,fig.width=7,out.width="11cm">>=
+par(mai=c(0.5,0.8,0.2,0.8))
+plot(t,u_hp,type="l",xlab="",ylab="detrended unemployment")
+par(new=TRUE)
+plot(t,delta_e,col="red",type="l",axes=FALSE,xlab="",ylab="")
+axis(side=4, col="red",col.ticks="red",col.axis="red")
+mtext("differenced e0",side=4,col="red",line=3)
+@
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+
+\bi
+
+\item The relationship between unemployment and differenced life expectancy is harder to see than when HP-detrended.
+
+\item The relationship is also harder to find by statistical methods:
+
+\ei
+
+<<arma_diff>>=
+a4 <- arima(delta_e,xreg=u_hp,order=c(1,0,1))
+@
+
+\vspace{-2mm}
+
+<<arma_diff_summary,echo=F>>=
+z4.1 <- a4$coef["u_hp"]
+z4.2 <- sqrt(a4$var.coef["u_hp","u_hp"])
+mysummary(a4,print.sigma=T,loglik=T,coef.label=F)
+@
+
+\bi
+\item Temporal differencing $z$-statistic of $\Sexpr{myround(z4.1,4)}/\Sexpr{myround(z4.2,4)} = \Sexpr{myround(z4.1/z4.2,2)}$ which is weaker evidence than the $z$-statistic of $\Sexpr{myround(z1/z2,2)}$ for HP-detrended LEB.
+
+\ei
+
+\end{frame}
+
+\subsection{Multiple testing}
+
+\begin{frame}{Multiple testing considerations}
+
+\bi
+
+\item A scientific principle for interpreting experimental results is as follows: \myemph{An experiment which finds evidence of an effect is usually a better foundation for future investigations than one which fails to find evidence.}
+
+\item The experiment which found no evidence of an effect might have been a bad choice of experiment, or might have been carried out poorly. 
+
+\item The principle of preference for methods giving positive results must be balanced with consideration of \myemph{multiple testing}.  If we make 20 hypothesis tests, we expect one to be significant at the 5\% level just by chance. There is a danger in trying many approaches and settling on one that claims statistical significance.
+
+\item The generalizability of any result is tentative until confirmed in other studies.  
+
+\ei
+
+\end{frame}
+
+
+\newcommand\acknowledgments{
+\begin{itemize}
+\item   Compiled on {\today} using \Rlanguage version \Sexpr{getRversion()}.
+\item   \parbox[t]{0.75\textwidth}{Licensed under the \link{http://creativecommons.org/licenses/by-nc/4.0/}{Creative Commons Attribution-NonCommercial license}.
+    Please share and remix non-commercially, mentioning its origin.}
+    \parbox[c]{1.5cm}{\includegraphics[height=12pt]{../cc-by-nc}}
+\item We acknowledge \link{https://ionides.github.io/531w22/acknowledge.html}{previous versions of this course}.
+\end{itemize}
+}
+
+\mode<presentation>{
+\begin{frame}[allowframebreaks=0.8]{References and Acknowledgements}
+   
+\bibliography{../bib531}
+
+\vspace{3mm}
+
+\acknowledgments
+
+\end{frame}
+}
+
+\mode<article>{
+
+{\bf \Large \noindent Acknowledgments}
+
+\acknowledgments
+
+  \bibliography{../bib531}
+
+}
+
+\end{document}
+
