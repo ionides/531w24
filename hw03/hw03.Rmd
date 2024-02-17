@@ -290,19 +290,58 @@ acf(arima10$resid, 48, main = "ARMA(1,0)")
 acf(arima22$resid, 48, main = "ARMA(2,2)")
 ```
 
-Basically, the acfs lie in the confidence interval. However, since the AIC of all the models here are quite large, it seems that they all do not fit very well.
+### discussion
 
-Here we select AMRA(2,2) to do the simulation and compare it with our original data:
+- pros: Basically, the acfs lie in the confidence interval. 
+
+- cons: However, since the AIC of all the models here are quite large, it seems that they all do not fit very well. Besides, the selected ARMA models are not significantly better than white noises, which means that maybe ARMA models are not appropriate here.
+
+To further study the ARMA models on this data set, here I select AMRA(2,2) to do the simulation and compare it with our original data:
+
+Firstly, show the estimation results:
 
 ```{r}
+# show the result
 arima22
-
-arma22 <- arima.sim(list(ar = c(0.1698, 0.5476), ma = c(-0.1166, -0.5686)), n = length(Jan$Low), sd = 1)
-
-plot(Jan$Year, arma22 - 2.84, type = "l", xlab = "Year", ylab = "simulation temp", main = "ARMA(2,2) simulation")
+# compute Var(y_t)
+var(Jan$Low, na.rm = TRUE)
 ```
 
-Compared with original data, the variance of simulation becomes smaller.
+Next, check if the assumption of causality and invertibility are satisfied:
+(cite: [Lecture slides 5, page32])
+
+```{r}
+# check AR roots
+AR_roots <- polyroot(c(1, -coef(arima22)[c("ar1","ar2")]))
+AR_roots
+
+# check MA roots
+MA_roots <- polyroot(c(1, coef(arima22)[c("ma1","ma2")]))
+MA_roots
+```
+
+It turns out that all the roots are outside the unit circle on the complex plane, thus the causality and invertibility are verified.
+
+Now we need to compute the $\sigma^2$ which is the variance of the $\epsilon_t$ in this model:
+
+$$
+\begin {aligned}
+y_t &= \phi_1y_{t-1} + \phi_2y_{t-2} + \epsilon_t+\psi_1 \epsilon_{t-1} + \psi_2\epsilon_{t-2} + \text{intercept}\\
+\text{Var}(y_t) &= \phi_1^2 \text{Var}(y_{t-1}) + \phi_2^2\text{Var}(y_{t-2}) + (\psi_1^2 + \psi_2^2)\sigma^2\\
+\sigma^2 &= \frac{(1-\phi_1^2 -\phi_2^2)\text{Var}(y_t)}{\psi_1^2 + \psi_2^2} = 112.24
+\end {aligned}
+$$
+
+```{r}
+# plot the simulation data
+arma22 <- arima.sim(list(ar = c(0.1698, 0.5476), ma = c(-0.1166, -0.5686)), n = length(Jan$Low), sd = sqrt(112.24))
+plot(Jan$Year, arma22 - 2.84, type = "l", xlab = "Year", ylab = "simulation temp", main = "ARMA(2,2) simulation")
+lines(Jan$Year, Jan$Low, col = "red", type = "l")
+legend("topright", legend=c("simulation", "true"),
+       col=c("black", "red"), lty = c(1,1), cex=0.8)
+```
+
+Compared with original data, the variance of simulation is a little larger than the true data.
 
 # models for global
 
