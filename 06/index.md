@@ -6,8 +6,8 @@ output: html_document
 
 ----------------------
 
-| &nbsp;          | &nbsp;                                                                            |
-|:----------------|:---------------------------------------------------------------------------------:|
+| &nbsp;          | &nbsp;         |
+|:----------------|:--------------:|
 | Lecture slides  | [pdf](slides.pdf) |
 | Annotated slides  | [pdf](slides-annotated.pdf) |
 | Lecture notes   | [pdf](notes.pdf) |
@@ -15,6 +15,10 @@ output: html_document
 | Recording, Winter 2021: Chapter 6, Part 2  | [(19 mins)](https://youtu.be/YtNGC60FJeU) |
 | Discussion questions | [html](discussion.html) 
 ----------------------
+
+<!--
+| Annotated slides | [pdf](slides-annotated.pdf) |
+-->
 
 ----------------------
 

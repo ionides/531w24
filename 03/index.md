@@ -1,13 +1,13 @@
 ---
-title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531, Winter 2024<br>Chapter 3: Stationarity, white noise, and some basic time series models"
+title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531.<br>Chapter 3: Stationarity, white noise, and some basic time series models"
 author: "Edward L. Ionides"
 output: html_document
 ---
 
 ----------------------
 
-| &nbsp;          | &nbsp;                                          |
-|:----------------|:-----------------------------------------------:|
+| &nbsp;          | &nbsp;               |
+|:----------------|:--------------------:|
 | Lecture slides  | [pdf](slides.pdf) |
 | Annotated slides  | [pdf](slides-annotated.pdf) |
 | Lecture notes   | [pdf](notes.pdf) |
@@ -17,6 +17,9 @@ output: html_document
 | Discussion question | [html](discussion.html) 
 ----------------------
 
+<!--
+| Annotated slides | [pdf](slides-annotated.pdf) |
+-->
 
 ----------------------
 

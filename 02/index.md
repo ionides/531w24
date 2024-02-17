@@ -1,13 +1,13 @@
 ---
-title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531, Winter 2024<br>Chapter 2: Estimating trend and autocovariance"
+title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531. <br>Chapter 2: Estimating trend and autocovariance"
 author: "Edward L. Ionides"
 output: html_document
 ---
 
 ----------------------
 
-| &nbsp;          | &nbsp;                            |
-|:------------|:-------------------------------------:|
+| &nbsp;          | &nbsp;                |
+|:------------|:-------------------------:|
 | Lecture slides  | [pdf](slides.pdf)   |
 | Annotated slides | [pdf](slides-annotated.pdf) |
 | Lecture notes   | [pdf](notes.pdf) |
@@ -16,6 +16,10 @@ output: html_document
 | Recording: Chapter 2, Part 3  | [(10 mins)](https://youtu.be/WX-nJEEyeNA) |
 | Discussion question | [html](discussion.html) 
 ---------------------
+
+<!--
+| Annotated slides | [pdf](slides-annotated.pdf) |
+-->
 
 ----------------------
 

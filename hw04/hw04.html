@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Edward L. Ionides" />
+<meta name="author" content="DATASCI/STATS 531" />
 
 
-<title>Modeling and Analysis of Time Series Data DATASCI/STATS 531. Chapter 5: Parameter estimation and model identification for ARMA models</title>
+<title>Homework 4, due Sunday 2/18, 11:59 pm</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,69 +349,55 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Modeling and Analysis of Time Series
-Data<br>DATASCI/STATS 531.<br>Chapter 5: Parameter estimation and model
-identification for ARMA models</h1>
-<h4 class="author">Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Homework 4, due Sunday 2/18, 11:59 pm</h1>
+<h4 class="author">DATASCI/STATS 531</h4>
 
 </div>
 
 
 <hr />
-<table>
-<colgroup>
-<col width="57%" />
-<col width="42%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th align="left"> </th>
-<th align="center"> </th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">Lecture slides</td>
-<td align="center"><a href="slides.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left">Annotate slides</td>
-<td align="center"><a href="slides-annotated.pdf">pdf</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Lecture notes</td>
-<td align="center"><a href="notes.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left">Recording, Winter 2021: Chapter 5, Part 1</td>
-<td align="center"><a href="https://youtu.be/sH99lmHiHd4">(23
-mins)</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Recording, Winter 2021: Chapter 5, Part 2</td>
-<td align="center"><a href="https://youtu.be/PUN-LY9bygo">(25
-mins)</a></td>
-</tr>
-<tr class="even">
-<td align="left">Recording, Winter 2021: Chapter 5, Part 3</td>
-<td align="center"><a href="https://youtu.be/jtu96XUX3Vg">(33
-mins)</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Discussion questions</td>
-<td align="center"><a href="discussion.html">html</a></td>
-</tr>
-</tbody>
-</table>
+<p>This homework gives you some experience at manipulating models and
+data in the frequency domain. Submit to Canvas both an Rmd and a version
+of your report compiled to HTML. The Rmd file should be written so that
+the grader can run it, so the data should be read from the homework
+website rather than from a local directory. The grader will not
+necessarily recompile the Rmd, but if they do then it should reproduce
+the HTML.</p>
+<p>If you want to use bibtex to manage your references, you can also
+submit a bib file, and in that case you will also need a csl (citation
+style language) file which can be included via a web link. An example is
+provided in the <a href="../hw02/sol02.Rmd">Rmd</a> and <a href="../hw02/sol02.bib">bib</a> source files for the <a href="../hw02/sol02.html">solutions to Homework 2</a>.</p>
+<p>Your report should contain a reference section listing sources. The
+grader should be able to clearly identify where the sources were used,
+for example using reference numbers in the text. Anything and anyone
+consulted while you are working on the homework counts as a source and
+should be credited. The homework will be graded following the grading
+scheme in the <a href="../syllabus.html">syllabus</a>.</p>
 <hr />
-<!--
-| Annotated slides | [pdf](slides-annotated.pdf) |
--->
+<p><strong><big>Question 4.1</big></strong>.</p>
+<p><b>A</b>. Compute and plot the spectral density function of a
+stationary AR2 model, <span class="math display">\[ X_n =  1.5 X_{n-1} -
+0.8X_{n-2} + \epsilon_n,\]</span> where <span class="math inline">\(\{\epsilon_n\}\)</span> is white noise with <span class="math inline">\(\mathrm{Var}(\epsilon_n)=\sigma^2\)</span>. You
+can use software to do this, or carry out some computations
+analytically. It is up to you how much (or little) algebra you choose to
+work through, but please explain fully how you carried out your
+calculation. Also, plot the autocovariance function.</p>
+<p><b>B</b>. Compute and plot the spectral density function of an MA(2)
+moving mean, <span class="math display">\[ X_n = \epsilon_{n-2} +
+\epsilon_{n-1}+\epsilon_n,\]</span> where <span class="math inline">\(\{\epsilon_n\}\)</span> is white noise with <span class="math inline">\(\mathrm{Var}(\epsilon_n)=\sigma^2\)</span>. As in
+part (A), you can use software to do this or carry out some computations
+analytically. Also, plot the autocovariance function.</p>
+<p><b>C</b>. Comment briefly on what you find in parts A and B.</p>
 <hr />
-<p><a href="../index.html">Back to course homepage</a><br />
-<a href="../acknowledge.html">Acknowledgements</a><br />
-<a href="http://github.com/ionides/531w22/tree/master/05/">Source code
-for these notes</a></p>
+<p><strong><big>Question 4.2</big></strong>. Estimate a spectral density
+function for the sunspot time series in <a href="sunspots.txt">sunspots.txt</a>. Comment on your choice of
+estimator, and discuss comparisons with alternative approaches. Comment
+on scientific interpretations of the resulting estimate. As
+statisticians, we may not have domain-specific expertise but we should
+still try to think and talk about the scientific implications of the
+statistical inferences. These data, as well as some background on the
+historical and current interest in sunspot activity, are described at <a href="https://www.sidc.be/SILSO/home" class="uri">https://www.sidc.be/SILSO/home</a>.</p>
+<hr />
 <hr />
 
 
