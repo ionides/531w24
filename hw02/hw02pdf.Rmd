@@ -75,8 +75,10 @@ $$
 Since we assume the time series is stationary:
 
 $$
-\var(X_0) = \var(X_1) = \var(\varphi X_0 + \epsilon_1) = \varphi^2 \var(X_0) + \sigma^2\\
-\var(X_0) = \frac{\sigma^2}{1-\varphi^2}
+\begin {aligned}
+\var(X_0) &= \var(X_1) = \var(\varphi X_0 + \epsilon_1) = \varphi^2 \var(X_0) + \sigma^2\\
+\var(X_0) &= \frac{\sigma^2}{1-\varphi^2}
+\end {aligned}
 $$
 
 Thus
