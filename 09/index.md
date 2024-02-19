@@ -6,8 +6,8 @@ output: html_document
 
 ----------------------
 
-| &nbsp;          | &nbsp;                                                                            |
-|:----------------|:---------------------------------------------------------------------------------:|
+| &nbsp;          | &nbsp;             |
+|:----------------|:------------------:|
 | Lecture slides  | [pdf](slides.pdf) |
 | Lecture notes   | [pdf](notes.pdf) |
 | Recording, Winter 2021: Chapter 9, Part 1  | [(23 mins)](https://youtu.be/alNwI4pnyHU) |
