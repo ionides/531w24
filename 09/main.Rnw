@@ -578,7 +578,7 @@ mysummary(a3,print.sigma=T,loglik=T,coef.label=F)
 \ei
 
 <<hp_t1>>=
-t1 <- 1:35 
+t1 <- 1:36 
 a1 <- arima(e_hp[t1],xreg=u_hp[t1],order=c(1,0,0))
 @
 
@@ -589,7 +589,7 @@ mysummary(a1,print.sigma=F,loglik=F,coef.label=F)
 @
 
 <<hp_t2>>=
-t2 <- 37:71
+t2 <- 37:72
 a2 <- arima(e_hp[t2],xreg=u_hp[t2],order=c(1,0,0))
 @
 
@@ -601,7 +601,7 @@ mysummary(a2,print.sigma=F,loglik=F,coef.label=F)
 
 \bi
 
-\item The difference is small compared to the standard error. Overall there is consistency through this 71 year interval, though the pattern is weak in the 1990s.
+\item The difference is small compared to the standard error. Overall there is consistency through this 72 year interval, though the pattern is weak in the 1990s.
 
 \ei
 
@@ -682,7 +682,7 @@ delta_e <- e - e_data$e0[e_data$Year %in% (yr-1)]
 par(mai=c(0.5,0.8,0.2,0.8))
 plot(yr,u_hp,type="l",xlab="",ylab="detrended unemployment")
 par(new=TRUE)
-plot(t,delta_e,col="red",type="l",axes=FALSE,xlab="",ylab="")
+plot(yr,delta_e,col="red",type="l",axes=FALSE,xlab="",ylab="")
 axis(side=4, col="red",col.ticks="red",col.axis="red")
 mtext("differenced e0",side=4,col="red",line=3)
 @
