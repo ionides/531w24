@@ -1,9 +1,14 @@
 ---
-title: "Homework 4, due Sunday 2/18, 11:59 pm"
-author: "DATASCI/STATS 531"
-output:
-  html_document:
-    toc: yes
+title: "Homework 4"
+author: "DATASCI/STATS 531, Liangqi Tang"
+format: 
+  html:
+    toc: TRUE
+    toc-depth: 5
+    code-fold: TRUE
+    code-summary: "Code"
+    code-tools: TRUE
+    embed-resources: TRUE
 ---
 
 \newcommand\prob{\mathbb{P}}
@@ -11,7 +16,7 @@ output:
 \newcommand\var{\mathrm{Var}}
 \newcommand\cov{\mathrm{Cov}}
 
------------
+****
 
 This homework gives you some experience at manipulating models and data in the frequency domain. Submit to Canvas both an Rmd and a version of your report compiled to HTML. The Rmd file should be written so that the grader can run it, so the data should be read from the homework website rather than from a local directory. The grader will not necessarily recompile the Rmd, but if they do then it should reproduce the HTML.
 
@@ -19,31 +24,272 @@ If you want to use bibtex to manage your references, you can also submit a bib f
 
 Your report should contain a reference section listing sources. The grader should be able to clearly identify where the sources were used, for example using reference numbers in the text. Anything and anyone consulted while you are working on the homework counts as a source and should be credited. The homework will be graded following the grading scheme in the [syllabus](../syllabus.html).
 
---------
+****
 
-**<big>Question 4.1</big>**. 
+# Question 4.1. 
 
-<b>A</b>. Compute and plot the spectral density function of a stationary AR2 model,
+## A. 
+
+Compute and plot the spectral density function of a stationary AR2 model,
 $$ X_n =  1.5 X_{n-1} - 0.8X_{n-2} + \epsilon_n,$$
 where $\{\epsilon_n\}$ is white noise with $\var(\epsilon_n)=\sigma^2$.
 You can use software to do this, or carry out some computations analytically. 
 It is up to you how much (or little) algebra you choose to work through, but please explain fully how you carried out your calculation.
 Also, plot the autocovariance function.
 
-<b>B</b>. Compute and plot the spectral density function of an MA(2) moving mean,
+**Answer**:
+
+(At first I tried to calculate $\lambda_X(w)$ directly but I found it hard because we have to compute the $\gamma_h = \cov(X_n,X_{n+h})$ first. Then I refered to [previous homework solutions](https://ionides.github.io/531w22/hw04/sol04.html) and found out that we can actually calculate $\lambda_\epsilon(w)$ first and figure out its relationship with $\lambda_X(w)$. Thus I basically followed this map to calculate the result. All the calculation is conducted by my own.)
+
+Define $w$ as the cycles per unit time.
+
+Since 
+
+$$
+X_n = 1.5X_{n-1} - 0.8X_{n-2} + \epsilon_n
+$$
+
+Then:
+
+$$
+\epsilon_n = X_n - 1.5X_{n-1} + 0.8X_{n-2}
+$$
+
+Thus: 
+
+$$
+\begin {aligned}
+\lambda_\epsilon(w) &= \sum_{h = -\infty}^\infty \gamma_\epsilon(h) e^{-2\pi iw h}\\
+& = \gamma_\epsilon(0) = \sigma^2
+\end {aligned}
+$$
+
+Since:
+
+$$
+\begin {aligned}
+\gamma_\epsilon(h) &= \cov(\epsilon_{n+h}, \epsilon_n)\\
+&= \cov(X_{n+h} - 1.5X_{n+h-1} + 0.8X_{n+h-2},X_n - 1.5X_{n-1} + 0.8X_{n-2})\\
+&= (1 + 1.5^2 + 0.8^2)\gamma_X(h) + (-1.5 - 1.5\cdot 0.8)\gamma_X(h+1) + (-0.8)\gamma_X(h+2) \\
+&+ (-1.5 - 1.5\cdot 0.8)\gamma_X(h-1) + (-0.8)\gamma_X(h-2)\\
+&= 3.89\gamma_X(h) -2.7[\gamma_X(h-1) + \gamma_X(h+1)] -0.8(\gamma_X(h-2)+\gamma_X(h+2))
+\end {aligned}
+$$
+
+Then:
+
+$$
+\begin {aligned}
+\lambda_\epsilon(w) &= \sum_{h = -\infty}^\infty \gamma_\epsilon(h) e^{-2\pi i w h}\\
+&= 3.89 \sum_{h = -\infty}^\infty \gamma_X(h) e^{-2\pi iw h} - 2.7[\sum_{h = -\infty}^\infty\gamma_X(h-1)e^{-2\pi iwh} + \sum_{h = -\infty}^\infty \gamma_X(h+1) e^{-2\pi iw h}] \\
+&- 0.8[\sum_{h = -\infty}^\infty \gamma_X(h-2) e^{-2\pi iw h} + \sum_{h = -\infty}^\infty \gamma_X(h+2) e^{-2\pi iw h}]
+\end {aligned}
+$$
+
+Since:
+
+$$
+\begin {aligned}
+\sum_{h = -\infty}^\infty \gamma_X(h) e^{-2\pi iw h} &= \lambda_X(w)\\
+\sum_{h = -\infty}^\infty \gamma_X(h-1) e^{-2\pi iw h} &= \sum_{h = -\infty}^\infty \gamma_X(h-1) e^{-2\pi iw (h-1)} \cdot e^{-2\pi iw}\\
+&= e^{-2\pi iw} \lambda_X(w)
+\end {aligned}
+$$
+
+Similarly:
+
+$$
+\begin {aligned}
+\sum_{h = -\infty}^\infty \gamma_X(h+1) e^{-2\pi iw h} &=e^{2\pi iw } \lambda_X(w)\\
+\sum_{h = -\infty}^\infty \gamma_X(h-2) e^{-2\pi iw h} &= e^{-4\pi iw }\lambda_X(w)\\
+\sum_{h = -\infty}^\infty \gamma_X(h+2) e^{-2\pi iw h} &= e^{4\pi iw }\lambda_X(w)\\
+\end {aligned}
+$$
+
+Then:
+
+$$
+\begin {aligned}
+\sigma^2 &= \lambda_\epsilon(w) \\
+&= 3.89\lambda_X(w) - 2.7(e^{2\pi i w} + e^{-2\pi i w})\lambda_X(w) -0.8(e^{4\pi i w} + e^{-4\pi i w})\lambda_X(w)
+\end {aligned}
+$$
+
+i.e.
+
+$$
+\lambda_X(w) = \frac{\sigma^2}{3.89 - 5.4\cos(2\pi w) - 1.6 \cos(4\pi w)}
+$$
+
+Next, plot the spectral density and autocovariance function:
+(reference to [R codes tutorial ARMAspec](https://www.rdocumentation.org/packages/TSA/versions/1.3/topics/ARMAspec),
+[R codes tutorial arma.sim](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/arima.sim))
+
+```{r}
+# load the package
+library(TSA)
+
+# plot the spectral density
+ARMAspec(model = list(ar = c(1.5, -0.8)), main = "Spectral Density Plot")
+
+# plot the autocovariance
+# since the sigma^2 is unknown, we suppose here sigma = 1 and plot the simulation of the acf
+model_AR = arima.sim(model = list(ar = c(1.5, -0.8)), n=10000, sd = 1)
+acf(model_AR, type="covariance", main = "Autocovariance Plot")
+```
+
+****
+
+## B. 
+
+Compute and plot the spectral density function of an MA(2) moving mean,
 $$ X_n = \epsilon_{n-2} + \epsilon_{n-1}+\epsilon_n,$$
 where $\{\epsilon_n\}$ is white noise with $\var(\epsilon_n)=\sigma^2$.
 As in part (A), you can use software to do this or carry out some computations analytically. 
 Also, plot the autocovariance function.
 
+**Answer**:
 
-<b>C</b>. Comment briefly on what you find in parts A and B.
+(In this question, I calculated the spectral density by hand independently.)
 
+Define $w$ as the cycles per unit time.
 
---------
+Since:
 
-**<big>Question 4.2</big>**. Estimate a spectral density function for the sunspot time series in [sunspots.txt](sunspots.txt). Comment on your choice of estimator, and discuss comparisons with alternative approaches. Comment on scientific interpretations of the resulting estimate. As statisticians, we may not have domain-specific expertise but we should still try to think and talk about the scientific implications of the statistical inferences. These data, as well as some background on the historical and current interest in sunspot activity, are described at https://www.sidc.be/SILSO/home.
+$$
+X_n = \epsilon_{n-2} + \epsilon_{n-1} + \epsilon_n
+$$
 
-------------
+Then:
 
------------------
+$$
+\lambda_X(w) = \sum_{h = -\infty}^{\infty} e^{-2\pi i w h}\gamma_X(h)
+$$
+
+Since:
+
+$$
+\begin {aligned}
+\gamma_X(h) &= \cov(\epsilon_{n+h-2} + \epsilon_{n+h-1} + \epsilon_{n+h}, \epsilon_{n-2} + \epsilon_{n-1} + \epsilon_n)\\
+&= \begin {cases}
+0 &\quad |h| \geq 3\\
+\sigma^2 &\quad |h| =2\\
+2\sigma^2 &\quad |h| = 1\\
+3\sigma^2 &\quad |h| = 0
+\end {cases}
+\end {aligned}
+$$
+
+Thus:
+
+$$
+\begin {aligned}
+\lambda_X(w) &= \sum_{h = -\infty}^\infty e^{-2\pi iwh}\gamma_X(h)\\
+&= (e^{4\pi iw} + e^{-4\pi i w})\sigma^2 + 2(e^{2\pi iw} + e^{-2\pi i w})\sigma^2 + 3\sigma^2\\
+&= (2\cos4\pi w + 4 \cos 2\pi w + 3)\sigma^2
+\end {aligned}
+$$
+
+Next, plot the spectral density and autocovariance function:
+
+```{r}
+# plot the spectral density
+ARMAspec(model = list(ma = c(1, 1)), main = "Spectral Density Plot")
+
+# plot the autocovariance
+# since the sigma^2 is unknown, we suppose here sigma = 1 and plot the simulation of the acf
+model_MA = arima.sim(model = list(ma = c(1, 1)), n=10000, sd = 1)
+acf(model_MA, type="covariance", main = "Autocovariance Plot")
+```
+
+****
+
+## C.
+
+Comment briefly on what you find in parts A and B.
+
+**Answer**:
+
+(cite: [previous homework solutions](https://ionides.github.io/531w22/hw04/sol04.html))
+
+Through the results in part A and part B, we can find how the spectral density actually corresponds to the original time series:
+
+In part A: From spectral density plot we can find that spectral density reaches peek at about 0.1, which means the cycle/period is about 1/0.1 = 10. For autocovariance function plot we can find that there's actually an oscillation with period about 10. Thus these two plots are consistent about the period feature.
+
+In part B: However, in part B spectral density reaches peek at 0, which means the oscillation has a period with $\infty$, in other words, there are not oscillation in the acf plot. This is also consistent with what we can find in the acf plot.
+
+****
+
+# Question 4.2. 
+
+Estimate a spectral density function for the sunspot time series in [sunspots.txt](sunspots.txt). Comment on your choice of estimator, and discuss comparisons with alternative approaches. Comment on scientific interpretations of the resulting estimate. As statisticians, we may not have domain-specific expertise but we should still try to think and talk about the scientific implications of the statistical inferences. These data, as well as some background on the historical and current interest in sunspot activity, are described at https://www.sidc.be/SILSO/home.
+
+**Answer**:
+
+In this example, I refer to some R codes and analysis method in [Time Series and Spectral Analysis, Dengue Example](https://web.stanford.edu/class/earthsys214/notes/series.html) and [previous homework solutions](https://ionides.github.io/531w22/hw04/sol04.html).
+
+```{r}
+# load the data
+data <- read.table(file="https://ionides.github.io/531w24/hw04/sunspots.txt", header = TRUE)
+# plot the time series
+Time <- data$Time
+Number <- data$Number
+plot(Time, Number, type = "l", main = "time series plot of original data")
+```
+
+We can find that the original data has sign of period oscillation.
+
+Then we try to compute the spectral density using non-parametric model.
+(cite: [Lecture Slides, page 22](https://ionides.github.io/531w24/07/slides.pdf))
+
+```{r}
+# unsmoothed periodogram
+spectrum_us <- spectrum(Number, main = "Unsmoothed periodogram")
+```
+
+Roughly we can see that the peek of spectrum is a little more than 0. Then we try to use smoothed periodogram to observe more clearly:
+(cite: [Lecture Slides, page 23](https://ionides.github.io/531w24/07/slides.pdf))
+
+```{r}
+# smoothed periodogram
+spectrum_s <- spectrum(Number, spans = c(20,30,20), main = "Smoothed periodogram")
+abline(v = spectrum_s$freq[which.max(spectrum_s$spec)], lty = "dotted")
+```
+
+Now we try to find the frequency corresponding to peek of the spectrum:
+
+```{r}
+freq_s <- spectrum_s$freq[which.max(spectrum_s$spec)]
+freq_s
+```
+
+Since the Time of the data is converted on month scale. Thus the frequency we get is 0.007 $\text{month} ^{-1}$. Then the period is 11.71875 years.
+
+Alternatively we can try to use "ar" method in `spectrum` function to estimate the frequency and period:
+(cite: [Lecture Slides, page 27](https://ionides.github.io/531w24/07/slides.pdf))
+
+```{r}
+spectrum_p <- spectrum(Number, method = "ar", main = "Parametric periodogram")
+abline(v = spectrum_p$freq[which.max(spectrum_p$spec)], lty = "dotted")
+```
+
+Again, we try to find the frequency corresponding to peek of the spectrum:
+
+```{r}
+freq_p <- spectrum_p$freq[which.max(spectrum_p$spec)]
+freq_p
+```
+
+Thus the frequency we get is 0.008 $\text{month} ^{-1}$. Then the period is 10.39583 years. This result is very close to what we get using non-parametric methods.
+
+****
+
+# Reference
+
+- 1. [previous homework solutions](https://ionides.github.io/531w22/hw04/sol04.html)
+- 2. [R codes tutorial ARMAspec](https://www.rdocumentation.org/packages/TSA/versions/1.3/topics/ARMAspec)
+- 3. [R codes tutorial arma.sim](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/arima.sim)
+- 4. Shumway, R.H., and Stoffer, D.S., 2017. Time series analysis and its applications (4th edition). New York: Springer.
+- 5. [Lecture Slides](https://ionides.github.io/531w24/07/slides.pdf)
+- 5. [Time Series and Spectral Analysis, Dengue Example](https://web.stanford.edu/class/earthsys214/notes/series.html)
+
