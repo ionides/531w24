@@ -41,9 +41,9 @@ The course outline, course information and grading policies are described in the
 
 9. [Case study: An association between unemployment and mortality?](09/index.html)
 
-<!--
-
 10. [Introduction to partially observed Markov process models](10/index.html)
+
+<!--
 
 11. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](11/index.html)
 
