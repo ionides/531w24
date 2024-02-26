@@ -1,0 +1,294 @@
+---
+title: "Solution to Homework 3"
+author: "STATS/DATASCI 531, Winter 2022"
+output:
+  html_document:
+    toc: no
+bibliography: sol03.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+---
+
+
+
+This analysis is developed from a previous homework submission [@rehnberg]. Homework reports are welcome to learn from previous solutions, as long as they are properly cited. However, your report is expected to demonstrate independent work that contributes beyond any sources. There are many different choices to make when carrying out data analysis, and this solution presents just one one set of choices. Also, this report was developed based on data only up to 2017. 
+
+Most people noticed that it is hard to get a model fitting better than white noise for these data. Trying to do better can lead to unstable models with weakly identified parameters.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r, include = FALSE}
+library(ggplot2)
+library(knitr)
+myround<- function (x, digits = 1) {
+  # taken from the broman package
+  if (digits < 1) 
+    stop("This is intended for the case digits >= 1.")
+  if (length(digits) > 1) {
+    digits <- digits[1]
+    warning("Using only digits[1]")
+  }
+  tmp <- sprintf(paste("%.", digits, "f", sep = ""), x)
+  zero <- paste0("0.", paste(rep("0", digits), collapse = ""))
+  tmp[tmp == paste0("-", zero)] <- zero
+  tmp
+}
+```
+
+The data consist of the low temperature from each January, ranging from 1900 to 2021, in Ann Arbor, MI. By looking only at temperatures from the same month each year, we have simplified our problem by eliminating seasonal fluctuation. However, this also reduces our available data. Additionally, the low temperature is not available for January 1955 (seen in the plot below). There are various possibilities to deal with this missing value. Here, we follow [@rehnberg] by using the 1954 January temperature as a proxy for the missing 1955 value. 
+
+```{r, echo = FALSE}
+
+temp.dat <- read.table(file="http://ionides.github.io/531w22/01/ann_arbor_weather.csv",header=TRUE)
+ggplot(data = temp.dat, aes(y = Low, x = Year)) + geom_path() + labs(y = "Temperature (degrees F)",
+                                                                     title = "January Low Temperatures in Ann Arbor")
+
+temp.use <- temp.dat$Low
+temp.use[56] <- temp.use[55]
+
+mean.low <- mean(temp.use)
+
+```
+
+This time series plot of the observed data shows wide variation in the January low temperatures across the years, ranging from below $-20^\circ F$ to almost $20^\circ F$. The data appear to fluctuate around the mean of `r myround(mean.low,3)`$^\circ F$ without any obvious long-term patterns. Based on this, it seems reasonable to begin with a null hypothesis that a model with no trend is appropriate for the data. This analysis won't look at any models with trend, but that would be a logical next step.
+
+From the time series plot, it also seems possible that the variation in the data is increasing over time, especially from about 1980 to present. Additional work could investigate whether a trend in variance is statistically supported.
+
+We start the analysis by using maximum likelihood to fit an ARMA(p,q) model of the form:
+
+$$ Y_n = \mu + \phi_1(Y_{n-1} - \mu) + \dots + \phi_p(Y_{n-p} - \mu) + \varepsilon_n + \psi_1\varepsilon_{n-1} + \dots + \psi_q\varepsilon_{n-q}$$
+
+where ${\{\varepsilon_n}\}$ is a white noise process with distribution $\mathcal{N}(0,\sigma^2)$. The parameters for this model are $\theta = (\phi_1, \dots, \phi_p, \psi_1, \dots, \psi_q, \mu, \sigma^2)$, representing the coefficients for the autoregressive part of the model, the coefficients for the moving average part of the model, the population mean, and the error variance. In this model, $\mu$ does not depend on time because we are assuming a model without trend. To determine the best values of p and q for this data, we fit multiple ARMA(p,q) models with various values of p and q (shown below ranging from 0 to 4).
+
+As an initial method to compare these various ARMA models, we will consider their Akaike information criteria (AIC) values following the approach in Chapter 5 of the notes [@notes531].
+Models with low values of the AIC indicate higher prediction precision, and therefore, better models in terms of predictive power.
+Though this is a somewhat informal method of model selection, it can be effective at eliminating models with very bad fits.
+
+```{r, echo = FALSE}
+aic.table <- function(data, P, Q){
+  table <- matrix(NA, (P+1), (Q+1))
+  for(p in 0:P){
+    for(q in 0:Q){
+       table[p+1, q+1] <- arima(data, order = c(p, 0, q))$aic
+    }
+  }
+  dimnames(table) <- list(paste("<b> AR", 0:P, "</b>", sep = ""), paste("MA", 0:Q, sep = ""))
+  table
+}
+temp.aic <- aic.table(temp.use, 4, 4)
+kable(temp.aic, digits = 2)
+
+```
+
+In the AIC table above, the lowest value is associated with an ARMA(0,0) model. This is a white noise model that assumes no temperature dependence between subsequent years. The ARMA(0,0) model is of the form $Y_n = \mu + \varepsilon_n$, where the ${\{\varepsilon_n}\}$ are as described above. Although the AIC table identifies this model as the most appropriate for the data, there is some climatological intuition indicating that there is dependence in temperature from one year to the next. Therefore, we will not restrict my analysis to the ARMA(0,0) model. In addition, we will look at some models that have a higher AIC, but that allow for the dependence we are interested in modeling, including the ARMA(0,1), ARMA(1,0), and ARMA(1,1).
+
+We fit these four models to the data and the results are listed in the table below. The first thing to notice is that all four models give similar estimates for the intercept, around `r round(mean.low,2)` but that their standard error estimates increase somewhat with model complexity, varying from $0.68$ for the ARMA(0,0) to $0.81$ for the ARMA(1,1).
+
+```{r, echo = F}
+
+arma.table <- function(data, R, orders){
+  table <- matrix(NA, R, 4)
+  for(r in 1:R){
+    arma.tmp <- arima(data, order = orders[[r]])
+    table[r, 1] <- myround(arma.tmp$coef["intercept"],3)
+    table[r, 2] <- myround(sqrt(arma.tmp$var.coef["intercept", "intercept"]),3)
+    table[r, 3] <- myround(arma.tmp$coef["ar1"],3)
+if(table[r, 3]=="NA") table[r, 3] <- "--"
+    table[r, 4] <- myround(arma.tmp$coef["ma1"],3)
+    if(table[r, 4]=="NA") table[r, 4] <- "--"
+}
+  dimnames(table) <- list(c("<b> ARMA(0, 0)", "<b> ARMA(0, 1)", "<b> ARMA(1, 0)", "<b> ARMA(1, 1)"), c("Intercept", "SE(Intercept)", "AR Coef.", "MA Coef."))
+  table
+}
+temp.armas <- arma.table(temp.use, R = 4, orders = list(c(0,0,0), c(0,0,1), c(1,0,0), c(1,0,1)))
+kable(temp.armas)
+
+
+arma00 <- arima(temp.use, order = c(0,0,0))
+arma01 <- arima(temp.use, order = c(0,0,1))
+arma10 <- arima(temp.use, order = c(1,0,0))
+arma11 <- arima(temp.use, order = c(1,0,1))
+```
+
+This may indicate that the ARMA(1,1) is more accurately capturing the dependence in the data than the other three models. Inadequately modeling dependence can result in artificially low standard errors for parameter estimates. These results indicate that the ARMA(1,1) is the better model to use, which is in opposition to the results of the AIC table above.
+
+Due to the results of the AIC table and these fitted values, I will continue to consider the ARMA(0,0) model and the ARMA(1,1). The other two models, ARMA(0,1) and ARMA(1,0) have coefficient estimates very close to zero and don't seem to be doing anything significantly different from the ARMA(0,0). The ARMA(0,0) model can be written as $Y_n =  `r temp.armas[1,1]` + \varepsilon_n$, and the ARMA(1,1) model can be written as follows: 
+
+$$\phi(B)(Y_n - (`r temp.armas[4,1]`)) = \psi(B)\varepsilon_n$$
+
+where $B$ is the backshift operator, and $\phi(x)$ and $\psi(x)$ are the AR and MA polynomials, respectively. For this fitted model, these polynomials are defined as follows:
+$$\phi(x) = 1 - `r temp.armas[4,3]` x \hspace{3cm} \psi(x) = 1 `r temp.armas[4,4]` x$$
+
+```{r, echo = FALSE}
+
+ar.root <- polyroot(c(1,-coef(arma11)["ar1"]))
+ma.root <- polyroot(c(1,coef(arma11)["ma1"]))
+
+```
+
+Something to consider with the ARMA(1,1) model are the roots of the AR and MA polynomials, which can be used to check for causality and invertibility.
+The AR root is $`r myround(ar.root[1],3)`$ and the MA root is $`r myround(ma.root[1],3)`$. Both outside the unit circle, indicating that the fitted model is both causal and invertible, two attractive qualities for a time series model.
+However, these roots are also relatively close in magnitude, which indicates the possibility of reducing the model to the ARMA(0,0).
+It is difficult to tell if these roots are close enough to approximately cancel, but it definitely seems like a possibility.
+This is another argument for using the ARMA(0,0) model over the ARMA(1,1).
+
+A final test that we will do is a more formal hypothesis test using Wilks' approximation.
+For this test, the null hypothesis corresponds to the ARMA(0,0) model, while the alternative corresponds to the ARMA(1,1). The approximation tells us:
+
+$$\Lambda = 2(\mathcal{l}_1 - \mathcal{l}_0) \approx \chi^2_{D_1-D_0}$$
+
+```{r, echo = F}
+cut <- qchisq(0.95, 2)
+lam <- 2*(arma11$loglik - arma00$loglik)
+```
+
+where $\mathcal{l}_i$ is the maximum log likelihood under hypothesis $H_i$ and $D_i$ is the number of parameters estimated under hypothesis $H_i$.
+We will reject the null hypothesis if $\Lambda$ is larger than the $\chi^2$ cutoff.
+When comparing ARMA(0,0) and ARMA(1,1), $\Lambda = `r myround(lam,2)`$, which we can compare to the cutoff value of $`r myround(cut,2)`$ for a 95% significance level and 2 degrees of freedom.
+Thus, this test does not provide evidence against our null hypothesis that the ARMA(0,0) model is adequate for the data.
+Since this conclusion is supported both here, with the Wilks' approximate $\chi^2$ test, with the approximately canceling roots, and with the AIC, we will move forward with the white noise model.
+
+
+Since we have identified the ARMA(0,0) as the best candidate model for the data, we should check that the model assumptions are valid.
+First, we will look at the residuals of the fitted ARMA(0,0) model as a time series plot:
+
+```{r, echo = FALSE}
+plot(arma00$resid, ylab = "Residuals [ARMA(0,0)]")
+```
+
+Any pattern in the residuals would be evidence against the model, but the time series plot shows no striking patterns.
+Next, we can look at the autocorrelation plot of the residuals.
+This will allow us to check our assumption that the errors $\{\varepsilon_n\}$ are uncorrelated.
+There is only one lag with significant autocorrelation (lag 15), while the rest may be considered sufficiently close to zero.
+While this may be the case, there are also some potentially non-negligible fluctuations in the autocorrelation that might be interesting to look into more carefully.
+Perhaps this indicates that a model with trend could be appropriate for this data.
+
+```{r, echo = FALSE}
+acf(arma00$residuals, main = "ACF: Residuals of ARMA(0,0)")
+
+```
+
+Finally, in fitting an ARMA model, we make the assumption that $\{\varepsilon_n\} \sim \mathcal{N}(0,\sigma^2)$ and we can check the normality assumption with a QQ-plot of the residuals. With the exception of a few points that deviate from the line, the residuals seem to be sufficiently normal to make this assumption valid.
+
+```{r, echo = FALSE}
+
+qqnorm(arma00$residuals[1:118], main = "QQ-Plot: Residuals of ARMA(0,0)")
+qqline(arma00$residuals[1:118])
+
+```
+
+Since the model fit seems to meet the assumptions, we can consider doing inference on the parameter estimate for $\mu$. The $\texttt{arima()}$ function in R uses the observed Fisher information to calculate standard errors for the coefficients. Those standard errors can then be used to construct approximate 95% confidence intervals for the parameter estimates. 
+
+```{r ci, echo=FALSE}
+ci <- c(
+  as.numeric(temp.armas[1,1]) - 1.96*as.numeric(temp.armas[1,2]),
+  as.numeric(temp.armas[1,1]) + 1.96*as.numeric(temp.armas[1,2])
+)
+```
+
+$$[`r temp.armas[1,1]` - (1.96)(`r temp.armas[1,2]`),
+   `r temp.armas[1,1]` + (1.96)(`r temp.armas[1,2]`)]
+   = [ `r myround(ci[1],3)` , `r myround(ci[2],3)` ] $$
+
+The confidence interval for the mean does not contain zero, but this does not have much scientific meaning as a null hypothesis. Why?
+
+As noted above, there is a possibility that the standard error from the ARMA(0,0) model ($`r temp.armas[1,2]`$) was artificially small. Therefore, I can check this confidence interval through simulations. Here is the distribution of the estimate for $\mu$ from 5,00 simulations:
+
+
+```{r, echo = FALSE}
+set.seed(34765)
+#' simulate B datasets
+B <- 5000
+
+#' set the parameter values to the fitted model
+inter <- coef(arma00)["intercept"]
+sig <- sqrt(arma00$sigma2)
+
+theta <- vector(mode = "numeric", length = B)
+for(j in 1:B){
+  #' simulate a sample of size 118 from the fitted ARMA(1,1) model
+   Y_j <- arima.sim(list(), n = length(temp.use), sd = sig) + inter
+   
+   #' fit a new ARMA(1,1) model to the simulated data and store the parameter estimates
+   theta[j] <- coef(arima(Y_j, order = c(0,0,0)))
+}
+
+```
+
+```{r, echo = FALSE}
+#' plot density of the estimated intercept
+ggplot(data = as.data.frame(theta), aes(x = theta)) + geom_density(bw = 0.075) + geom_vline(xintercept = ci[1], linetype = "twodash") + geom_vline(xintercept = ci[2], linetype = "twodash") + labs(x = "Intercept", y = "Density")
+```
+
+In this plot, the dashed vertical lines correspond to the upper and lower limits of the Fisher information confidence interval calculated above. From looking at this plot, the coverage of the confidence interval seems accurate, indicating that there are no problems with the Fisher information standard errors. I can further check the validity of the above confidence interval by looking at the profile log likelihood. Though not included here, this method also gives a confidence interval comparable to the one constructed using the Fisher information standard errors. This lends more credibility to the above analysis.
+
+From this data exploration, it appears that the ARMA(0,0) model, a Gaussian white noise model, is most appropriate for the January low temperature data for Ann Arbor, MI. This is somewhat surprising, given the intuition that temperature might vary systematically from year to year. Further interesting work would be to consider models with trend to see if we can capture some gradual warming. It seems possible, however, that small changes (increases, fluctuations, etc.) could be difficult to detect with such little data on such a long time frame.
+
+
+### Looking for a trend model
+
+
+Since this time series is well modeled by white noise, we could fit a signal plus white noise model. This might be a more sensitive way to look for a trend.
+First, we try some low-order polynomial trend specifications,
+
+\[ Y_n=\sum_{k=0}^K \beta_k n^k + \epsilon_n\]
+
+where $K$ is the order of the fitted trend model. We compare AIC for $K$ up to 5.
+
+```{r poly_fit,echo=F}
+temp.dat <- read.table(file="http://ionides.github.io/531w20/01/ann_arbor_weather.csv",header=TRUE)
+#y <- read.table(file="ann_arbor_weather.csv",header=TRUE)
+y <- temp.dat
+low <- y$Low
+missing_yr <- which(is.na(low))
+low[missing_yr] <- low[missing_yr-1]
+lm0 <- lm(low~1,data=y)
+lm1 <- lm(low~Year,data=y)
+lm2 <- lm(low~Year+I(Year^2),data=y)
+lm3 <- lm(low~Year+I(Year^2)+I(Year^3),data=y)
+lm4 <- lm(low~Year+I(Year^2)+I(Year^3)+I(Year^4),data=y)
+lm5 <- lm(low~Year+I(Year^2)+I(Year^3)+I(Year^4)+I(Year^5),data=y)
+poly_aic <- matrix( c(AIC(lm0),AIC(lm1),AIC(lm2),AIC(lm3),AIC(lm4),AIC(lm5)), nrow=1,
+   dimnames=list("<b>AIC</b>", paste0("K=",0:5)))
+require(knitr)
+kable(poly_aic,digits=1)
+```
+
+There is still no evidence suggesting anything other than a white noise model. Now, 
+As one more attempt, we can compare the Michigan data to the global temperature series.
+
+```{r read_glob_temp,echo=F}
+Z <- read.table(file="http://ionides.github.io/531w22/hw03/Global_Temperature.txt",header=TRUE)
+#Z <- read.table("Global_Temperature.txt",header=TRUE)
+global_temp <- Z$Anomaly[Z$Year %in% y$Year]
+lm_global <- lm(low~global_temp,data=y)
+#AIC(lm_global)
+```
+
+
+```{r plot_jan_temp,fig.width=5,echo=F}
+plot(Low~Year,data=y,type="l")
+lines(Z$Year,Z$Anomaly*10*9/5,col="red",lty="dashed")
+lines(Z$Year,Z$Anomaly*9/5,col="blue",lty="dotted")
+```
+
+The red dashed line shows 10 times the global annual temperature anomaly (multiplied by 9/5 to move from Celcius to Fahrenheit) compared to the Michigan January low (in Fahrenheit).
+The trends appear similar until 1970 or so, after which the global temperature increases while the Michigan January low does not.
+However, caution is needed because of the relative scales: A scientifically plausible model probably can't have a coefficient much bigger than 1 degree centigrade in Michigan per degree of global mean temperature.
+Given the size of the standard error resulting from year-to-year fluctuations, an effect of this size will be hard to see even if the model is good.
+The blue dotted line shows the global climate anomaly in degrees Fahrenheit.
+From this perspective, we can be skeptical about whether the apparent pattern (with warm January in the 1940s, cooler in the 1980, and currently reentering a cool phase) could be related to global temperature fluctations and trend.
+Interpreting the Michigan data as trend may well be just reading patterns into noise.
+
+------------
+
+**<big>Sources</big>**.
+
+A few people submitted homework assignments close to previously posted homework solutions, and some of these also had improper references to the source. Proper use of sources becomes increasingly important as we move toward midterm and final projects, for which we want to learn from past projects while acknowledging sources accurately. If you find yourself studying an online source closely for your solution, you should put thought into making sure that your report goes intellectually beyond the source - simple paraphrasing is not enough to demonstrate your own contribution. Developing your own original analysis usually involves a fair amount of time writing your own code to implement your own ideas.
+
+
+**<big>References</big>**.
+
+
