@@ -1,0 +1,821 @@
+---
+title: "STATS-531 - Midterm Project"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+      smooth_scroll: true
+    toc_depth: 4
+    code_folding: hide
+---
+
+### Introduction
+
+```{r, include = FALSE}
+
+library(tidyverse)
+library(lubridate)
+library(forecast)
+library(tseries)
+library(knitr)
+library(broom)
+
+theme_set(theme_minimal())
+
+```
+
+Wind power has emerged as a significant contributor to renewable energy worldwide, offering a sustainable alternative to traditional fossil fuel-based energy generation. Wind power currently makes up ~2% of global energy production, with considerable growth expected soon [1]. Understanding and optimizing wind power generation is a salient topic as the world increasingly seeks to invest in and research renewable energy sources. Wind turbines are typically placed in areas with strong and consistent winds, such as coastal regions and mountain passes. However, the power output of these turbines is not solely dependent on wind speed; various environmental factors, including temperature, humidity, and wind direction, also influence it [2].
+
+In this report, we seek to answer the following questions regarding wind power generation: 
+
+1. How do environmental features such as temperature, humidity, and wind velocity affect power generation in wind turbines? 
+
+2. How can we model the inherent seasonal, autoregressive, and other temporal trends in wind power output?
+
+To address these questions, we employ a combination of regression analysis and noise modeling. Specifically, we utilize a regression with SARMA (Seasonal Autoregressive Moving Average) errors approach. This methodology allows us to examine the direct impact of environmental factors on power generation while accounting for the seasonal patterns inherent in the wind. By modeling the time series structure of wind power, we can garner valuable insights for optimizing turbine performance and the predictability of power output.
+
+### Data Description
+
+For our analysis, we utilized a dataset that contains a comprehensive collection of meteorological observations and wind power output [3]. This data was gathered directly from operational wind turbines and provides a detailed hourly record between January 2017 and December 2021. Over these five years, 43,800 rows of data were collected, providing helpful information to explore the real-world weather dynamics involved in wind energy production.
+
+It is important to note that the actual location of the turbines for this dataset is unknown. Due to strict data reporting and security concerns, the company that maintains the wind turbines wishes to keep the location private. Even without specific turbine locations, the dataset still contains enough information for a thorough time series analysis.
+
+### Exploratory Analysis
+
+To begin, we employ several analysis techniques to understand better the data structure, which will help inform model development during later sections. The following plot depicts the daily average wind power output from the turbines in the dataset. 
+
+```{r, include = FALSE}
+
+wind <- read.csv("wind.csv")
+
+```
+
+```{r fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Plot wind time series
+wind %>%
+  mutate(date = as.Date(Time)) %>%
+  group_by(date) %>%
+  summarize(power = mean(Power)) %>%
+  ggplot + 
+    geom_line(aes(x = date, y = power)) + 
+    labs(
+      title = "Wind Power Production",
+      subtitle = "Daily Average, 2017-2021",
+      x = "Date",
+      y = "Power"
+    ) + 
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, face = "bold")
+    )
+
+```
+<center> Figure 1. Daily Average Wind Power Production </center> <br>
+
+While there is evidence of a seasonal trend by visually inspecting the plot, the wind power output is very noisy. The large fluctuations and volatility over short periods make it difficult to discern meaningful patterns among the noise. As a result, we decided to smooth the time series by computing the average power output for each week rather than each day. Figure 2 shows the new time series with weekly average power output. 
+
+```{r fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Transform to weekly data
+wind_weekly <- wind %>%
+  # Get year and week for each date
+  mutate(
+    date = as.Date(Time),
+    year = year(date),
+    week = week(date)
+  ) %>%
+  # Calculate average value for each week
+  group_by(year, week) %>%
+  summarize(
+    temperature_2m = mean(temperature_2m),
+    relativehumidity_2m = mean(relativehumidity_2m),
+    dewpoint_2m = mean(dewpoint_2m),
+    windspeed_10m = mean(windspeed_10m),
+    windspeed_100m = mean(windspeed_100m),
+    winddirection_10m = mean(winddirection_10m),
+    winddirection_100m = mean(winddirection_100m),
+    windgusts_10m = mean(windgusts_10m),
+    power = mean(Power)
+  ) %>%
+  ungroup() %>%
+  # Arrange sequentially and number rows
+  arrange(year, week) %>%
+  mutate(week_no = row_number())
+
+# Get time series object for weekly wind data
+wind_ts <- ts(wind_weekly$power, frequency = 52)
+
+# Plot wind time series
+ggplot(wind_weekly, aes(x = week_no, y = power)) + 
+  geom_line() + 
+  geom_smooth(method = "lm", se = FALSE, color = "#007ac1") + 
+  labs(
+    title = "Wind Power Production",
+    subtitle = "Weekly Average, 2017-2021",
+    x = "Week",
+    y = "Power"
+  ) + 
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, face = "bold")
+  )
+
+```
+<center> Figure 2. Weekly Average Wind Power Production </center> <br>
+
+The weekly average plot shows much more clear annual trends in wind power. The seasonal trend shows peak values at similar intervals without much change in the variance of the time series. Moreover, the blue line overlayed on the plot is a simple regression trendline exhibiting a slight, negative slope. This could be evidence of non-stationarity in the dataset, affecting the modeling approaches used. The following sub-sections analyze this aspect of the dataset, including a test for non-stationarity and an investigation of the autocorrelative structure of the time series.
+
+#### Stationarity
+
+A formal statistical measure of stationarity is the Augmented Dickey-Fuller (ADF) test. This hypothesis test is used for the presence of a unit room, a sign of non-stationarity [4].
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# ADF test
+adf_result <- adf.test(wind_ts)
+
+# Create a data frame for the output
+output_df <- data.frame(
+  Metric = c("Test Statistic", "P-value", "Alternative Hypothesis"),
+  Value = c(round(adf_result$statistic, 3), round(adf_result$p.value, 3), "Stationary")
+)
+
+# Print the output as a table
+kable(output_df, caption = "Augmented Dickey-Fuller Test", align = 'l')
+
+```
+<center> Table 1. ADF Test Results </center> <br>
+
+Note: ChatGPT [8] was used to improve the output of this statistical test. The original output was a simple text string, and ChatGPT suggested to format the results in a data frame and display the output inside a kable. This method for displaying the results was used many times throughout this report.
+
+Applying the Augmented Dickey-Fuller (ADF) test to the wind time series dataset yielded a p-value less than the commonly used significance level of 0.05. This result allows us to reject the null hypothesis that the data is non-stationary. Given this outcome, applying differencing to the dataset is unnecessary to achieve stationarity. Therefore, The analysis will proceed with the time series in its current form without the need for transformation typically required in the presence of non-stationarity.
+
+#### Autocorrelation {.tabset}
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Function to plot ACF for specified time series
+plot_acf <- function(series, lag, type, title = NULL) {
+  # ACF or pACF
+  if (type == "acf") {
+    # Compute the acf and extract values
+    acf_result <- acf(series, lag.max = lag, plot = FALSE)
+    acf_values <- acf_result$acf
+    if (is.null(title)) {
+      plot_title <- "Weekly Wind Production Autocorrelation"
+    } else {
+      plot_title <- title
+    }
+  } else if (type == "pacf") {
+    # Compute the pacf and extract values
+    acf_result <- pacf(series, lag.max = lag, plot = FALSE)
+    acf_values <- acf_result$acf
+    if (is.null(title)) {
+      plot_title <- "Weekly Wind Production Partial Autocorrelation"
+    } else {
+      plot_title <- title
+    }
+  }
+  
+  # Set bar width depending on the number of lags
+  bar_width <- if (lag <= 100) { 0.15 } else { 0.4 }
+  
+  # Create a data frame for plotting
+  lags <- seq_along(acf_values) - 1
+  conf_bound <- qnorm((1 + 0.95) / 2) / sqrt(length(series))
+  acf_df <- tibble(
+    Lag = lags,
+    ACF = acf_values,
+    Upper_Bound = conf_bound,
+    Lower_Bound = -conf_bound
+  )
+  
+  # Create the plot
+  ggplot(acf_df, aes(x = Lag, y = ACF)) +
+    geom_hline(yintercept = 0) +
+    geom_bar(stat = "identity", fill = "black", width = bar_width) +
+    geom_hline(aes(yintercept = Upper_Bound), linetype = "dashed", color = "#007ac1") +
+    geom_hline(aes(yintercept = Lower_Bound), linetype = "dashed", color = "#007ac1") +
+    labs(
+      title = plot_title,
+      x = "Lag",
+      y = "ACF"
+    ) + 
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+}
+
+```
+
+Next, we examine the autocorrelative structure of the wind data. The following tabs contain ACF / pACF plots at lags 52 and 265. The first corresponds to a full year in the dataset, providing insight into the annual trends in autocorrelation. The second lag is the entire length of the dataset, allowing us to see the full autocorrelative behavior of the five year period.
+
+##### ACF (Lag = 52)
+
+```{r fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot_acf(wind_weekly$power, lag = 52, type = "acf")
+
+```
+<center> Figure 3. Weekly Wind Production Autocorrelation Plot, 52 Lags </center> <br>
+
+##### ACF (Lag = 265)
+
+```{r fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot_acf(wind_weekly$power, lag = 265, type = "acf")
+
+```
+<center> Figure 4. Weekly Wind Production Autocorrelation Plot, 265 Lags </center> <br>
+
+##### pACF (Lag = 52)
+
+```{r fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot_acf(wind_weekly$power, lag = 52, type = "pacf")
+
+```
+<center> Figure 5. Weekly Wind Production Partial Autocorrelation Plot, 52 Lags </center> <br>
+
+##### pACF (Lag = 265)
+
+```{r fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot_acf(wind_weekly$power, lag = 265, type = "pacf")
+
+```
+<center> Figure 6. Weekly Wind Production Partial Autocorrelation Plot, 265 Lags </center> <br>
+
+#### {.unlisted .unnumbered}
+
+The ACF plots show a wave-like trend that gradually decreases as lags increase. On an annual scale, this is a cosine-like wave that dips roughly halfway through the year and peaks near week 52. The ACF for the entire dataset shows a consistent wave with decreasing amplitude. All of the peaks of this wave appear at the beginning of each year. This suggests a robust yearly trend in the data, requiring careful model calibration to handle seasonal trends. Moreover, the peaks and valleys for the wave extend beyond the error bounds, providing strong evidence of autocorrelation in the dataset.
+
+On the other hand, the partial autocorrelation plot shows a less clear trend. The pACF plot only has ~5 bars that extend beyond the error bounds for autocorrelation, and the length of the bars gradually decreases as the plot extends. There appears to be a greater proportion of negative bars near the beginning of the plot, but this could be due to random chance or noise in the wind data.
+
+#### Decomposition
+
+We applied an STL decomposition to the dataset to further explore the seasonal trend in the wind. The decomposition separates the time series into three components: trend, seasonality, and residual noise. The trend component represents the long-term progression of the time series, while the seasonal component captures the recurring short-term cycles influenced by specific times. Finally, the remainder component contains the noise or random variation not explained by the trend and seasonal components. 
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# STL Decomposition
+plot(stl(wind_ts, s.window = "periodic"))
+
+```
+<center> Figure 7. Wind Power STL Decomposition </center> <br>
+
+The decomposition plot provides further evidence for the strong seasonal trend in wind energy production. The seasonal plot highlights a trend that looks consistent over five years. This plot's maximum and minimum values are of roughly similar magnitude, and the variance of the series remains constant. Furthermore, the remainder / residual plot shows no distinct patterns or cycles, displaying relatively constant variance and mean. This suggests that the trend and seasonal components capture most of the variance in the data. 
+
+#### Frequency {.tabset}
+
+The final step in our exploratory analysis is to analyze the wind time series from the frequency domain. We computed the spectrum for the wind data and plotted the associated periodogram. The spectrum represents the data in terms of its frequency components, and the periodogram displays the intensity of the various frequencies that make up the time series. Peaks in the periodogram identify periodic components in the data, corresponding to regular energy production cycles. 
+
+##### Raw Periodogram
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Get the wind power spectrum
+wind_spec <- spectrum(wind_weekly$power, plot = FALSE)
+wind_spec_df <- data.frame(
+  freq = wind_spec$freq,
+  spec = wind_spec$spec
+)
+wind_dom_freq <- wind_spec_df$freq[which.max(wind_spec_df$spec)]
+
+# Plot the periodogram
+ggplot(wind_spec_df) + 
+  geom_line(aes(x = freq, y = spec)) +
+  geom_vline(xintercept = wind_dom_freq, color = "#007ac1", linetype = "dashed") +
+  scale_y_log10() +
+  labs(
+    x = "Frequency",
+    y = "Spectrum",
+    title = "Wind Power Periodogram"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+```
+<center> Figure 8. Wind Power Raw Periodogram </center> <br>
+
+##### Smoothed Periodogram
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Get the wind power spectrum
+wind_spec <- spectrum(wind_weekly$power, spans = c(5, 5), plot = FALSE)
+wind_spec_df <- data.frame(
+  freq = wind_spec$freq,
+  spec = wind_spec$spec
+)
+wind_dom_freq <- wind_spec_df$freq[which.max(wind_spec_df$spec)]
+
+# Plot the periodogram
+ggplot(wind_spec_df) + 
+  geom_line(aes(x = freq, y = spec)) +
+  geom_vline(xintercept = wind_dom_freq, color = "#007ac1", linetype = "dashed") +
+  scale_y_log10() +
+  labs(
+    x = "Frequency",
+    y = "Spectrum",
+    title = "Smoothed Wind Power Periodogram"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+```
+<center> Figure 9. Wind Power Smoothed Periodogram </center> <br>
+
+#### {.unlisted .unnumbered}
+
+The periodograms show a clear dominant frequency of `r round(wind_dom_freq, 3)`, which corresponds to a period of `r round(1/(52*wind_dom_freq), 3)` years. This supports our understanding that there is an annual cycle in the wind data. With a detailed understanding of the structure of the time series, we now move on to developing a model which can relate the environmental factors, seasonal trends, and error structure with power output.
+
+### Modeling
+
+We ultimately want to develop a signal-plus-noise model that combines our understanding of the error structure with the environmental predictors in the wind dataset. The first step is identifying the correct model for the noise / errors before combining that with a regression. We model the noise in the following section by identifying the best SARIMA model for the wind data. 
+
+#### Noise Modeling {.tabset}
+
+We will employ a seasonal ARIMA model for the noise modeling process. According to the Chapter 6 lecture slides [6], the seasonal ARIMA model (SARIMA) takes the following form:
+
+$$ \phi(B) \Phi(B^{12})[(1 - B)^d (1 - B^{12})^D Y_n - \mu] = \psi(B) \Psi(B^{12}) \epsilon_n  $$
+
+where $\{ \epsilon_n \}$ is a white noise process and
+
+\begin{align}
+\mu &= E[Y_n] \\
+\phi(x) &= 1 - \phi_1 x - \dots - \phi_p x^p \\
+\psi(x) &= 1 + \psi_1 x + \dots + \psi_p x^p \\
+\Phi(x) &= 1 - \Phi_1 x - \dots - \Phi_p x^p \\
+\Psi(x) &= 1 + \Psi_1 x + \dots + \Psi_p x^p
+\end{align}
+
+Since the wind data shows clear evidence of a seasonal trend, we begin by selecting the best parameters for the seasonal component of the SARIMA model. The following table is the result of a grid search, which iteratively tests different P and Q SARIMA parameter combinations and calculates the AIC score for each model. While AIC alone should not determine which model to select, it is a useful metric that combines model fit and complexity into a single number for comparison. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Grid search Seasonal models
+seasonal_aic_table <- function(data, P, D, Q) {
+  table <- matrix(NA, (P + 1), (Q + 1))
+  for (p in 0:P) {
+    for (q in 0:Q) {
+      result <- tryCatch({
+        Arima(
+          data, order = c(0, 0, 0),
+          seasonal = list(order = c(p, D, q), period = c(52))
+        )$aic
+      }, error = function(e) {
+        NA
+      })
+      table[p + 1, q + 1] <- result
+    }
+  }
+  dimnames(table) <- list(paste("SAR", 0:P, sep = ""), paste("SMA", 0:Q, sep = ""))
+  return(table)
+}
+
+```
+
+##### No Seasonal Differencing
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Seasonal grid search without differencing
+kable(seasonal_aic_table(wind_ts, 3, 0, 3))
+
+```
+<center> Table 2. SARIMA Grid Search AIC Results, No Seasonal Differencing </center> <br>
+
+##### Seasonal Differencing
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Seasonal grid search with differencing
+kable(seasonal_aic_table(wind_ts, 3, 1, 3))
+
+```
+<center> Table 3. SARIMA Grid Search AIC Results, Seasonal Differencing </center> <br>
+
+#### {.unlisted .unnumbered}
+
+Note: ChatGPT [8] assisted in developing the code for the grid search. We ran into an error with training the SARIMA models, and ChatGPT caught a bug in our code and suggested adding a try-catch block to prevent further errors from interrupting the search.
+
+The grid search table without seasonal differencing shows a pocket of models with the lowest AIC with SAR and SMA parameters in the 1-2 range. The best model in terms of AIC score has a seasonal autoregressive parameter of 2 and a moving average parameter of 0. However, the significant decrease in AIC going from SAR1 to SAR2 should be handled carefully. There is a chance that the second-order SAR parameter produces a non-causal model. To check this, we examine the roots of the model polynomial.
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Fit SARIMA model and examine the roots
+sarima_model <- Arima(
+  wind_ts, order = c(0, 0, 0),
+  seasonal = list(order = c(2, 0, 0), period = c(52))
+)
+roots <- polyroot(c(1, -coef(sarima_model)[c("sar1", "sar2")]))
+roots_df <- data.frame(
+  Root = c("SAR1", "SAR2"),
+  Value = roots
+)
+kable(roots_df, caption = "Polynomial Roots of SARMA Model", align = 'l')
+
+```
+<center> Table 4. SARMA Model Roots </center> <br>
+
+Both roots for the SARIMA(0,0,0)x(2,0,0)[52] lie outside the unit circle, meaning the associated AR process is causal. Inspecting the grid search table for the models with seasonal differencing shows worse performance in terms of AIC. The differencing model with the lowest AIC score is higher than the worst model without differencing. As a result, we decided to use the SARMA(0,0)x(2,0)[52] model for seasonal noise modeling. This model fits the data well without adding too much complexity. 
+
+However, examining the residuals reveals some problems with this model. The Ljung-Box test is a statistical test to check for any autocorrelation in a time series [5]. The null hypothesis for this test is that the autocorrelations of the time series at lags 1 through k are zero, while the alternative specifies that at least one is non-zero. We use this test to check the autocorrelative structure of the residuals. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Perform the Ljung-Box test
+ljung_box_test <- Box.test(residuals(sarima_model), lag = 25, type = "Ljung-Box")
+
+# Create a data frame for the output
+ljung_box_df <- data.frame(
+  Statistic = ljung_box_test$statistic,
+  `P-Value` = ljung_box_test$p.value
+)
+kable(
+  ljung_box_df, align = 'l', row.names = FALSE, 
+  caption = "Ljung-Box Test Results for SARMA Model Residuals"
+)
+
+```
+<center> Table 5. SARMA Model Residual Ljung-Box Test </center> <br>
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Residual ACF plot
+plot_acf(residuals(sarima_model), lag = 265, type = "acf", title = "SARMA Residual ACF Plot")
+
+```
+<center> Figure 10. SARMA(0,0)x(2,0)[52] Residual ACF Plot </center> <br>
+
+This hypothesis test produced a p-value far below the critical threshold for statistical significance, meaning there is substantial evidence of autocorrelation in the residuals. The Residual ACF plot shows a clear trend following the wave-like structure with diminishing amplitude seen before. We will attempt to correct this autocorrelation by selecting the best ARMA parameters for the noise. 
+
+Similar to the seasonal noise modeling, we employ a grid search to test different combinations of p and q and compare the results using model AIC scores. Since the data shows evidence of stationarity, we keep the ARMA differencing parameter set to 0 for this grid search.
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Grid search AR<A models
+arma_aic_table <- function(data, P, Q) {
+  table <- matrix(NA, (P + 1), (Q + 1))
+  for (p in 0:P) {
+    for (q in 0:Q) {
+      result <- tryCatch({
+        Arima(
+          data, order = c(p, 0, q),
+          seasonal = list(order = c(2, 0, 0), period = c(52))
+        )$aic
+      }, error = function(e) {
+        NA
+      })
+      table[p + 1, q + 1] <- result
+    }
+  }
+  dimnames(table) <- list(paste("AR", 0:P, sep = ""), paste("MA", 0:Q, sep = ""))
+  return(table)
+}
+
+```
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Seasonal grid search with differencing
+kable(arma_aic_table(wind_ts, 3, 3))
+
+```
+<center> Table 6. ARMA Grid Search Results </center> <br>
+
+The inclusion of ARMA parameters seems to improve model fit upon initial inspection. The AIC scores from this grid search are lower than the values from the seasonal models. The best model in terms of AIC is the SARMA(1,2)x(2,0)[52] model. To evaluate this model's fit on the wind data, we can once again inspect the residuals:
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Fit SARIMA
+sarma_model <- Arima(wind_ts, order = c(1, 0, 2), seasonal = list(order = c(2, 0, 0), period = c(52)))
+
+# Perform the Ljung-Box test
+ljung_box_test <- Box.test(residuals(sarma_model), lag = 25, type = "Ljung-Box")
+
+# Create a data frame for the output
+ljung_box_df <- data.frame(
+  Statistic = ljung_box_test$statistic,
+  `P-Value` = ljung_box_test$p.value
+)
+kable(
+  ljung_box_df, align = 'l', row.names = FALSE, 
+  caption = "Ljung-Box Test Results for SARMA Model Residuals"
+)
+
+```
+<center> Table 6. SARMA Model Residual Ljung-Box Test </center> <br>
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Residual ACF plot
+plot_acf(residuals(sarma_model), lag = 265, type = "acf", title = "SARMA Residual ACF Plot")
+
+```
+<center> Figure 11. SARMA(1,2)x(2,0)[52] Residual ACF Plot </center> <br>
+
+The Ljung-Box test for this model produced a p-value of 0.4551, above the threshold for statistical significance. This means we cannot reject the null hypothesis of no autocorrelation in residuals, which is a desirable property for the SARMA model. Moreover, the residual ACF plot displays autocorrelation behavior more in-line with random noise. There are a few ACF bands stretchiing beyond the critical bounds, but the vast majority are within the interval and there is no clear pattern in the plot. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Perform log-likelihood ratio test
+lik_ratio_test <- function(fit_small, fit_large) {
+  # Calculate test-statistic and p-value
+  test_statistic <- 2 * (logLik(fit_large) - logLik(fit_small))
+  p_value <- pchisq(test_statistic, df = 1, lower.tail = FALSE)
+
+  # Create a data frame for the output
+  lr_test_df <- data.frame(
+    "Test Statistic" = test_statistic,
+    `P-Value` = p_value
+  )
+  kable(
+    lr_test_df, align = 'l', row.names = FALSE,
+    caption = "Log-Likelihood Ratio Test Results"
+  )
+}
+
+```
+
+Another method we can use to compare modeling approaches is the likelihood ratio test. This hypothesis test compares the goodness of fit between two nested models, where one model is a simpler version of the other. The test is based on the ratio of likelihoods of the models and is useful for determining whether the additional complexity of the larger model is statistically justified. The Chapter 5 class lecture slides [6] show that this test is formulated in the following way; suppose we have two nested hypotheses
+
+$$ H^{\langle 0 \rangle} : \theta \in \Theta^{\langle 0 \rangle}  $$
+$$ H^{\langle 1 \rangle} : \theta \in \Theta^{\langle 1 \rangle}  $$
+
+We consider the log-likelihood maximized over each of the hypotheses:
+
+$$ \ell^{\langle 0 \rangle} = \sup\limits_{\theta \in \Theta^{\langle 0 \rangle}} \ell(\theta) $$
+$$ \ell^{\langle 1 \rangle} = \sup\limits_{\theta \in \Theta^{\langle 1 \rangle}} \ell(\theta) $$
+
+According to Wilks approximation, we can assert that:
+
+$$ \ell^{\langle 1 \rangle} - \ell^{\langle 0 \rangle} \approx \frac{1}{2} \chi^2_{D^{\langle 1 \rangle} - D^{\langle 0 \rangle}}  $$ 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Perform log-likelihood ratio test
+lik_ratio_test(sarima_model, sarma_model)
+
+```
+<center> Table 7. SARMA Model Likelihood-Ratio Test </center> <br>
+
+We applied the likelihood ratio test to compare the seasonal-only model against the SARMA model described above. The test produced a p-value far below the threshold for significance, meaning there is statistical evidence that adding the ARMA parameters improves model fit. We decided to accept this SARMA structure for our noise modeling. According to the Chatper 6 lecture slides [6], this model is mathematically represented as:
+
+$$ \phi(B) \Phi(B^{52})Y_n = \psi(B) \Psi(B^{52}) \epsilon_n  $$
+
+where $\{ \epsilon_n \}$ is a white noise process and
+
+\begin{align}
+\phi(x) &= 1 - \phi_1 x \\
+\psi(x) &= 1 + \psi_1 x + \psi_2 x^2 \\
+\Phi(x) &= 1 - \Phi_1 x - \Phi_2 x^2 \\
+\Psi(x) &= 1
+\end{align}
+
+#### Signal Plus Noise Model
+
+With the noise modeling complete, we can now integrate the predictors with our model by fitting a signal plus noise model to the wind data. This model will be a regression with SARMA errors, allowing us to combine our noise modeling with the environmental predictors available from the wind dataset. This process will involve identifying the features that are most predictive of wind power output and engineering those predictors to fit the dataset optimally. 
+
+The general form for the signal plus noise model is [7]:
+
+$$ Y_n = \mu_n + \eta_n $$
+
+where $\{ \eta_n \}$ is a stationary, mean zero stochastic process, and $\{ \mu_n \}$ is the mean function. While a standard linear regression is considered a signal plus white noise model, we employ a signal plus colored noise approach. In other words, we are assuming the structure of the errors in the regression follow a stationary, causal, invertible SARMA process. The signal plus colored noise / regression with SARMA errors model takes the following mathematical form:
+
+$$ Y_n = \beta_0 + \beta_1 X_{1, n} + \beta_2 X_{2, n} + \dots + \beta_k X_{k,n} + \epsilon_n $$
+
+where $Y_n$ is the dependent variable at time $n$, $\beta_0, \beta_1, \dots, \beta_k$ are the regression coefficients, $X_{1, n}, X_{2, n}, \dots, X_{k, n}$ are the predictors, and $\epsilon_n$ is the error term defined by the SARMA process formulated above.
+
+##### Correlation
+
+The following table displays the correlation between each predictor and power output as a simple measure to see how the variables relate to wind energy production. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Calculate correlation between each variable and power
+variables <- names(wind_weekly)[3:11]  # Selecting the relevant columns
+correlations <- sapply(wind_weekly[variables], function(x) cor(x, wind_weekly$power, use = "complete.obs"))
+
+# Create a data frame to display the correlations
+df <- data.frame(Variable = variables, Correlation = correlations) %>%
+  mutate(Magnitude = abs(Correlation)) %>%
+  arrange(desc(Magnitude)) %>%
+  select(Variable, Correlation, Magnitude) %>%
+  filter(Variable != "power")
+
+# Remove index and display
+rownames(df) <- NULL
+kable(df)
+
+```
+<center> Table 8. Predictor Correlation with Wind Power </center> <br>
+
+Note: ChatGPT [8] assisted in writing the code to compute the correlation of each predictor with power output.
+
+As expected, wind speed and gusts are most correlated with power output. These environmental conditions directly affect energy production; however, other predictors also show a relatively strong relationship. Dew point and temperature have a moderate, negative correlation with power. On the other hand, wind direction shows a modest positive correlation. 
+
+##### Feature Selection
+
+We employ a step-wise feature selection algorithm to identify the best predictors for wind power output. This algorithm begins by fitting a regression with SARMA errors model with each predictor individually and calculates the AIC score. The algorithm iteratively adds the variable by beginning with an empty model, which results in the greatest AIC improvement. This continues until adding new variables does not improve model fit, allowing us to identify the best features systematically. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Names of features to select from
+feature_names <- c(
+  'temperature_2m', 'relativehumidity_2m', 'dewpoint_2m',
+  'windspeed_100m', 'winddirection_100m', 'windgusts_10m'
+)
+
+# Step-wise feature selection algorithm
+feature_selection <- function(feature_names) {
+  # Start with an empty model
+  best_features <- c()
+  best_aic <- Inf
+  
+  # Feature selection loop
+  for (i in 1:length(feature_names)) {
+    aic_values <- numeric(length(feature_names))
+  
+    for (j in 1:length(feature_names)) {
+      if (!(feature_names[j] %in% best_features)) {
+        current_features <- c(best_features, feature_names[j])
+        features_train <- as.matrix(wind_weekly[, current_features])
+        model <- Arima(
+          wind_ts, xreg = features_train,
+          order = c(1, 0, 2),
+          seasonal = list(order = c(2, 0, 0), period = c(52))
+        )
+        aic_values[j] <- AIC(model)
+        cat(sprintf("Testing feature: %s, AIC: %f\n", feature_names[j], aic_values[j]))
+      } else {
+        aic_values[j] <- Inf
+      }
+    }
+  
+    # Find the best feature to add
+    min_aic <- min(aic_values)
+    if (min_aic < best_aic) {
+      best_aic <- min_aic
+      best_features <- c(best_features, feature_names[which.min(aic_values)])
+    } else {
+      break  # Stop if adding more features does not improve the model
+    }
+  }
+}
+
+```
+
+The step-wise feature selection algorithm chose the following features for the regression: wind speed, dew point, and relative humidity. These predictors provide a good mixture of direct physical factors which cause turbines to produce power and the environmental conditions which correlate to changes in output. With a basic structure for the regression identified, we can now evaluate model fit by comparing it with the noise-only models using the likelihood-ratio test.
+
+```{r, include = FALSE}
+# Best features from selection algorith,
+best_features <- c("windspeed_100m", "dewpoint_2m", "relativehumidity_2m")
+
+```
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Final model with selected features
+features_train_final <- as.matrix(wind_weekly[, best_features])
+regression_model <- Arima(
+  wind_ts, xreg = features_train_final,
+  order = c(1, 0, 2),
+  seasonal = list(order = c(2, 0, 0), period = c(52))
+)
+
+# Regression summary
+regression_summary <- tidy(summary(regression_model))
+colnames(regression_summary) <- c("Term", "Estimate", "Standard Error", "Statistic", "P-Value")
+kable(regression_summary, caption = "Summary of Regression Model", align = 'l')
+
+```
+<center> Table 9. Regression with SARMA Errors Model Summary </center> <br>
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+
+lik_ratio_test(sarma_model, regression_model)
+
+```
+<center> Table 10. Regression with SARMA Errors Likelihood-Ratio Test </center> <br>
+
+The likelihood-ratio test provides strong statistical evidence that the signal plus noise approach is preferable to the initial method using only noise. The p-value is almost exactly zero, meaning we can reject the null hypothesis for this test.
+
+##### De-Seasonalize
+
+We continue developing the time series model by further analyzing the seasonal trend in the wind data. While the noise modeling can help control for seasonal patterns in the target variable, the environmental predictors also vary considerably depending on the season. Consequently, we employ a de-seasonalizing approach in this section to transform the wind dataset and see how it affects model performance. To accomplish this, we compute the STL decomposition for each predictor and the target variable and subtract the seasonal component from the overall trend. This results in a time series with less distinct seasonal trends. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# De-seasonalize each variable using STL
+de_seasonalize <- function(series) {
+  ts_series <- ts(series, frequency = 52)
+  stl_decomp <- stl(ts_series, s.window = "periodic")
+  return(ts_series - stl_decomp$time.series[, "seasonal"])
+}
+
+# Apply de-seasonalization to each variable
+wind_weekly_no_season <- wind_weekly %>%
+  mutate(
+    power_no_season = de_seasonalize(power),
+    windspeed_100m_no_season = de_seasonalize(windspeed_100m),
+    dewpoint_2m_no_season = de_seasonalize(dewpoint_2m),
+    relativehumidity_2m_no_season = de_seasonalize(relativehumidity_2m)
+  )
+
+```
+
+```{r fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot_acf(wind_weekly_no_season$power_no_season, lag = 250, type = "acf")
+
+```
+<center> Figure 12. Autocorrelation Plot of De-Seasonalized Time Series </center> <br>
+
+This plot depicts the ACF of the de-seasonalized wind time series. Compared to the ACF plots earlier in this report, the seasonal trend in this visual is far less distinct. Although the magnitude of the autocorrelation bars gradually shrinks over time, there is no clear cyclical pattern or dominant period at different lags. This was the desired property of the dataset when de-seasonalizing. We can now move on to fit another regression with the new training dataset and compare the results with the base model. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Fit the regression model with ARMA errors using the de-seasonalized variables
+features_no_season <- c("windspeed_100m_no_season", "dewpoint_2m_no_season", "relativehumidity_2m_no_season")
+regression_no_season <- Arima(
+  wind_weekly_no_season$power_no_season,
+  xreg = as.matrix(wind_weekly_no_season[, features_no_season]),
+  order = c(1, 0, 2),
+  seasonal = list(order = c(2, 0, 0), period = c(52))
+)
+
+```
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Regression summary
+regression_summary <- tidy(summary(regression_no_season))
+colnames(regression_summary) <- c("Term", "Estimate", "Standard Error")
+kable(regression_summary, caption = "Summary of De-Seasonalized Regression Model", align = 'l')
+
+```
+<center> Table 11. De-Seasonalized Regression with SARMA Errors Model Summary </center> <br>
+
+This table shows the summarized de-seasonalized regression, including the estimated coefficients for all variables in the dataset. This table can be used to understand how the environmental predictors relate to wind energy production. For example, the regression results suggest that a one unit increase in wind speed corresponds to a 0.01 increase in wind power output. Furthermore, unit increases in dew point and relative humidity result in power output to decrease by ~.001 units. To evaluate this model's fit on the wind data, we once again employ the Ljung-Box test for the residuals:
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Perform the Ljung-Box test
+ljung_box_test <- Box.test(residuals(regression_no_season), lag = 25, type = "Ljung-Box")
+
+# Create a data frame for the output
+ljung_box_df <- data.frame(
+  Statistic = ljung_box_test$statistic,
+  `P-value` = ljung_box_test$p.value
+)
+kable(
+  ljung_box_df, align = 'l', row.names = FALSE, 
+  caption = "Ljung-Box Test for Regression with SARMA Errors Residuals"
+)
+
+```
+<center> Table 12. De-Seasonalized Regression with SARMA Errors Residual Ljung-Box Test </center> <br>
+
+The Ljung-Box test and ACF plot provide further support for this modeling approach. The p-value for the Ljung-Box test is above the threshold for significance, meaning we fail to reject the null hypothesis of no autocorrelation. We can further inspect the residuals by making sure they meet the model assumptions of normality and homoscedasticity.
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Histogram of residuals
+ggplot(data.frame(Residuals = residuals(regression_model)), aes(x = Residuals)) +
+  geom_histogram(bins = 30, fill = "#007ac1", color = "white") +
+  labs(
+    title = "Regression with SARMA Errors Residual Histogram", 
+    x = "Residuals", 
+    y = "Frequency"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+```
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Residuals plot
+ggplot(data.frame(Residuals = residuals(regression_model)), aes(x = seq_along(Residuals), y = Residuals)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#007ac1") +
+  labs(
+    title = "Regression with SARMA Errors Residuals", 
+    x = "Time", 
+    y = "Residuals"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+```
+
+The histogram and series plots show the desired behavior for the model residuals. The residuals follow the normal distribution which is assumed for the errors, while the second plot shows fairly constant variance over all points. There are a few points with substantial negative residuals near the beginning of the plot, but overall the residuals seem stable. Finally, we compare the de-seasonalized regression with the original regression approach using the likelihood-ratio test.
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+
+lik_ratio_test(regression_model, regression_no_season)
+
+```
+<center> Table 13. De-Seasonalized Regression with SARMA Errors Likelihood-Ratio Test </center> <br>
+
+This hypothesis test produced a p-value which rounds to zero, providing strong statistical evidence that the de-seasonalized regression approach is preferable. As a result, we are selecting this as the final model for our analysis.
+
+### Conclusions
+
+We performed time series analysis for a dataset containing information about wind power generation and its relation to environmental factors. We selected a signal plus colored noise model for this time series. The errors were modeled as a SARMA(1,2)x(2,0)[52] process, while the regression involved de-seasonalized features for wind speed, dew point, and relative humidity. This model demonstrated the lowest AIC score out of all approaches tested, which was corroborated by the likelihood-ratio test. Moreover, the residuals of the fitted model followed the assumed behavior of normality, homoscedasticity, and no autocorrelation. 
+
+By fitting this model, we were able to answer the core question of this report, which was to understand how environmental factors affect wind energy production. The most important predictors of power output were shown to be wind speed, dew point, and relative humidity. Wind speed positively correlated with power output, while dew point and humidity were negative. We also gained valuable insight into the temporal structure of wind power output. Our analysis demonstrated strong evidence of an annual trend in wind power, with significant autoregressive and moving average behavior as well.
+
+### Scholarship
+
+We included citations to all external sources utilized throughout the report. These sources include references to informational content about wind power, the Kaggle repository where we located our dataset, and educational material from the class notes and one external University. We utilized ChatGPT at certain points during the project to help develop and debug the code, but generative AI was not used to write any of the report content. All points where we used ChatGPT were marked in the document, including a brief description of how it was used, and a reference to citation number 7. 
+
+### References
+
+[1] Wikipedia (n.d.). Wind power. Retrieved from https://en.wikipedia.org/wiki/Wind_power#cite_note-:0-3
+
+[2] Energy5 (2023). Wind Turbines and Weather Examining the Influence of Climate on Turbine Performance. Retrieved from https://energy5.com/wind-turbines-and-weather-examining-the-influence-of-climate-on-turbine-performance
+
+[3] Mubashir, R. (n.d.). Wind Power Generation Data - Forecasting. Kaggle. Retrieved from https://www.kaggle.com/datasets/mubashirrahim/wind-power-generation-data-forecasting/discussion/473581
+
+[4] R Documentation (n.d.). Augmented Dickey-Fuller Test. Retrieved from https://www.rdocumentation.org/packages/aTSA/versions/3.1.2/topics/adf.test
+
+[5] R Documentation (n.d.). Box-Pierce and Ljung-Box Tests. Retrieved from https://stat.ethz.ch/R-manual/R-devel/library/stats/html/box.test.html
+
+[6] Ionides, E. (2024). Notes for STATS/DATASCI 531, Modeling and Analysis of Time Series Data. Available at: https://ionides.github.io/531w24/
+
+[7] Pennsylvania State University (n.d.). Lesson 8: Regression with ARIMA errors, Cross correlation functions, and Relationships between 2 Time Series. Retrieved from https://online.stat.psu.edu/stat510/book/export/html/669
+
+[8] ChatGPT (2024). OpenAI. Retrieved from: https://chat.openai.com/chat
+
+

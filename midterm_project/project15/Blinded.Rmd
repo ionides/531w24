@@ -1,0 +1,595 @@
+---
+title: "Stats531 Midterm Project"
+date: "2024-02-20"
+output:
+  html_document:
+    number_sections: true
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    mathjax: "default"
+---
+
+<style>
+body {
+  font-size: 18px;
+  line-height: 2;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+p {
+  margin-bottom: 2em;
+}
+
+li {
+  margin-bottom: -1.5em;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+library(ggplot2)
+library(tseries)
+library(forecast)
+library(xts)
+library(plotly)
+library(quantmod)
+library(zoo)
+library(tidyverse)
+library(knitr)
+
+library(gridExtra)
+library(patchwork)
+library(cowplot)
+
+data <- read.csv("NVDA.csv")
+```
+
+# Introduction
+
+In October 2022, Nvidia saw a skyrockected positive response in its stock price, after a steady decrease for a few months, due to several key announcements and product launches, such as a new data center solution optimized for VMware vSphere 8, the GeForce RTX 4090 GPU which quickly sold out, etc. Except for the expansion of its gaming library, there was a growth in their automotive and embedded revenue, with new partnerships and product launches such as the NVIDIA DRIVE Thor for autonomous vehicles[1].
+
+Our search attempts to investigate the behavior of NVIDIA's stock price from 2022-01-18 to 2024-02-16, and then helps us make decision about the investment suggestion whether or not we are going to invest in NVIDIA's stock given the prediction of the future price. The data is obtained from Yahoo Finance using the yfinance library[2]. This dataset includes the NVIDIA's daily stock price of open price, closing price, adjusted closing price, as well as the highest and lowest price for each trading day from January 18, 2022, to January 16, 2024. It excludes weekends since stock markets are closed and prices do not change on those days. The dataset in question is ready for analysis and does not require additional cleaning.
+
+Another question is that whether or not it is the efficient financial market. We hypothesize that the stock price follows the efficient market theory, which suggests that asset prices fully reflect all available information. If the hypothesis is true, then the logarithm of stock price behaves like the random walk with or without a drift[3][14].
+
+# EDA
+
+## Daily Stock Price
+
+### Candlestick chart
+
+In a candlestick chart for stock prices, the color of the candlestick indicates the direction of the stock price movement between the opening and closing prices for the day. If the candlestick is green, it means the stock price closed higher than it opened, indicating a price increase. Conversely, if the candlestick is red, it means the stock price closed lower than it opened, indicating a price decrease. The low and high prices for the day are represented by the thin lines (or "wicks") extending from the top and bottom of the candlestick body.
+
+```{r, echo = FALSE, fig.align="center"}
+library(plotly)
+fig <- plot_ly(x = data$Date, type="candlestick",
+               open = data$Open,
+               close = data$Adj.Close,
+               high = data$High,
+               low = data$Low)
+
+# Update layout with titles and theme
+fig <- fig %>% layout(title = "NVIDIA Stock Price, 2022/01/18-2024/02/16",
+                      xaxis = list(title = "Date"),
+                      yaxis = list(title = "Stock Price (USD)"),
+                      template = "plotly_dark")
+
+# Show the plot
+fig
+```
+
+This candlestick chart illustrates NVIDIA's stock price fluctuations, with green indicating an increase and red a decrease. The chart shows inactive periods during weekends and the inconsistent price from Friday closing time to the next Monday shows several influential market events happening during weekends.
+
+After a decline until October 14, 2022, with the stock hitting a low of \$112.9, there's a reversal with a steady climb to a peak of \$739 on February 14, 2024, reflecting positive market reactions to strategic announcements and new product releases.
+
+### Statistical summary of adjusted closing price
+
+```{r, echo = FALSE}
+data$dates <- as.Date(data$Date)
+## Get the data of min adjusted close price and max adjusted close price
+date_price_max <- data$Date[which(data$Adj.Close == max(data$Adj.Close))]
+date_price_min <- data$Date[which(data$Adj.Close == min(data$Adj.Close))]
+mean_adj_close <- mean(data$Adj.Close)
+sd_adj_close <- sd(data$Adj.Close)
+max_adj_close <- max(data$Adj.Close)
+min_adj_close <- min(data$Adj.Close)
+# Create a data frame to hold the statistics and dates in a tabular format
+stats <- data.frame(
+  Statistic = c("Mean", "Standard Deviation", "Maximum", "Minimum", 
+                "Date of maximum adjusted close price", "Date of minimum adjusted close price"),
+  Value = c(mean_adj_close, sd_adj_close, max_adj_close, min_adj_close, 
+            date_price_max, date_price_min)
+)
+
+# Print the data frame
+kable(stats)
+```
+
+The wide range between the maximum and minimum prices, combined with a high standard deviation, points to a period of significant volatility. Investors who are risk-averse might be cautious with this a stock, whereas risk-tolerant investors might find the volatility presents potential for substantial gains (but also losses).
+
+### Seasonal and Trend decomposition (STL)
+
+It is used for a more flexible seasonal decomposition with Loess[7] (locally estimated scatterplot smoothing).
+
+```{r, echo=FALSE, fig.width=7, fig.height=5, fig.align="center"}
+df <- data
+start_date <- as.Date("2022-01-28")
+end_date <- as.Date("2024-02-16")
+date_seq <- seq.Date(start_date, end_date, by = "day")
+date_seq_df <- data.frame(date_seq)
+df$Date <- as.Date(df$Date)
+new_df <- left_join(date_seq_df, df, by=c('date_seq'='Date'))[,c(1,6)]
+
+# Imputation: linear interpolation
+ts_linear_imputed <- na.approx(new_df$Adj.Close)
+ts_linear_imputed <- ts(ts_linear_imputed, frequency = 365, start = c(2022, as.numeric(format(as.Date("2022-01-18"), "%j"))))
+
+stl_decomp <- stl(ts_linear_imputed, s.window="periodic")
+plot(stl_decomp)
+```
+
+The trend component shows the long-term progression of the stock prices with decreasing trend first on October 14, 2022 and then increasing. So we will divide the data into two parts for the further illustration later. The seasonal component would be rather unusual as stocks do not typically exhibit clear seasonal patterns; the remainder in this plot appears quite volatile, which is common for stock prices due to the inherent unpredictability of financial markets.
+
+## Daily Log-Return
+
+### Definition
+
+The log-return based on adjusted close price will be our focus since it provides us a more straightforward perspective on evaluating people's return of the investment in NVIDIA's stock with its risk, volatility, and expected performance over time. Also, following the theory of $\textbf{efficient financial markets}$[14] that the logarithm of a stock market might behaves like a random walk with drift, we will examine whether or not the daily6 log-return follows a random walk to help to make the conclusion about this hypothesis, which is also one of our question.
+
+Several notations will be introduced below:
+
+Suppose $\{X_t\}$ is the daily closing stock-price of an asset, then the $\textbf{Return}$ also known as $\textbf{net return}$ is defined as: $$R_t = \frac{X_t - X_{t-1}}{X_{t-1}}$$ The $\textbf{Log-returns}$ are defined as $$r_t = \log(1 + R_t) = \log\left(\frac{X_t}{X_{t-1}}\right) = \log(X_t) - \log(X_{t-1})$$ Also, we can easily approximate daily log-return by daily return using the following formula : $$e^{r_t} \approx 1 + R_t$$ and this can be verified by observing the Taylor expansion[9] that $$\log(1 + x) = x + O(x^2)$$ as $x \to 0$.
+
+The k-period log-returns is additive over past k-days' log-return, which is a way to normalize data: $$r_t(k) = \log\left(\frac{X_t}{X_{t-k}}\right) = r_t + r_{t-1} + \dots + r_{t-k+1}$$;
+
+```{r, echo=FALSE, fig.width=7, fig.height=4, fig.align="center"}
+## Compute the daily log-return based on adjusted close price
+daily_log_return <- diff(log(data$Adj.Close))
+data$return <- c(0, daily_log_return)
+
+## Draw the plot of daily log-return Versus dates
+
+ggplot(data , aes(x = dates, y = log(Adj.Close))) +
+  geom_line() +
+  labs(x = "Date", y = "log-price")+
+  ggtitle("log of adjusted closing price, 2022-2024")
+
+ggplot(data , aes(x = dates, y = return)) +
+  geom_line() +
+  labs(x = "Date", y = "Daily log-return")+
+  ggtitle("Daily log-return, 2022-2024")
+
+```
+
+There is not a much difference of general trend between daily adjusted closing price with and without logarithm scale. For the daily log-return, it does not appear to be a clear upward or downward trend over the entire period, suggesting that there is no long-term consistent pattern of gains or losses. It displays a strong volatility with negative and positive return around zero line. The daily log-return in 2023 is more volatile with larger spikes than daily log-return in 2022, whereas the daily log-return in 2023 without large spike seems less volatile than those in 2022.
+
+### Statistical summary of daily log-return
+
+```{r, echo = FALSE}
+# Calculate descriptive statistics
+mean_log_return <- mean(data$return)
+sd_log_return <- sd(data$return)
+max_log_return <- max(data$return)
+min_log_return <- min(data$return)
+
+# Get the dates for max and min log daily return
+date_return_max <- data$Date[which.max(data$return)]
+date_return_min <- data$Date[which.min(data$return)]
+
+# Create a data frame to hold the statistics and dates in a tabular format
+descriptive_stats_table <- data.frame(
+  Statistic = c("Mean", "Standard Deviation", "Maximum", "Minimum","Date of maximum daily log-return", "Date of minimum daily log-return"),
+  Value = c(mean_log_return, sd_log_return, 
+            max_log_return, min_log_return, 
+            date_return_max, date_return_min)
+)
+
+# Print the table
+kable(descriptive_stats_table)
+```
+
+On average, the percentage change in the stock price, when expressed in log terms, is about 0.197% per day. A standard deviation of 0.035 suggests that the stock's returns can be expected to vary by about 3.459% from the mean on a daily basis, which indicates a moderate level of volatility. The minimum daily log-return with -0.0995, on September 13, 2022, suggests a loss from previous day. The maximum daily log-return on May 25, 2023 was 0.2181. The average variation of daily log-returns decreasing notably after the year 2023 suggests that the stock became less volatile over time, leading to a more stable performance in terms of daily price changes due to market stabilization, company growth and maturity, or reduced market uncertainty. Such a decrease in volatility might be considered favorable by risk-averse investors, as it implies more predictability and potentially lower investment risk.
+
+# Eliminating Trend
+
+We aim to perform two methods to elimiate trend to achieve the stationarity of the data for ARMA(p,q) which requires stationarity assumption. \* linear regression fit \* differencing
+
+## Split the data
+
+Since the observed trend appears to differ before and after October 14, 2022, we will perform the analysis separately for data before October 14, 2022 and after October 14, 2022.
+
+```{r, echo=FALSE}
+## Now we split our data into two and try to figure out the trend
+data_de <- data[1: which(data$dates == date_price_min), ]
+data_in <- data[nrow(data_de) : nrow(data), ]
+
+```
+
+## Linear regression
+
+Since both data of adjusted closing price in log scale appears to be a linear trend, linear regression with ARMA noise[6] will be fit to eliminate this trend, that is : $$ Y_n = \mu_n + \eta_n$$ where the mean function $$\mu_n = \sum\limits_{k = 1}^K Z_{n, k}\beta_k$$ and $\eta_n$ is a $\textbf{stationary}$, mean zero stochastic process.
+
+```{r, echo = FALSE, fig.width=10, fig.height=5, fig.align="center"}
+## We will now draw two plots before and after the cutoff
+p1 = ggplot(data_de, aes(x = dates, y = log(Adj.Close))) +
+  geom_point()+
+  labs(x = "date", y = "log-price") +
+  ggtitle("Log-price Versus date before 2022-10-14")+
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+p2 = ggplot(data_in, aes(x = dates, y = log(Adj.Close))) +
+  geom_point()+
+  labs(x = "date", y = "log-price") +
+  ggtitle("Log-price Versus date after 2022-10-14")+
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+p1 + p2
+```
+
+### Model Selection
+
+Forward selection[10] is employed to determine an effective linear model by progressively adding higher orders of time until they become statistically insignificant, with significance level as $\alpha = 0.05$.
+
+```{r, echo = FALSE}
+## before 2022-10-14
+# Do first order linear regression
+t1 <- c(1 : nrow(data_de))
+model_de1 <- lm(log(Adj.Close) ~ t1, data = data_de)
+# Do second order linear regression
+model_de2 <- lm(log(Adj.Close) ~ t1 + I(t1^2), data = data_de)
+```
+
+```{r, echo = FALSE}
+## after 2022-10-14
+## first order linear regression
+t2 <- c(1 : nrow(data_in))
+model_in1 <- lm(log(Adj.Close) ~ t2, data = data_in)
+## second order linear regression
+model_in2 <- lm(log(Adj.Close) ~ t2 + I(t2^2), data = data_in)
+model_in3 <- lm(log(Adj.Close) ~ t2 + I(t2^2)+I(t2^3), data = data_in)
+```
+
+```{r,  echo = FALSE}
+p_values_de1 <- summary(model_de1)$coefficients[, "Pr(>|t|)"]
+p_values_de2 <- summary(model_de2)$coefficients[, "Pr(>|t|)"]
+p_values_in1 <- summary(model_in1)$coefficients[, "Pr(>|t|)"]
+p_values_in2 <- summary(model_in2)$coefficients[, "Pr(>|t|)"]
+p_values_in3 <- summary(model_in3)$coefficients[, "Pr(>|t|)"]
+
+
+
+# Create a table with the p-values
+p_values_table <- data.frame(
+  Order = c("first-order LR(before)", "second-order LR(before)", "first-order LR(after)", "second-order LR(after)", 'third-order LR(after)'),
+  Intercept = c(p_values_de1["(Intercept)"], p_values_de2["(Intercept)"],p_values_in1["(Intercept)"], p_values_in2["(Intercept)"], p_values_in3["(Intercept)"]),
+  time = c(p_values_de1["t1"], p_values_de2["t1"],p_values_in1["t2"], p_values_in2["t2"],  p_values_in3["t2"]),
+  time_2 = c(NA, p_values_de2["I(t1^2)"],NA, p_values_in2["I(t2^2)"], p_values_in3["I(t2^2)"]), # NA for the first-order model where t1^2 is not present
+  time_3 = c(NA, NA ,NA, NA, p_values_in3["I(t2^3)"]) 
+)
+
+
+# Print the table
+kable(p_values_table)
+```
+
+For the data before 2022-10-14: The p-value for the second-order is 0.0582, indicating the insignificance of second-order. A first-order linear regression model yields the best results.
+
+For the data after 2022-10-14: The p-value for the third-order is 0.06, indicating the insignificance of third-order. A second-order linear regression model yields the best results.
+
+### Model Diagnosis
+
+Model diagnosis is performed to evaluate the stationarity property of residual after fitting the first-order and second-order linear regression model respectively for data before 2022-10-14 and after 2022-10-14.
+
+-   Residual Plots
+
+```{r, echo = FALSE, fig.width=10, fig.height=5, fig.align="center"}
+log_price_notrend <- log(data_de$Adj.Close) - predict(model_de1)
+p1 = ggplot() + 
+  geom_point(aes(x = data_de$dates, y = log_price_notrend)) +
+   geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "date", y = " Residual") +
+  ggtitle("Residuals of first-order LR, before 2022-10-14")+
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+log_price_notrend_1 <- log(data_in$Adj.Close) - predict(model_in2)
+p2 = ggplot() + 
+  geom_point(aes(x = data_in$dates, y = log_price_notrend_1)) +
+  labs(x = "date", y = " log price without trend") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  ggtitle("Residuals of second-order LR, after 2022-10-14")+
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+p1 + p2
+```
+
+Based on the plot of residuals for both dataset, it's evident that the residuals are not randomly distributed around the horizontal line of y=0. This suggests that the residuals exhibit some pattern according to time, indicating potential non-stationarity.
+
+-   ADF
+
+```{r, echo = FALSE}
+result1 <- adf.test(log_price_notrend)
+
+result2 <- adf.test(log_price_notrend_1)
+
+adf_p_values <- data.frame(
+  Data = c("before 2022-10-14", "after 2022-10-14"),
+  p_value_for_ADF = c(result1$p.value, result2$p.value) # Extract p-values from the test results
+)
+
+# Print the table
+kable(adf_p_values)
+
+```
+
+Furthermore, the Augmented Dickey-Fuller (ADF) test[11] yields a p-value of 0.4031 and 0.4963 respectively for data before and after 2022-10-14. We don't have enough evidence to reject the null pyhothesis and conlude both differenced data are non-stationary following this method.
+
+Linear Regression can't be considered as a good method to eliminate the trend and require different modeling approaches.
+
+## Differencing
+
+### Model Definition
+
+This transformation involves converting our log-transformed stock prices, denoted as $y_{1:N}^*$[6], into a new series, $z_{2:N}$, defined as : $$z_n = \Delta y_n^{*} = y_n^{*} - y_{n-1}^{*}$$
+
+It's noteworthy that $z_n$ corresponds precisely to what we have defined as the daily log-return.
+
+```{r, echo = FALSE, fig.width=10, fig.height=5, fig.align="center"}
+diff_data_de <- diff(log(data_de$Adj.Close))
+p1 = ggplot() + 
+  geom_line(aes(x = data_de$dates[-1], y = diff_data_de)) +
+  labs(x = "date", y = " Daily log-return") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red")+
+  ggtitle("Daily log-return, before 2022-10-14")+
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+diff_data_in <- diff(log(data_in$Adj.Close))
+p2 = ggplot() + 
+  geom_line(aes(x = data_in$dates[-1], y = diff_data_in)) +
+  labs(x = "date", y = " Daily log-return") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red")+
+  ggtitle("Daily log-return, after 2022-10-14")+
+  scale_x_date(date_labels = "%Y-%m-%d")
+
+p1 + p2
+```
+
+### Model Diagnosis
+
+-   ADF
+
+```{r, echo = FALSE}
+suppressWarnings({
+result3 <- adf.test(diff_data_de)
+result4 <- adf.test(diff_data_in)
+})
+
+adf_p_values <- data.frame(
+  Data = c("before 2022-10-14", "after 2022-10-14"),
+  p_value_for_ADF = c(result3$p.value, result4$p.value) # Extract p-values from the test results
+)
+
+# Print the table
+kable(adf_p_values)
+```
+
+Furthermore, the Augmented Dickey-Fuller (ADF) test yields a p-value of 0.01 for both data before and after 2022-10-14, suggesting the stationarity of differenced data(daily log-return). This finding prompts us to proceed with further ARMA(p,q) model selection based on the differenced data.
+
+# ARMA Model Selection
+
+With two stationary time series now available, we can proceed to the ARMA model selection process. This involves identifying the appropriate orders of autoregressive (AR) and moving average (MA) components based on criteria such as Akaike Information Criterion (AIC) and likelihood ratio tests. By fitting various ARMA models to our data and comparing their goodness of fit metrics, we can determine the most suitable model for our purposes.
+
+## ARMA Model Definition
+
+Before proceeding with model selection, let's provide a concise definition of ARMA(p, q)[8]:
+
+$\textbf{Definition:}$ A time series $\{x_t; t = 0, \pm 1, \pm 2, \dots\}$ is ARMA(p, q) if it is stationary and $$x_t = \phi_1 x_{t-1} + \cdots + \phi_p x_{t-p} + w_t + \theta_1 w_{t-1} + \cdots + \theta_q w_{t-q}$$
+
+\
+with $\phi_p \neq 0 , \theta_q \neq 0$, and $\sigma^2_w > 0$. Here $w_t \sim wn(0, \sigma^2_w)$ is the white noise.
+
+In general, we could have the ARMA(p, q) has a mean $\mu$ and so we get $$\phi(B)(Y_n - \mu) = \psi(B)\epsilon_n$$where $B$ is the backshift operator[4] and we have $$\phi(x) = 1 - \phi_1 x - \phi_2 x^2 - \cdots - \phi_p x^p$$ and $$\psi(x) = 1 + \psi_1x + \psi_2 x^2 + \cdots + \psi_q x^q$$
+
+## ARMA Model Selection (1)
+
+### AIC Table
+
+We initially compute the Akaike Information Criterion (AIC) for each ARMA(p, q) model using the data before October 14, 2022, where $1\leq p, q \leq 4$. This process helps identify potential feasible models, which we can then subject to further analysis.
+
+```{r, echo = FALSE}
+aic_table <- function(data, P, Q){
+  table <- matrix(NA, (P+1), (Q+1))
+  for (p in 0 : P){
+    for (q in 0 : Q){
+      table[p+1, q+1] <- arima(data, order = c(p, 0, q))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR", 0 : P, sep = ""),
+                          paste("MA", 0 : Q, sep = ""))
+  table
+}
+
+aic_table_de <- aic_table(diff_data_de, 4, 4)
+kable(aic_table_de, digits = 2)
+```
+
+Upon reviewing the AIC table, we observe that potential models include ARMA(3, 3), ARMA(3, 4), ARMA(4, 3), and ARMA(0, 0), based on their AIC values. Our next step involves analyzing these models by conducting likelihood ratio tests to determine the most appropriate model among them. Additionally, we will assess their causality and invertibility and then to determine the most appropriate model.
+
+### Likelihood Ratio Test
+
+First, let's establish some notations to conduct likelihood ratio tests for nested hypotheses[4].
+
+Suppose we have two nested parameter subspaces, $$\Theta^{(0)} : \theta \in \Theta^{(0)} \hspace{1cm} \Theta^{(1)} : \theta \in \Theta^{(1)}$$ defined via two nested parameter subspaces, $\Theta^{(0)} \subset \Theta^{(1)}$, with respective dimensions $D^{0} < D^{1}$. We consider the log likelihood maximized over each of the hypothesis $$l^{(0)} = \sup\limits_{\theta \in \Theta^{(0)}}l(\theta) \hspace{1cm} l^{(1)} = \sup\limits_{\theta \in \Theta^{(1)}}l(\theta)$$ Then the $\textbf{Wilks Approximation}$ states that under hypothesis $H^{(0)}$, $$l^{(1)} - l^{(0)} \approx \frac{1}{2}\chi^2_{D^{1} - D^{0}}$$
+
+Therefore, after conducting pairwise likelihood ratio tests, we rejected the null hypothesis for ARMA(0, 0) at significance level $\alpha = 0.05$. Subsequently, we proceeded to evaluate ARMA(3, 3), ARMA(3, 4), and ARMA(4, 3) through pairwise hypothesis tests. Furthermore, we found no significant evidence to reject the null hypothesis for ARMA(3, 3), given the alternative models ARMA(3, 4) and ARMA(4, 3). Thus, according to the likelihood ratio test using Wilk's approximation[12], we may suggest ARMA(3, 3) could be a better model than ARMA(0, 0) at significance level of $\alpha = 0.05$.
+
+### AR and MA roots
+
+```{r, echo=FALSE, fig.width=10, fig.height=6, fig.align="center"}
+diff_data_de33 <- arima(diff_data_de, order = c(3, 0, 3))
+diff_data_de00 <- arima(diff_data_de, order = c(0, 0, 0))
+diff_data_de43 <- arima(diff_data_de, order = c(4, 0, 3))
+diff_data_de34 <- arima(diff_data_de, order = c(3, 0, 4))
+
+# Assuming p1 has the legend you want to use
+legend_plot <- get_legend(autoplot(diff_data_de33));
+
+p1 = autoplot(diff_data_de33) +
+  ggtitle("ARMA(3, 3)") + guides(colour = "none")
+
+p2 = autoplot(diff_data_de43) +
+  ggtitle("ARMA(4, 3)") + guides(colour = "none")
+
+p3 = autoplot(diff_data_de34) +
+  ggtitle("ARMA(3, 4)")  + guides(colour = "none")
+
+layout <- p1 + p2 + p3 + legend_plot +
+  plot_layout(ncol = 2, nrow = 2)
+
+layout
+```
+
+After examining the plots for AR and MA roots, it is evident that all ARMA(3,3), ARMA(3, 4), and ARMA(4, 3) models have AR roots inside the unit circle, indicating causality[4]. However, all three models exhibit MA roots on the boundary of the unit circle, suggesting that the MA roots are very close to 1. This implies that these models may be non-invertible[4].
+
+Thus, based on the data before October 14, 2022, we may consider ARMA(0, 0) to be a more appropriate model, despite the likelihood ratio test suggesting that ARMA(3, 3) could be a better model. We discard all three models of ARMA(3, 3), ARMA(3, 4), and ARMA(4, 3) because these models show evidence of non-invertibility, which is undesirable for forecasting purposes.
+
+### Sensitivity Test
+
+Another reason for rejecting the ARMA(3, 3) model is its heightened sensitivity to our dataset. After examining the log-transformed daily log-return data post-October 14, 2022, we manually inserted an additional data point preceding the dataset, set to 0. This adjustment is based on the rationale that no returns are initially observed when entering the stock market. As shown in the table below, all coefficients for AR1, AR2, AR3, MA1, MA2, and MA3 exhibited significant changes. This substantial fluctuation suggests that the original ARMA(3, 3) model is highly unstable and susceptible to the influence of new data points.
+
+```{r, echo=FALSE}
+diff_data_de_new <- c(0, diff_data_de)
+diff_data_de33_new <- arima(diff_data_de_new, order = c(3, 0, 3))
+
+
+comparison_table <- data.frame(
+  Data = c("Raw data", "Changed data"),
+  AR1 = c(diff_data_de33$coef[1], diff_data_de33_new$coef[1]),
+  AR2 = c(diff_data_de33$coef[2], diff_data_de33_new$coef[2]),
+  AR3 = c(diff_data_de33$coef[3], diff_data_de33_new$coef[3]),
+  MA1 = c(diff_data_de33$coef[4], diff_data_de33_new$coef[4]),
+  MA2 = c(diff_data_de33$coef[5], diff_data_de33_new$coef[5]),
+  MA3 = c(diff_data_de33$coef[6], diff_data_de33_new$coef[6]),
+  Intercept = c(diff_data_de33$coef[7], diff_data_de33_new$coef[7])
+)
+kable(comparison_table)
+```
+
+Based on our analysis and considerations, we conclude that our final ARMA model for the data before October 14, 2022, could be ARMA(0,0) with intercept of - 0.0045\
+$$Z_n = -0.0045 + \epsilon_n$$ where $\epsilon_n \sim N(0, 0.001642)$
+
+## ARMA Model Selection (2)
+
+We can now do the same procedure for the data after 2022-10-14
+
+```{r, echo = FALSE}
+aic_table_in <- aic_table(diff_data_in, 4, 4)
+kable(aic_table_in, digits = 2)
+```
+
+We observed that ARMA(0,0) and ARMA(2,2) have relatively low AIC values, making them potential candidate ARMA models. However, after conducting the likelihood ratio test, we failed to reject the null hypothesis that the model is ARMA(0,0) at a significance level o $\alpha = 0.05$. Additionally, we noted that although all inverse AR roots and MA roots are inside the unit circle, the MA roots are very close to the boundary of the unit circle, suggesting potential non-invertibility. The proximity of the AR and MA roots may result in cancellation[4], leading to an ARMA(0,0) model. Based on our diagnosis, we lean towards ARMA(0,0) as a more appropriate model.
+
+```{r, echo = FALSE, fig.width=5, fig.height=3, fig.align="center"}
+## analysis for ARMA(2, 2)
+diff_data_in22 <- arima(diff_data_in, order = c(2, 0, 2))
+diff_data_in00 <- arima(diff_data_in, order = c(0, 0, 0))
+
+MA_root <- polyroot(c(1, coef(diff_data_in22)[c("ma1", "ma2")]))
+AR_root <- polyroot(c(1, -coef(diff_data_in22)[c("ar1", "ar2")]))
+
+test_stat_2200 <- diff_data_in22$loglik - diff_data_in00$loglik
+
+autoplot(diff_data_in22) +
+  ggtitle("ARMA(2, 2)")
+
+```
+
+Based on our analysis and considerations, we conclude that our final ARMA model for the data after October 14, 2022, could be ARMA(0,0) with intercept of -0.0056$$Z_n = 0.0056 + \epsilon_n$$ where $\epsilon_n \sim N(0, 0.00091)$
+
+# Model Diagonosis
+
+Now, we also aim to confirm whether the residuals obtained after fitting ARMA(0, 0) to the data exhibit characteristics of white noise, which would provide additional support for our analysis. We displayed each models ACF(Autocorrelation) plot, qqplot, and shapiro-test[13] to verify that error are white noise.
+
+```{r, echo = FALSE, fig.width=10, fig.height=4.5, fig.align="center"}
+par(mfrow = c(1, 2))
+
+acf_residual_de <- acf(residuals(diff_data_de00), main = "Autocorrelation: Before 2022-10-14", lag.max = 30)
+acf_residual_in <- acf(residuals(diff_data_in00), lag.max = 30, main = "After 2022-10-14")
+
+par(mfrow = c(1, 2))
+
+plot(residuals(diff_data_de00), ylab = "residuals", main = "Residuals: Before 2022-10-14")
+plot(residuals(diff_data_in00), ylab = "residuals", main = "After 2022-10-14")
+
+par(mfrow = c(1, 2))
+
+qqnorm(residuals(diff_data_de00), main = "QQ-plot: Before 2022-10-14")
+qqline(residuals(diff_data_de00))
+shapiro_1 <- shapiro.test(residuals(diff_data_de00))
+
+qqnorm(residuals(diff_data_in00), main = "After 2022-10-14")
+qqline(residuals(diff_data_in00))
+shapiro2 <- shapiro.test(residuals(diff_data_in00))
+```
+
+Data before October 14, 2022: The ACF plot indicates that the residuals $\epsilon_n$ are uncorrelated, while the QQplot and Shapiro-Wilk test confirm that $\epsilon_n$ follows a normal distribution. Therefore, we can conclude that $\epsilon_n$ constitutes white noise, providing further support for our selection of ARMA(0, 0) for the data before October 14, 2022.
+
+Data after October 14, 2022: The ACF plot indicates that the residuals $\epsilon_n$ are uncorrelated. However, the QQ plot and Shapiro-Wilk test may suggest that $\epsilon_n$ does not follow a normal distribution. Upon closer examination of the plot, we identify 3 outliers that could potentially skew our conclusion. After removing the 3 outlier, the Shapiro-Wilk test still suggests that $\epsilon_n$ follows a normal distribution.
+
+```{r, echo = FALSE}
+index_3 <- order(residuals(diff_data_in00), decreasing = T)[1:3]
+vector_without_largest3 <- residuals(diff_data_in00)[-index_3]
+shapiro.test(vector_without_largest3)
+```
+
+Observation: NVIDIA Stock prices follows Efficient financial market Theory !!!!!!
+
+# Conclusion
+
+In this project, we analyzed the daily adjusted closing stock price of NVIDIA (NVDA) from Jan 2022 to Jan 2024 (T = 500). The data was splitted, by Oct 14, 2022, into two sections for the analysis.
+
+Log returns and differencing operations were taken for the attempt to solve the nonstationary issue of the original data. Augmented Dickey-Fuller (ADF) test was conducted to confirm the stationarity after the transformation.
+
+The model selection was done by a three step procedure. First, fitting ARMA models from ARMA(0,0) to ARMA(4,4) and computing the corresponding AIC value. Then, Likelihood Ratio Tests (LRT) were conducted on candidate models. In the end, The inverse AR roots and inverse MA roots were plotted on the unit circle for the inspection of causality and invertibility. ARMA(0,0) was confirmed to be the best model for both two sections of data. Finally, autocorrelation of residuals and QQ-plot were plotted to verify the white noise property of the model. The ARMA(0,0) models suggest that the daily log return is indeed a random walk with drift. It supports the Efficient Market Hypothesis that the current price reflects all available information.
+
+There are certain directions to improve in the context of this study. In this study, the splitting of data is a subjective decision and lacks objective evidence for support (such as a breakpoint test). Meaningful information might be lost in the splitting of data. In terms of the model structure, this study is only investigating NVIDIA's stock price alone. More related data can be used to reveal the underlying mechanics. That is, fitting a more comprehensive model using an ARMA error. Furthermore, oscillation was happening in NVIDIA's stock price. Frequency domain and spectrum analysis might denoise the data and provide deeper insights.
+
+# Acknowledgements
+
+We drew upon methodologies from Group Project 04 during the Winter 2022 term, which also focused on the stock market. Inspired by this, we adopted a similar approach by dividing our data into two parts and analyzing them separately. We provided a detailed introduction to background knowledge, along with a discussion of the drawbacks and limitations of our analysis. Additionally, we conducted thorough exploratory data analysis, including seasonal and trend decomposition, to frame our research questions. To assess the stationarity of our raw data, we utilized the Augmented Dickey-Fuller (ADF) test. Sensitivity tests were also conducted during the selection of ARMA models. Furthermore, we scrutinized the residuals of the ARMA model and verified their normality to ensure they met the assumptions of the ARMA model."
+
+# Reference
+
+1.  NVIDIA's advancement: <https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2023>
+
+2.  NVIDIA's Stock Price Data Source: <https://finance.yahoo.com/quote/NVDA/history?period1=1642377600&period2=1708128000&interval=1d&filter=history&frequency=1d&includeAdjustedClose=true>
+
+3.  Ionides, E. (2024) Lecture note 3: Stationarity, white noise, and some basic time series models.
+
+4.  Ionides, E. (2024) Lecture note 4: Linear time series models and the algebra of ARMA models.
+
+5.  Ionides, E. (2024) Lecture note 5: Parameter estimation and model identification for ARMA models
+
+6.  Ionides, E. (2024) Lecture note 6: Extending the ARMA model: Seasonality, integration and trend
+
+7.  Ionides, E. (2024) Lecture note 8: Smoothing in the time and frequency domains
+
+8.  Shumway, R.H., and Stoffer, D.S., 2017. Time series analysis and its applications (4th edition). New York: Springer.
+
+9.  <https://en.wikipedia.org/wiki/Taylor_series>
+
+10. <https://courses.lumenlearning.com/introstats1/chapter/model-selection/>
+
+11. <https://en.wikipedia.org/wiki/Augmented_Dickey%E2%80%93Fuller_test>
+
+12. <https://en.wikipedia.org/wiki/Wilks%27_theorem>
+
+13. <https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test>
+
+14. <https://www.investopedia.com/terms/e/efficientmarkethypothesis.asp>
+
+15. <https://ionides.github.io/531w22/midterm_project/project04/blinded.html>

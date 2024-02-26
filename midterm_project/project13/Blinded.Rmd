@@ -1,0 +1,760 @@
+---
+title: "Timeseries Analysis of Political Regimes From 1900 to 2022"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    code_folding: hide
+    theme: united
+    highlight: pygments
+    number_sections: true
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+rm(list = ls())
+
+knitr::opts_chunk$set(message = FALSE, echo = TRUE)
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(vdemdata)
+  library(forecast)
+  library(mFilter)
+  library(xtable)
+})
+
+
+aic_table <- function(data,P,Q){ table <- matrix(NA,(P+1),(Q+1)) 
+for(p in 0:P) {
+  for(q in 0:Q) {
+    table[p+1,q+1] <- arima(data,order=c(p,0,q))$aic
+  }}
+dimnames(table) <- list(paste("AR",0:P, sep=""),
+                        paste("MA",0:Q,sep=""))
+table
+}
+
+```
+
+# Introduction
+
+ - Political regimes are a mean of society to alternate their political leaders. A society has a democratic regime when they can select their leaders through a periodic and contested election with a universal suffrage, while others have an autocratic regime when this method of leaders selection is absent (see Cheibub, et. al 2010 and Boix, et. al 2019). 
+ - The following report examines the distribution of democracies and autocracies from 1900 to 2022 based on the Variety of Democracy (V-Dem) timeseries data (see Coppedge et. al. 2023). 
+ 
+ - This report mainly focuses on the annual change in the number of democracies and autocracies across societies with states. 
+ 
+ - By states, it means, the population of interest exclusively includes a set of societies who live in a political organization with a centralized coercive power that can enforce a law and order in a specific world's territory (see Weber 1918). 
+ 
+ - Because the states splitted, broke, and absorbed by other states across history (see Przeworski 2013), a state entering or exiting the world historical epoch affects the number of population of regimes in a given time.
+ 
+ - This report follows the coding rule called the Regime in the World to classify political regimes in V-Dem data. This coding rule gives four ordinal categories of regimes based on the presence of periodic contested elections and the deliberation of liberal principles in the said society. This measurement is chosen because it can capture the conceptual essence that have been used in the quantitative and qualitative identifications of political regimes (see more in Lührman et. al 2017).
+ 
+ - Following this coding rule, the classification of political regimes in this report are (i) closed autocracies, (ii) electoral autocracies, (iii) electoral democracies, and (iv) liberal democracies. 
+ 
+ - Closed and electoral autocracies are different in the way the latter has an election even it is neither free nor fair while the former does not have this institutional feature at all. Electoral democracies are different from liberal democracies because even though both have a free and fair election, the deliberation of liberal principles, such as protection of minority rights, are not satisfied in electoral democracies as much as in liberal democracies (see more Lührman et. al. 2017).
+
+ - To formally express the quantity of interest in this report, let $X_t$ denotes a population of all political regimes in a given time $t$. $X_t$ is a function of four random variables
+
+$$
+X_t = X_{1t} + X_{2t} + X_{3t} + X_{4t}
+$$
+
+  $X_{1t}, X_{2t}, X_{3t}, X_{4t}$ respectively denote the random variables of closed autocracies, electoral autocracies, electoral democracies, and liberal democracies in a given year $t$. The object of study in this report is the first difference of $X_t$ as defined below.
+
+$$
+Y_n = \Delta X_t  = X_t - X_{t - 1}
+$$
+
+  After taking the first difference of $X_t$, $Y_n$ is a function of the following random variable. 
+
+$$
+Y_n = \Delta X_{1t} + \Delta X_{2t} + \Delta X_{3t} + \Delta X_{4t}
+$$
+ 
+  Defining $\Delta X_{1t}, \dots, \Delta X_{4t}$ respectively as $Y_{1n}, \dots, Y_{4n}$ gives us
+
+$$
+Y_n = Y_{1n} + Y_{2n} + Y_{3n} + Y_{4n}
+$$
+
+  $Y_n$ is not constant, because a new state can enter or exit the world state system, drawn from the realization of $Y_{1n} \dots Y_{4n}$ in a given year $n$. 
+
+With all these being said, the research questions are the following:
+ 
+  (i) Given the realization of $Y_n = y_n$ in the dataset, what time-series model is most favorable?
+  
+  (ii) Is there any evidence of cross-correlation between regime change given the realization of $Y_{1n} \dots Y_{4n}$ in data? If so, which regimes have a higher correlation with what other regimes?
+  
+  (iii) When a society enters the world history with a creation of new state, what kinds of political regimes they are more likely to be? When the existing sovereign states vanished, what political regimes they are more likely to be?
+
+# Exploratory Data Analysis
+
+```{r load data, echo = FALSE}
+# Loading the data -----------------------
+regime.class.counts <- read.csv("data.csv")[,2:6]
+
+# Filter the year
+regime.counts.1900 <- regime.class.counts %>%
+  filter(year >= 1900)
+
+# Counting the total
+regime.counts.1900.total <- regime.counts.1900 %>%
+  group_by(year) %>%
+  mutate(total_regime = closed_auto + elect_auto + elect_demo + lib_demo)
+
+# Create a time series data from
+regime.counts.ts <- ts(cbind(regime.counts.1900.total[2:6]), start = min(regime.counts.1900$year), frequency = 1)
+
+# Count the total
+# Take the first difference
+diff.regime.counts.ts <- diff(regime.counts.ts, lag = 1)
+
+#Create a date variable
+date.diff <- time(diff.regime.counts.ts)
+
+#Crate a tibble dataframe for plotting
+tibble.data <- as.data.frame(cbind(date.diff, diff.regime.counts.ts))
+```
+
+```{r plotting, fig.cap=cap_fig1, echo = FALSE}
+# Plotting the timeseries data with ggplot --------------
+ordering_plot <- c("diff.regime.counts.ts.total_regime",
+                   "diff.regime.counts.ts.closed_auto",
+                   "diff.regime.counts.ts.elect_auto",
+                   "diff.regime.counts.ts.elect_demo",
+                   "diff.regime.counts.ts.lib_demo")
+
+label_plot <- c("Total Regimes", "Closed Autocracy",
+                "Electoral Autocracy", "Electoral Democracy",
+                "Liberal Democracy")
+
+# Plotting
+tibble.data %>%
+  pivot_longer(-1) %>%
+  ggplot() +
+  geom_line(aes(x = date.diff, y = value)) +
+  facet_wrap(~factor(name, 
+                     levels = ordering_plot,
+                     labels = label_plot), scales = "free_y") + theme_bw() +
+  xlab("") + ylab("n") 
+
+cap_fig1 = paste(
+  "**Figure 1.** Annual Political Regimes Change"
+)
+```
+
+**Analysis:**
+
+ - The dataset being used in this report has 122 observations and 6 columns, where one of them is ```year``` variable and five of them represent the variable of interest. The data being used in this observation has been pre-processed, where originally it was a panel with 27103 observations and 4108 variables from V-Dem data version 13. 
+ 
+ - The Figure 1 displays an annual difference of each variable of interest. Noticed that ```Total Regimes``` is the sum of all other variables. Substantively, ``Total Regimes`` shows a number of new-born and withering away sovereign states in a given year. A notable ``Total Regimes`` oscillation occurred in the early 1900s, during the interwar period, and an immediate post-war era. A highest spike occurred in the early 1990s where the Soviet Union splitted due to domestic challenges.
+ 
+ - Observing the plots above, there seems to be a little indication of long-term trend in all variables. The autocorrelation plot of each variables in the Appendix I supports this observation. These plots show the null hypothesis of no correlation is rejected at 95% in all lags but lag 1 for ``Closed Autocracy`` and ``Total Regimes``. The null is not rejected in lag 2 for ``Liberal Democracy`` and lag 3 for ``Electoral Democracy``. The autocorrelation plot of ``Electoral Autocracy``, in particular, shows the rejection of null hypothesis at lag 20. 
+ 
+ - This also means, even though there is a little evidence of long-term trend, there is an indication of short-term trend. Hence, for this reason it seems to be reasonable to apply Hodrick-Prescott (HP) filter to detrend the data observations. This filter is a smoothing spline that can detrend a non-linear trend.
+ 
+ - To implement the filter, the function ``hpfilter`` from  ``MFilter`` package is applied to each variables with default parameter $\lambda = 100$, because this is an annual data. The Figure 2 displays the detrended data.
+ 
+```{r, echo = FALSE, fig.cap= cap_fig2}
+#Apply Filter
+diff.closed_auto.hpfilter <- hpfilter(diff.regime.counts.ts[,1], freq = 1,
+         type = "lambda", drift = F)$cycle
+diff.elect_auto.hpfilter <- hpfilter(diff.regime.counts.ts[,2], freq = 1,
+         type = "lambda", drift = F)$cycle
+diff.elect_demo.hpfilter <- hpfilter(diff.regime.counts.ts[,3], freq = 1,
+         type = "lambda", drift = F)$cycle
+diff.lib_dem.hpfilter <- hpfilter(diff.regime.counts.ts[,4], freq = 1,
+         type = "lambda", drift = F)$cycle
+diff.total.hpfilter <- hpfilter(diff.regime.counts.ts[,5], freq = 1,
+         type = "lambda", drift = F)$cycle
+
+#Create dataframe for plotting
+tibble.hpfilter.data <- 
+  as.data.frame(cbind(date.diff, diff.total.hpfilter, diff.closed_auto.hpfilter, 
+                      diff.elect_auto.hpfilter,
+                      diff.elect_demo.hpfilter,
+                      diff.lib_dem.hpfilter
+                      ))
+
+label_plot <- c("Year", "Total Regimes", "Closed Autocracy",
+                "Electoral Autocracy", "Electoral Democracy",
+                "Liberal Democracy")
+
+
+
+colnames(tibble.hpfilter.data) <- label_plot
+ 
+tibble.hpfilter.data %>%
+  pivot_longer(-1) %>%
+  ggplot() +
+  geom_line(aes(x = Year, y = value)) + facet_wrap(~factor(name, 
+                     levels = label_plot,
+                     labels = label_plot), scales = "free_y") + theme_bw()
+
+
+cap_fig2 = paste(
+  "**Figure 1.** Detrended Annual Political Regimes Change"
+)
+```
+
+# Frequency Domain Analysis
+
+```{r, echo = FALSE, fig.cap= cap_fig3}
+#Construct a timeseries plot
+hpfilter.ts.regimes <- ts.union(diff.total.hpfilter, diff.closed_auto.hpfilter, diff.elect_auto.hpfilter, diff.elect_demo.hpfilter, 
+         diff.lib_dem.hpfilter)
+
+column_names <- c("Total Regimes", "Closed Autocracy",
+                "Electoral Autocracy", "Electoral Democracy",
+                "Liberal Democracy")
+colnames(hpfilter.ts.regimes) <- column_names
+
+#Compute the spectrum
+total_regime_spec <- spectrum(hpfilter.ts.regimes[,1], spans = c(3, 5, 3), plot = F) 
+closed_auto_spec <- spectrum(hpfilter.ts.regimes[,2], spans = c(3, 5, 3), plot = F) 
+elect_auto_spec <- spectrum(hpfilter.ts.regimes[,3], spans = c(3, 5, 3), plot = F) 
+elect_demo_spec <- spectrum(hpfilter.ts.regimes[,4], spans = c(3, 5, 3), plot = F) 
+lib_demo_spec <- spectrum(hpfilter.ts.regimes[,5], spans = c(3, 5, 3), plot = F) 
+
+# Plot the spectrum
+par(mfrow = c(2, 3))
+plot(total_regime_spec, main = "Total Regimes", sub = "")
+abline(v = total_regime_spec$freq[which.max(total_regime_spec$spec)], lty = 3)
+
+plot(closed_auto_spec, main = "Closed Autocracy", sub = "")
+abline(v = closed_auto_spec$freq[which.max(closed_auto_spec$spec)], lty = 3)
+
+plot(elect_auto_spec, main = "Electoral Autocracy", sub = "")
+abline(v = elect_auto_spec$freq[which.max(elect_auto_spec$spec)], lty = 3)
+
+plot(elect_demo_spec, main = "Electoral Democracy", sub = "")
+abline(v = elect_demo_spec$freq[which.max(elect_demo_spec$spec)], lty = 3)
+
+plot(lib_demo_spec, main = "Liberal Democracy", sub = "")
+abline(v = lib_demo_spec$freq[which.max(lib_demo_spec$spec)], lty = 3)
+
+cap_fig3 = paste(
+  "**Figure 3.** The Spectral Density of Detrended Annual Political Regimes Change"
+)
+```
+**Analysis**:
+
+ - The part of this report describes the analysis of the detrended annual regime change in the frequency domain.
+ 
+ - The Figure 3 shows the smoothed periodogram of detrended data with  ``spans = c(3, 5, 3)`` through ``spectrum`` function for each variable. 
+ 
+ - It is noticeable that only the periodograms of detrended ``Total Regimes`` and ``Electoral Democracy`` demonstrate an indication of cyclical behavior, because the null hypothesis of no difference, represented in the vertical blue lines, between global maximum, adjascent region, and local minimum is rejected. The periodogram in other variables do not display this behavior. 
+ 
+ -  The frequency with the highest spectrum in the detrended variables ``Total Regimes`` and ``Electoral Democracy`` respectively are $0.48$ and $0.496$. Because the period is defined as $\frac{1}{\text{frequency}}$, it means the periodogram shows an evidence of cyclical behavior of about *two years* in both ``Total Regimes`` and ``Electoral Democracy``.
+ 
+ - Because ``Total Regimes`` describes the number of sovereign states in the data, this means there has been a period of rise and decline of states within two years period, after removing short-term trends through HP filter. The same pattern can be found in ``Electoral Democracy``, where every two years the world has seen states switching regime from and to electoral democracy. Because the variation of regimes are classified in the ordinal scale, this cyclical behavior can also mean a state with ``Electoral Autocracy`` has implemented a free and fair election, so they switch to ``Electoral Democracy`` in the regime classification. But it can also mean, a state with a liberal democracy has experienced an eroding liberal values, making their position as ``Liberal Democracy`` declines as a mere ``Electoral Democracy``. It is also possible, a new state emerges and they adopted an ``Electoral Democracy`` or ``Closed Autocracy`` implemented a free and fair election reform all of a sudden. The individual spectrum periodogram alone cannot tell which one of these possibilities are more likely.
+ 
+ - To observe the interaction between variables in the frequency domain, a cross-spectrum and coherency periodogram has to be computed. Figure 4 below displays the coherency plot of the pair-wise interaction of observations in the detrended data. The coherency plot is chosen, as opposed to the cross-spectrum periodogram, because it eases the interpretation of correlation. 
+ 
+ - The cross-spectrum coherence normalizes the cross-spectrum between detrended variables with the squared of product of each individual spectrum. This makes the interpretation of the behavior between variables in the frequency domain can be accessible immediately.
+ 
+ 
+```{r coherency plot, echo = FALSE, fig.cap= cap_fig4}
+cross.spectrum <- spectrum(hpfilter.ts.regimes, spans = c(3, 5, 3), plot = F)
+
+plot(cross.spectrum, plot.type = 'coherency', main = "Pairwise Coherency Plots")
+
+cap_fig4 = paste(
+  "**Figure 4.** The Pair-Wise Squared Coherency Plot"
+)
+```
+  
+  - The coherency plot in Figure 4  shows the amplitude of detrended  ``Closed Autocracy`` and ``Electoral Autocracy`` is associated highly from the frequency 0 to 0.4. Because these two variables are adjacent with each other in the ordinal category, this  association may indicate a regime switching from ``Closed Autocracy`` to ``Electoral Autocracy`` or other way around within above $\frac{1}{0.4} = 2.5$ years cycle.
+  
+  - This plot also shows a highly similar amplitude between the frequency 0.2 and 0.3 of ``Total Regimes`` and ``Electoral Democracy``. This may indicate that a new state entering history is more likely to adopt ``Electoral Democracy`` or the other ways around: a state with ``Electoral Democracy`` is more likely to vanish within $\frac{1}{0.2} = 5$ years and $\frac{1}{0.3} = 3.3$ years cycle.
+  
+  -  The pair-wise coherency plots in other variables have the lower bands of confidence interval closed to zero, so it is not safe to infer their correlation.
+  
+  -  In order to support a further analysis on the behavior of the pairwise correlation between spectrum``Closed Autocracy`` and ``Electoral Autocracy`` and the spectrum``Electoral Democracy`` and ``Total Regimes``, Figure 5 displays the phase cross-spectrum plots of these variables. These variables are chosen because the cross-spectrum plots above shows that these have a clear correlation. 
+  
+  - The phase plot below shows that there seems to be a lag relationship between ``Closed Autocracy``  and ``Electoral Autocracy``. In particular, this occurred in the frequency from 0.1 to 0.2 or about 10 to 20 years cycle and from 0.3 to 0.35 or about 2.85 to 3 years cycle of switching between these two regimes. The phase plot also does not indicate that these two regimes switch in a long-run perfect synchronization over the same period of a cycle.
+  
+  - With regard to the relationship of ``Total Regimes`` and ``Electoral Democracy``, the confidence interval within the frequency 0.25 and 0.33 are most informative. Because based on the spectrum density, these two variables show a cyclical behavior, this observation implies that there is a positive lag difference between the cycle in ``Electoral Democracy`` and ``Total Regimes``. This means, the previous change in the number of annual regime gives an information about a change in the number of electoral democracy. 
+  
+ - There is an indication of long-run syncronization between ``Electoral Democracy`` and ``Total Regime`` In particular, in the frequency 0.15 and 0.4, the confidence interval bands touch the point zero in the phase plot, indicating the cyclical trends match well within 2.5 and 6.6 years cycle.
+  
+```{r, echo = FALSE, fig.cap= cap_fig5}
+closed.electoral.auto <- spectrum(hpfilter.ts.regimes[,c(2, 3)], spans = c(3, 5, 3), plot = F)
+totalreg.electdem <- spectrum(hpfilter.ts.regimes[,c(1, 4)], spans = c(3, 5, 3), plot = F)
+
+par(mfrow = c(1, 2))
+plot(closed.electoral.auto, plot.type = "phase", main = "Closed and Electoral Autocracy")
+abline(h = 0, col = "red", lty = 3)
+
+plot(totalreg.electdem, plot.type = "phase", main = "Total Regimes and Electoral Democracy")
+abline(h = 0, col = "red", lty = 3)
+
+cap_fig5 = paste(
+  "**Figure 5.** The Phase Plot of Selected Variables"
+)
+```
+
+# Model Selection
+
+```{r AIC table, echo = FALSE, include = FALSE}
+#Check the model separately
+# Crate AIC table
+
+# Total Regimes
+aic_table(diff.total.hpfilter, 5, 5) # ar 2, ma 3
+
+aic_table(diff.closed_auto.hpfilter, 5, 5) # ar 2, ma 4
+
+aic_table(diff.elect_auto.hpfilter, 5, 5) # ar 3, ma 5
+
+aic_table(diff.elect_demo.hpfilter, 5, 5) # ar 3, ma 4
+
+aic_table(diff.lib_dem.hpfilter, 5, 5) # ar 4, ma 4
+```
+
+ - The following section is focused on selecting the ARIMA model for each variables under investigation.
+ 
+ - The realization of these variables in the dataset shows an indication of a short-term trend before HP filter is applied. Applying HP filter should reduce the short-term trend in each variables, so it extract its cyclical pattern. The ARIMA model fitted below will use this detrended data.
+ 
+ - The null model selected is that each of these random process follows a Gaussian white noise model, as defined below. Let $i = \{0, 1, 2, 3, 4\}$, the null ARIMA model for ordinal regime categories is below.
+
+ $$
+ Y_{in} = \mu_i + \epsilon_{in}
+ $$
+
+  where $\mu_i$ is the intercept for variable $Y_{in}$ and $\epsilon_in \sim (0, \sigma^2)$.
+
+ - The alternative model is selected from the model with the lowest Akaike Information Criterion (AIC) beside the null model. This is computed using Ionedes' ``aic_table`` function (see Ionedes 2024). This function generates a table of AIC model given the chosen AR and MA models order in the input. Due to the limitation of space, this table is not shown in this report, but the readers interested can run and display it in the source code.
+ 
+ - To define the area of rejection of hypothesis, the log-likelihood ratio between alternative and null models will be compared with the null distribution under chi-squared with $p - q$ degree of freedom, where $p$ is the number of coefficients in the alternative model and $q$ is the number of coefficients in the null model.
+ 
+  - To prevent the inflation of Type I error in a multiple hypothesis test, the Bonferroni correction is applied to define the adjusted p-value.
+ 
+ - Let $\alpha$ is the desired rejection area and $n$ is the number of test the Bonferroni correction is defined as 
+ 
+ $$
+ \text{adjusted critical value}  =\frac{\alpha}{n}
+ $$
+ 
+ - At $95\%$, the adjusted critical value in this hypothesis testing is $0.0125$ 
+ 
+ - The alternative model, the ratio log-likelihood value of alternative and the null models (``Diff. Log-like``), and whether the null hypothesis is rejected (``Null Hypothesis``) is represented in the table below. 
+ 
+ - The result shows that the null hypothesis is rejected with $95\%$ confidence in for selected model in each variable.  
+ 
+ 
+```{r hypothesis table, echo = FALSE}
+# fit the alternative model ------
+diff.total.hpfilter.ar2.ma3 <- arima(diff.total.hpfilter, order = c(2, 0, 3))
+diff.closed_auto.hpfilter.ar2.ma4 <- arima(diff.closed_auto.hpfilter, order = c(2, 0, 4))
+diff.elect_auto.hpfilter.ar3.ma5 <- arima(diff.elect_auto.hpfilter, order = c(3, 0, 5))
+diff.elect_demo.hpfilter.ar3.ma4 <- arima(diff.elect_demo.hpfilter, order = c(3, 0, 4))
+diff.lib_dem.hpfilter.ar4.ma4 <- arima(diff.lib_dem.hpfilter, order = c(4, 0, 4))
+
+# fit the null model --------
+diff.total.hpfilter.null <- arima(diff.total.hpfilter, order = c(0, 0, 0))
+diff.closed_auto.hpfilter.null <- arima(diff.closed_auto.hpfilter, order = c(0, 0, 0))
+diff.elect_auto.hpfilter.null <- arima(diff.elect_auto.hpfilter, order = c(0, 0, 0))
+diff.elect_demo.hpfilter.null <- arima(diff.elect_demo.hpfilter, order = c(0, 0, 0))
+diff.lib_dem.hpfilter.null <- arima(diff.lib_dem.hpfilter, order = c(0, 0, 0))
+
+# Diff loglike ---------
+log.totalreg <- as.numeric(
+  logLik(diff.total.hpfilter.ar2.ma3) - logLik(diff.total.hpfilter.null)
+)
+
+log.closedauto <- as.numeric(
+  logLik(diff.closed_auto.hpfilter.ar2.ma4) - logLik(diff.closed_auto.hpfilter.null)
+)
+
+log.electauto <- as.numeric(
+  logLik(diff.elect_auto.hpfilter.ar3.ma5) - logLik(diff.elect_auto.hpfilter.null)
+)
+
+log.electdemo <- as.numeric(
+  logLik(diff.elect_demo.hpfilter.ar3.ma4) - logLik(diff.elect_demo.hpfilter.null)
+)
+
+log.libdemo <- as.numeric(
+  logLik(diff.lib_dem.hpfilter.ar4.ma4) - logLik(diff.lib_dem.hpfilter.null)
+)
+
+# p value ------
+p.totalreg <- 1 - pchisq(log.totalreg, df = 5)
+p.closedauto <- 1 - pchisq(log.closedauto * 2, df = 6)
+p.electauto <- 1 - pchisq(log.electauto * 2, df = 8)
+p.electdemo <- 1 - pchisq(log.electdemo * 2, df = 7)
+p.libdemo <- 1 - pchisq(log.libdemo * 2, df = 8)
+
+
+#Create a table -----------
+
+variable_names <- c("Total Regime", "Closed Autocracy", 
+             "Electoral Autocracy", "Electoral Democracy",
+             "Liberal Democracy")
+
+column_names <- c("Variables",  
+                  "Diff. Log-lik", 
+                  "Alternative Model", "Null Hypothesis")
+
+logdiff <- c(log.totalreg, log.closedauto, log.electauto, log.electdemo, log.libdemo)
+logdiff <- round(logdiff, 3)
+
+alt.model <- c("AR(2), MA(3)", "AR(2), MA(4)", "AR(3), MA(5)", "AR(3), MA(4)", "AR(4), MA(4)")
+
+null.dec <- c(rep("Rejected", 5))
+
+table.model <- matrix(c(variable_names, logdiff, alt.model, null.dec), ncol = 4, byrow = FALSE)
+
+table.model.df <- as.data.frame(table.model) 
+colnames(table.model.df) <- column_names
+
+knitr::kable(table.model.df)
+```
+ 
+## Diagnosis
+
+ - The following section analyzes the structure of the model and examines the consistency of its assumptions.
+ 
+ - The first issue to address is to determine if the model is causal and invertible. Determining the causality and invertibility can be done by computing the polynomial roots of respectively AR and MA coefficients. The table below displays the absolute value of polynomial roots of AR and MA coefficients of model for each variables. This table shows that the selected model for each variable is causal and invertible. 
+ 
+ - However, the first MA coefficient in ``Liberal Democracy`` is in the boundary of invertibelity. Computed separatedly, fitting different ARIMA models with adjacent minimum AIC values does not solve this issue and even makes more roots of MA coefficients selected fall within the boundary of unit circle. If the chosen model for ``Liberal Democracy`` is not invertible but causal, this means there are some features from the data-generating process that is not fully captured, even though forecasting is still acceptable from this model.
+
+```{r causality and invertibility, echo = FALSE}
+# Extract the coefficients from the model
+ar.totalreg.mod <- coef(diff.total.hpfilter.ar2.ma3)[grep("ar", names(coef(diff.total.hpfilter.ar2.ma3)))]
+ma.totalreg.mod <- coef(diff.total.hpfilter.ar2.ma3)[grep("ma", names(coef(diff.total.hpfilter.ar2.ma3)))]
+
+ar.closedauto.mod <- coef(diff.closed_auto.hpfilter.ar2.ma4)[grep("ar", names(coef(diff.closed_auto.hpfilter.ar2.ma4)))]
+ma.closedauto.mod <- coef(diff.closed_auto.hpfilter.ar2.ma4)[grep("ma", names(coef(diff.closed_auto.hpfilter.ar2.ma4)))]
+
+ar.electauto.mod <- coef(diff.elect_auto.hpfilter.ar3.ma5)[grep("ar", names(coef(diff.elect_auto.hpfilter.ar3.ma5)))]
+ma.electauto.mod <- coef(diff.elect_auto.hpfilter.ar3.ma5)[grep("ma", names(coef(diff.elect_auto.hpfilter.ar3.ma5)))]
+
+ar.electdemo.mod <- coef(diff.elect_demo.hpfilter.ar3.ma4)[grep("ar", names(coef(diff.elect_demo.hpfilter.ar3.ma4)))]
+ma.electdemo.mod <- coef(diff.elect_demo.hpfilter.ar3.ma4)[grep("ma", names(coef(diff.elect_demo.hpfilter.ar3.ma4)))]
+
+ar.libdem.mod <- coef(diff.lib_dem.hpfilter.ar4.ma4)[grep("ar", names(coef(diff.lib_dem.hpfilter.ar4.ma4)))]
+ma.libdem.mod <- coef(diff.lib_dem.hpfilter.ar4.ma4)[grep("ma", names(coef(diff.lib_dem.hpfilter.ar4.ma4)))]
+
+# create the function
+ar.poly <- function(coef){
+  abs(polyroot(c(1, -coef)))
+}
+
+ma.poly <- function(coef){
+  abs(polyroot(c(1, coef)))
+}
+
+# Compute the polyroots
+polyar.totalre <- ar.poly(ar.totalreg.mod)
+polyma.totalre <- ma.poly(ma.totalreg.mod)
+
+polyar.totalre <- paste(as.character(round(polyar.totalre, 3)), collapse = " ")
+polyma.totalre <- paste(as.character(round(polyma.totalre, 3)), collapse = " ")
+
+
+polyar.closed <- ar.poly(ar.closedauto.mod)
+polyma.closed <- ma.poly(ma.closedauto.mod)
+
+polyar.closed <- paste(as.character(round(polyar.closed, 3)), collapse = " ")
+polyma.closed <- paste(as.character(round(polyma.closed, 3)), collapse = " ")
+
+polyar.electauto <- ar.poly(ar.electauto.mod)
+polyma.electauto <- ma.poly(ma.electauto.mod)
+
+polyar.electauto <- paste(as.character(round(polyar.electauto, 3)), collapse = " ")
+polyma.electauto <- paste(as.character(round(polyma.electauto, 3)), collapse = " ")
+
+polyar.electdemo <- ar.poly(ar.electdemo.mod)
+polyma.electdemo <- ma.poly(ma.electdemo.mod)
+
+polyar.electdemo <- paste(as.character(round(polyar.electdemo, 3)), collapse = " ")
+polyma.electdemo <- paste(as.character(round(polyma.electdemo, 3)), collapse = " ")
+
+polyar.libdem <- ar.poly(ar.libdem.mod)
+polyma.libdem <- ma.poly(ma.libdem.mod)
+
+polyar.libdem <- paste(as.character(round(polyar.libdem, 3)), collapse = " ")
+polyma.libdem <- paste(as.character(round(polyma.libdem, 3)), collapse = " ")
+
+
+ar.coefs <- c(polyar.totalre, polyar.closed, polyar.electauto, polyar.electdemo, polyar.libdem)
+ma.coefs <- c(polyma.totalre, polyma.closed, polyma.electauto, polyma.electdemo, polyma.libdem)
+
+
+matrix.model.poly <- matrix(c(variable_names, alt.model  ,c(ar.coefs), c(ma.coefs)), ncol = 4, byrow = FALSE)
+poly.df <- as.data.frame(matrix.model.poly) 
+colnames(poly.df) <- c("Variables", "Model", "|Roots AR|", "|Roots MA|")
+
+knitr::kable(poly.df)
+```
+
+ - The next step of the model diagnosis is to check if there is an indication of heteroscedasticity, serial correlation, and non-normality of the residual. 
+ 
+ - To check heteroscedasticity issue, the plots of fitted values against residuals of the model is displayed in the Figure 6.
+ 
+ - Looking at the plots, there is no indication of heteroscedasticity in the data. However, there seems to be an evidence of outlier in the ``Total Regimes`` and ``Electoral Democracy``. After subsetting the observations with the highest residuals in these both variables, it appears the  outliers come from the observation with the year index 1989 and 1991 repectively in ``Total Regimes`` and ``Electoral Democracy`` variables.
+ 
+ - Recalling the Figure 1 from the previous section, these years refer to the period of the split in the communist states, namely Soviet Union, and the integration of East and West German. 
+
+```{r checking heteroscadisticty, echo = FALSE, fig.cap= cap_fig6}
+#Compute the fitted values
+fit.totalreg <- diff.total.hpfilter - residuals(diff.total.hpfilter.ar2.ma3)
+fit.closedauto <- diff.closed_auto.hpfilter - residuals(diff.closed_auto.hpfilter.ar2.ma4)
+fit.electauto <- diff.elect_auto.hpfilter - residuals(diff.elect_auto.hpfilter.ar3.ma5)
+fit.electdemo<- diff.elect_demo.hpfilter - residuals(diff.elect_demo.hpfilter.ar3.ma4)
+fit.libdem <- diff.lib_dem.hpfilter - residuals(diff.lib_dem.hpfilter.ar4.ma4)
+
+#Plot
+par(mfrow = c(3, 2))
+plot(as.vector(fit.totalreg), as.vector(residuals(diff.total.hpfilter.ar2.ma3)),
+     xlab = "Fitted Values", ylab = "Residuals", main = "Total Regimes")
+abline(h = 0, col = "red", lty = 3)
+
+plot(as.vector(fit.closedauto), as.vector(residuals(diff.closed_auto.hpfilter.ar2.ma4)),
+     xlab = "Fitted Values", ylab = "Residuals", main = "Closed Autocracy")
+abline(h = 0, col = "red", lty = 3)
+
+plot(as.vector(fit.electauto), as.vector(residuals(diff.elect_auto.hpfilter.ar3.ma5)),
+     xlab = "Fitted Values", ylab = "Residuals", main = "Electoral Autocracy")
+abline(h = 0, col = "red", lty = 3)
+
+plot(as.vector(fit.electdemo), as.vector(residuals(diff.elect_demo.hpfilter.ar3.ma4)),
+     xlab = "Fitted Values", ylab = "Residuals", main = "Electoral Democracy")
+abline(h = 0, col = "red", lty = 3)
+
+plot(as.vector(fit.libdem), as.vector(residuals(diff.lib_dem.hpfilter.ar4.ma4)),
+     xlab = "Fitted Values", ylab = "Residuals", main = "Liberal Democracy" )
+abline(h = 0, col = "red", lty = 3)
+
+
+cap_fig6 = paste(
+  "**Figure 6.** The Plot Residuals and Fitted Values"
+)
+
+```
+ 
+ - Additional model diagnosis is to examine the distribution of residuals in the model. In doing so, the QQ Plot of the observed quantile residuals against the theoretical quantile of normal distribution is displayed in Figure 7 below.
+ 
+ - These plots show that the residuals are normal in the model fitted in each variables.
+
+```{r qqplot, echo = FALSE, fig.cap = cap_fig7 }
+par(mfrow = c(3, 2))
+qqnorm(residuals(diff.total.hpfilter.ar2.ma3), main = "Total Regimes")
+qqline(residuals(diff.total.hpfilter.ar2.ma3))
+
+qqnorm(residuals(diff.closed_auto.hpfilter.ar2.ma4), main = "Closed Autocracy")
+qqline(residuals(diff.closed_auto.hpfilter.ar2.ma4))
+
+qqnorm(residuals(diff.elect_auto.hpfilter.ar3.ma5), main = "Electoral Autocracy")
+qqline(residuals(diff.elect_auto.hpfilter.ar3.ma5))
+
+qqnorm(residuals(diff.elect_demo.hpfilter.ar3.ma4), main = "Electoral Democracy")
+qqline(residuals(diff.elect_demo.hpfilter.ar3.ma4))
+
+qqnorm(residuals(diff.lib_dem.hpfilter.ar4.ma4), main = "Liberal Democracy")
+qqline(residuals(diff.lib_dem.hpfilter.ar4.ma4))
+
+cap_fig7 = paste(
+  "**Figure 7.** The QQ Normal Plot of the Model"
+)
+```
+ - The next issue with the model selection is to examine if there are evidences of serial correlation of residual. This can be done by observing the autocorrelation plots of residuals value in the selected model in each variables, which is displayed in Figure 8.
+ 
+ - The autocorrelation plots in Figure 8 shows there is no indication of serial correlation of residuals in the model fitted in each variables.
+ 
+ - Based on this observation, it seems safe to conclude that the residuals of each of these model are independent and follows the Gaussian normal distribution.
+ 
+```{r serial correlation, echo = FALSE, fig.cap = cap_fig8}
+par(mfrow = c(3, 2))
+acf(residuals(diff.total.hpfilter.ar2.ma3), main = "Total Regimes", lag.max = 100)
+
+acf(residuals(diff.closed_auto.hpfilter.ar2.ma4), main = "Closed Autocracy", lag.max = 100)
+
+acf(residuals(diff.elect_auto.hpfilter.ar3.ma5), main = "Electoral Autocracy", lag.max = 100)
+
+acf(residuals(diff.elect_demo.hpfilter.ar3.ma4), main = "Electoral Democracy", lag.max = 100)
+
+
+acf(residuals(diff.lib_dem.hpfilter.ar4.ma4), main = "Liberal Democracy", lag.max = 100)
+
+
+cap_fig8 = paste(
+  "**Figure 8.** The Autocorrelation Plot of the Model's Residuals"
+)
+
+```
+
+# Model with Trend
+
+ - The following section investigates the last research question mentioned in the earlier part of this report: if there is a new sovereign state or the existing sovereign state vanishes, what political regimes they are more likely to be?
+ 
+ - Answering this question involves fitting each selected ARIMA model above with ``Total Regimes`` as an independent variable.
+ 
+ - The null hypothesis is that there is no relation between the annual change in the total number of regimes, i. e. total number of states, and the annual change of each regime.
+ 
+ - The critical value at $95\%$ is defined by Bonferroni correction, which is $0.0125$.
+ 
+ - Below table shows the result of this hypothesis testing procedure. The second column describes what ARIMA model being used when fitting the model with ``Total Regimes`` as the independent variable in each variable. The third column describes the difference of log-likelihood value between the alternative and null models.
+ 
+ - This procedure shows the null hypothesis is rejected in the model fitted on ``Electoral Democracy`` variable. This implies, there is an evidence of association in the annual change in the number of ``Electoral Democracy`` and the total number of states in the world, as represented in the variable ``Total Regimes``. 
+ 
+ 
+```{r model with trend, echo = FALSE}
+# Fit the model
+diff.closed_auto.hpfilter.ar2.ma4 <- arima(diff.closed_auto.hpfilter, order = c(2, 0, 4))
+diff.closed_auto.hpfilter.ar2.ma4.total <- arima(diff.closed_auto.hpfilter, order = c(2, 0, 4), xreg = diff.total.hpfilter)
+
+diff.elect_auto.hpfilter.ar3.ma5 <- arima(diff.elect_auto.hpfilter, order = c(3, 0, 5))
+diff.elect_auto.hpfilter.ar3.ma5.total <- arima(diff.elect_auto.hpfilter, order = c(3, 0, 5), xreg = diff.total.hpfilter)
+
+diff.elect_demo.hpfilter.ar3.ma4 <- arima(diff.elect_demo.hpfilter, order = c(3, 0, 4))
+diff.elect_demo.hpfilter.ar3.ma4.total <- arima(diff.elect_demo.hpfilter, order = c(3, 0, 4), xreg = diff.total.hpfilter)
+
+diff.lib_dem.hpfilter.ar4.ma4 <- arima(diff.lib_dem.hpfilter, order = c(4, 0, 4))
+diff.lib_dem.hpfilter.ar4.ma4.total <- arima(diff.lib_dem.hpfilter, order = c(4, 0, 4), xreg = diff.total.hpfilter)
+
+
+# Compute the ratio likelihood
+logdiff.closed.total <- as.numeric(
+  logLik(diff.closed_auto.hpfilter.ar2.ma4.total) - logLik(diff.closed_auto.hpfilter.ar2.ma4)
+)
+
+logdiff.electauto.total <- as.numeric(
+  logLik(diff.elect_auto.hpfilter.ar3.ma5.total) - logLik(diff.elect_auto.hpfilter.ar3.ma5)
+)
+
+logdiff.electdem.total <- as.numeric(
+  logLik(diff.elect_demo.hpfilter.ar3.ma4.total) - logLik(diff.elect_demo.hpfilter.ar3.ma4)
+)
+
+logdiff.libdem.total <- as.numeric(
+  logLik(diff.lib_dem.hpfilter.ar4.ma4.total) - logLik(diff.lib_dem.hpfilter.ar4.ma4)
+)
+
+# Compute p Value
+p.value.closed.total <- 1 - pchisq(logdiff.closed.total * 2, df = 1)
+p.value.electauto.total <- 1 - pchisq(logdiff.electauto.total * 2, df = 1)
+p.value.electdem.total <- 1 - pchisq(logdiff.electdem.total * 2, df = 1)
+p.value.libdem.total <- 1 - pchisq(logdiff.libdem.total * 2, df = 1)
+
+# Generate table
+null.decision.total <- c("Not Rejected", "Not Rejected", "Rejected", "Not Rejected")
+variables.total.model <- c("Closed Autocracy", "Electoral Autocracy", "Electoral Democracy", "Liberal Democracy")
+arima.model <- c("AR(2), MA(4)", "AR(3), MA(5)", "AR(3), MA(4)", "AR(4), MA(4)")
+loglike.total <- c(logdiff.closed.total, logdiff.electauto.total, logdiff.electdem.total, logdiff.libdem.total)
+
+matrix.model.total <- matrix(c(variables.total.model, arima.model, round(loglike.total, 2), null.decision.total), ncol = 4, byrow = FALSE)
+model.total.df <- as.data.frame(matrix.model.total) 
+ 
+colnames(matrix.model.total) <- c("Regime", "ARIMA Model", "Diff. Log-lik", "Null Hypothesis")
+
+knitr::kable(matrix.model.total)
+```
+
+ - The output of the $\texttt{R}$ code below displays the AR(3), MA(4) model of ``Electoral Democracy`` variable with ``Total Regime`` as the independent variable. The coefficient of ``Total Regime`` in this model is called as ``diff.total.hpfilter``.
+ 
+ - The positive value of this coefficient indicates a positive association of ``Total Regime`` and ``Electoral Democracy``. Substantively, this means, the number of sovereign states in the world positively increases with the number of electoral democracies. In other words, upon entering the world state system, a society is more likely to adopt electoral democracy as a mean to alternate their political leaders.
+ 
+ - This also means, a decreasing in the annual change of total regime is positively associated with a decreasing number of annual electoral democracies. Substantively, this implies, a vanishing sovereign state is more likely to be an electoral democracy.
+ 
+ - This association, however, does not imply the **causality** of one variable to another.
+ 
+```{r, echo = FALSE}
+diff.elect_demo.hpfilter.ar3.ma4.total
+```
+## Diagnosis
+
+ - The following section examines the structure of the model above. The question of interest is whether the residuals follows an independent Gaussian normal distribution.
+ 
+ - Two plots in Figure 9 below provide an immediate answer for this question. The left plot is the QQ Plot of residuals against theoretical normal distribution and the right plot is the autocorrelation plot of residuals.
+ 
+ - These plots show that the residuals of the model follow a Gaussian normal distribution with a little indication of dependency. 
+ 
+ - With regard to time-dependency of residuals, there seems to be a negative correlation at lag 18 in the model based on the ACF value where the null hypothesis of no correlation is rejected at $95\%$.
+ 
+ - As shown previously, there seems to be a multiple shock in the number of sovereign states in one hundred years of global political history. In particular, this occurred during the interwar era, a short period after the postwar, and during the splits of Soviet Union. Even though the original data has been detrended through HP filter, these events seem to have an influence in this model.
+ 
+ - In the future, it might be appropriate to examine the implication of long-tail distribution in the political regime change and historical creation of states to develop a better understanding of their interaction with regime types. That is to say, the serial correlation in the residual model indicates that the regime changes possibly comes from a systematic issue.
+ 
+```{r residual plot with trend, echo = FALSE, fig.cap = cap_fig9}
+#Check the Fitted Values
+fitted.hetero.check.total.electoral <- diff.elect_demo.hpfilter - residuals(diff.elect_demo.hpfilter.ar3.ma4.total)
+
+# Plot the model
+par(mfrow = c(1, 2))
+qqnorm(residuals(diff.elect_demo.hpfilter.ar3.ma4.total))
+qqline(residuals(diff.elect_demo.hpfilter.ar3.ma4.total))
+
+acf(residuals(diff.elect_demo.hpfilter.ar3.ma4.total), lag.max = 100, main = "ACF of Residuals")
+
+cap_fig9 = paste(
+  "**Figure 9.** The Autocorrelation Plot of the Model's Residuals"
+)
+```
+
+# Conclusion
+
+ - This report has demonstrated the time-series analysis of political regimes change since 1900.
+ 
+ - As mentioned in the the exploratory data analysis section, there seems to be a short-term trend in the annual regime change. To extract the cyclical behavior of historical developments of the regime, Hodrick-Prescott (HP) filter is applied in the dataset.
+ 
+ - Analysis presented in this report has answered the three research questions that were mentioned earlier. 
+ 
+ - The first question is, given the realization of $Y_n = y_n$ in the dataset, what time-series model is most favorable? The answer to this question is presented in the following table. To recall, each of these models are fitted to the detrended data.
+ 
+```{r summary of answer 1, echo = FALSE}
+answer_1 <- matrix(c(variable_names, alt.model), ncol = 2, byrow = FALSE)
+answer_1 <- as.data.frame(answer_1) 
+colnames(answer_1) <- c("Variables", "Model")
+
+knitr::kable(answer_1)
+```
+ 
+ - All models are causal and invertible with independent residual follows a Gaussian normal distribution with a special note that one MA coefficient in the model for ``Liberal Democracy`` is in the boundary of invertibility. To state the model formally, all the models can be represented in the following expression. Let $i \in \{0, 1, \dots, 4\}$
+ 
+ $$
+ \phi(B) Y_{in} = \psi(B) \epsilon_{in}
+ $$
+
+where $\phi(B)$ is $p$ order autocorrelaton coefficients and $\psi(B)$ is $p$ order moving average coefficients of selected model for each variables $Y_{1n}$, where $\epsilon_{in} \sim N(0, \sigma^2)$.
+
+ - The second question is, is there any evidence of cross-correlation between regime change given the realization of $Y_{1n} \dots Y_{4n}$ in data? If so, which regimes have a higher cross-correlation with what other regimes?
+ 
+ - The answer to this question is addressed in the section on the frequency domain analysis. This analysis has shown that there seems to be a highly matching amplitude between ``Closed Autocracy`` and ``Electoral Autocracy``, as shown in the cross-spectrum coherency plot. This behavior does not manifest in other pairwise coherency plots of eac regime. Above $2.5$ years cycle, the behavior of annual change from these regimes seem to be matched.
+ 
+ - Finally, the last question is, when a new sovereign state enters the world history, what kinds of political regimes they are more likely to be? When the existing sovereign state vanished, what are they more likely to be?
+ 
+ - The last section on Model with Trend answers this question. It shows that, of all regimes, only ``Electoral Democracy`` has an association with ``Total Regimes`` at $95\%$ confidence interval with a p-value adjusted with Bonferroni correction. 
+ 
+ - Provided that the coefficient of independent variable, ``Total Regimes``, are positive, this finding implies if there is a society establishes a new state, ``Electoral Democracy`` is more likely to be chosen as the mean of political leader selection. In reverse, if a state vanishes from the global politics, they are more likely to be an ``Electoral Democracy``.
+ 
+ - The last but not least, as dicussed in the previous section, the future research on regime change can be more insightful by analysing the consequence of long-tailed distribution. The outliers seems to be indicative in all models A future research can be useful to understand the data generating process by examining the systematic origins and consequence of annual regime change when residuals are dependence. 
+ 
+
+# References
+
+ - Boix, Carles, et. al "A complete data set of political regimes, 1800–2007." *Comparative political studies* 46, no. 12 (2013): 1523-1554
+ - Cheibub, José Antonio, Jennifer Gandhi, and James Raymond Vreeland. "Democracy and dictatorship revisited." *Public choice* 143 (2010): 67-101
+ - Coppedge, Michael, et. al 2023. "V-Dem  Dataset v13" *Varieties of Democracy (V-Dem) Project.* https://doi.org/10.23696/vdemds23.
+ - Ionedes, Edward. *STATS 531: Lecture Slide 5*. University of Michigan, Ann Arbor: 2024. https://ionides.github.io/531w24/05/slides.pdf
+ - Lührmann, Anna, et. al "Regimes of the world (RoW): Opening new avenues for the comparative study of political regimes." *Politics and Governance* 6, no. 1 (2018): 60-77.
+ - Przeworski, A 2013. *Political Institutions and Political Events (PIPE) Data Set.*   https://sites.google.com/a/nyu.edu/adam-przeworski/home/data
+ - Weber, Max, "Politic as Vocation," in Gerth, H. H. and C. Wright Mills. *From Max Weber: Essay in Sociology*, New York: Oxford University Press, 1946: 77-128
+ 
+
+# Appendix
+## Appendix I: ACF  Plots of Non-Detrended Data
+
+```{r autocorrelation plot, echo = FALSE}
+par(mfrow = c(2, 3))
+
+acf(diff.regime.counts.ts[,5], main = "Total Regimes", sub = "")
+acf(diff.regime.counts.ts[,1], main = "Closed Autocracy", sub = "")
+acf(diff.regime.counts.ts[,2], main = "Electoral Autocracy", sub = "")
+acf(diff.regime.counts.ts[,3], main = "Electoral Democracy", sub = "")
+acf(diff.regime.counts.ts[,4], main = "Liberal Democracy", sub = "")
+```

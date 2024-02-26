@@ -1,0 +1,420 @@
+---
+title: "Analysis of Battery-Powered Electric Vehicles Sales in the United States"
+subtitle: "A STATS 531 24W Midterm Project"
+author: 
+- 'Names Hided for blinded version'
+date: "2024-Feb"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    toc_float:
+      collapsed: True
+      smooth_scroll: True
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+  rmarkdown::html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Introduction
+
+This project aims to analyze the monthly sales of electric vehicles in the United States using time series theories and models.
+
+## Motivation
+
+One major component of the industrial economy here in the United States and around the world is the automotive industry. An exciting development in that industry, one with potential to have a salutary impact on the environment, is the shift toward electric vehicles. Prior to 2012, electric vehicle sales were almost negligible. In the year 2011, a total of 17,763 "plug-in" vehicles - either fully battery powered or plug-in hybrid - were sold in the United States. In 2023, there were 1.5 million such vehicles sold. Such a shift in the fueling of transportation has significant ramifications for our collective energy needs for future decades. Most immediately, it likely augurs a decline in demand for petroleum and an increase in demand for electricity. It's easy to see that there are many entities and industries that would have a significant interest in the trend of electric vehicle sales. The purpose of this project is to analyze the trend and patterns in the sales of battery powered vehicles in the United States. 
+
+## The Data
+
+### Data Description
+
+The data comes from *Argonne National Laboratory * ^[https://www.anl.gov/esia/light-duty-electric-drive-vehicles-monthly-sales-updates] which they compiled from a number of different sources. The dataset contains, for each month and year, the total number of battery-powered vehicles (*BEV*), plug-in hybrid (*PHEV*), hybrid-electric vehicles (*HEV*), and the total number of light-duty vehicles sold (*LDV*). The sales figures are recorded from December of 2010 through January of 2024. The dataset appears to be complete and without any apparent missing value.
+
+### Importing Data
+
+Our analysis focuses on the sales of battery-powered vehicles (*BEV*). The sales record for Jan 2024 seems to be too low. We believe it is possible that the data source has not collect the complete up-to-date records, so we decide to exclude Jan 2024 from our analysis. 
+
+```{r}
+#install.packages(c('zoo', 'knitr'))
+library(zoo)
+
+ev_sales <- read.csv('Electric_Vehicle_Sales_Data.csv')
+ev_sales$Date <- as.Date(as.yearmon(ev_sales$Month, format='%b-%y'))
+bev <- ev_sales[1:157,c(2, 6)]
+plot(bev$Date,bev$BEV, type='l', main = 'Monthly BEV Car Sales', xlab = 'Date', ylab = 'EV Units Sold')
+```
+
+## Exploratory Data Analysis
+
+A graph of sales over time shows a strong and increasingly positive trend in the sales amounts. The increasingly positive slope becomes particularly apparent after 2016. Not unexpectedly, there is a noticeable dip in the early months of 2020, presumably the effects of COVID shutdowns on many different parts of the automotive supply chain. There is no apparent heteroscedasticity that can be seen in the line plot.
+
+```{r}
+plot(bev$Date, log(bev$BEV), type = 'l', main = 'Plot of Car Sales (Log)', xlab='Date',  ylab='Car Sales (Log)')
+```
+
+From the plot of logarithms of the sales over time, we may see an approximately linear trend after 2012.
+
+```{r}
+plot(diff(log(bev$BEV)), type='l', main = 'Log Differences of Car Sales', ylab = 'Differences of Logs')
+```
+
+The linear trend in the log scale plot encourages us to plot the differences. The differences of logs seem stationary, though having irregularities in the first few data points. We may view the first months of sales as a 'burn-in' period as the sales of electric vehicles had just started at the time.
+
+### Autocorrelations
+
+```{r}
+acf(log(bev$BEV), lag.max=50, main='Autocorrelation Function \n Log-Transformed Sales')
+```
+
+From the acf of log of sales, we see significant autocorrelations even at long lags. This suggests that an integrated model may be useful.
+
+```{r}
+acf(diff(log(bev$BEV)), lag.max=50, main='Autocorrelation Function \n Differenced Log-Transformed Sales')
+```
+
+From the acf of differences of log sales, we may see a potential cycle of 3 months, as it appears to have 2 negative autocorrelations followed by 1 positive autocorrelations.
+
+## Model Exploration
+
+### ARIMA model
+
+To explore a large amount of different ARMA models, we generated a table that would create ARMA models with varying values of p and q. We used AIC values first from the various models to help identify good candidates to further analyze. It is worth noting that these models include differencing the data, meaning that we can express them as ARIMA(p,1,q) models. These ARMA(p,q) models will be fit according to equation [M9] on slide 13 in lecture 4 ^[https://ionides.github.io/531w24/04/slides-annotated.pdf]:
+
+$$Z_n = \mu + \phi_1Z_{n-1} + \phi_2Z_{n-2} + \cdot\cdot\cdot +\phi_pY_{n-p}+\epsilon_n +\psi_1\epsilon_{n-1} + \psi_2\epsilon_{n-2} + \cdot\cdot\cdot + \psi_q\epsilon_{n-q} $$
+
+Where $Z_{n} = y_n^* - y_{n-1}^*$, $\mu$ is the mean, ${\epsilon_n}$ is a white noise process, which we assume to follow a normal distribution with mean = 0, and variance = $\sigma^2$ slide 3 in source lecture 4 and slide 11 lecture 6 ^[https://ionides.github.io/531w24/06/slides-annotated.pdf]. The vectors $(\phi_1,...,\phi_p)$ and $(\psi_1,...,\psi_q)$ correspond to the learned auto regressive and moving average coefficients respectively (slides 11-12 in lecture 4). After fitting models with p values up to 6, and q values up to 6, we created the table with Akaike's Information Criteria values according to the formula given on slide 21 in lecture 5 ^[https://ionides.github.io/531w24/05/slides-annotated.pdf]. $$AIC = -2 \times \ell(\theta^*) + 2D $$ where $\ell$ is the log likelihood and D is the number of parameters in the model. Because of the exponential trend in our data, we tried both a raw fit as well as a fit on log transformed data.
+
+
+```{r}
+library(knitr)
+aic_table <- function(data,P,Q){ 
+  table <- matrix(NA,(P+1),(Q+1)) 
+  for(p in 0:P) {
+    for(q in 0:Q) {
+    try(table[p+1,q+1] <- arima(data,order=c(p,1,q), method='ML')$aic)
+    } 
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+aic_table1 <- aic_table(log(bev$BEV),6,6)
+
+kable(aic_table1,digits=2)
+```
+
+We iterated across a number of possible values of $p$ and $q$ to find the best-fitting *ARIMA(p,q)* model. The model with the lowest AIC which we selected for that reason was the ARIMA(6,1,3) which is the ARMA(6, 3) model taking the difference of the data one time, making it an integrated autoregressive moving average model. However, we did notice that the ARIMA(6,1,2) model have an AIC value close to that of the ARIMA(6,1,3) model. Therefore, we decided to perform our Wilk's Likelihood Ratio test between our nested hypotheses. So we defined our hypotheses as:
+
+$$
+\begin{aligned} 
+H^{\langle 0 \rangle} &: ARIMA(6,1,2) \\
+ H^{\langle 1 \rangle} &: ARIMA(6,1,3) 
+\end{aligned}
+$$
+
+
+```{r}
+model_613 <- arima(log(bev$BEV), order=c(6,1,3), method='ML')
+model_612 = arima(log(bev$BEV), order= c(6,1,2), method='ML')
+```
+
+```{r eval=FALSE}
+test_stat <- model_613$loglik - model_612$loglik
+sprintf("test statistics: %s. p-value: %s.", test_stat, 1-pchisq(2*test_stat, 1))
+```
+
+
+By Wilk's theorem, we know that $\ell(\theta)^{\langle1\rangle} - \ell(\theta)^{\langle0\rangle} \approx \chi^2_{D^{\langle1\rangle} - D^{\langle0\rangle}} = \chi^2_1$. Our calculated test statistic was 1.45, giving us a p-value of 0.09, which is not significant at the 5% level. Therefore our best found model would be an ARIMA(6,1,2). 
+
+### Spectral Density and Seasonal ARIMA
+
+We plotted the smoothed periodograms of the differences of the log of sales data based on two different smoothing methods.
+
+```{r}
+spectrum(diff(log(bev$BEV)), spans=c(4,4), main='Smoothed periodogram of difference of log BEV sales', xlab = 'frequency (1/month)', sub='')
+```
+
+```{r}
+s = spectrum(diff(log(bev$BEV)), method = 'ar', xalb = 'frequency (1/month)', main='Periodogram with AR Estimator', sub='')
+sprintf("Maximum point: %s", s$freq[which.max(s$spec)])
+```
+
+The periodogram from the log differences shows the spectral density maximized at a frequency of 0.33 which would indicate a periodic cycle of a quarter of a year. We fit the periodogram using an AR(p) method in which the model fit was an AR(12), chosen by AIC. The results from this periodogram would suggest that fitting a SARIMA model could be useful in capturing the quarterly cycle, and therefore improve our model fit. 
+
+There are other local maximum in the spectral density plot which correspond to a period of 4 or 2.4 months. It may be indicating that the dominating quarterly cycle is affected by some irregularities in certain months (i.e., holidays).
+
+## Models and Analysis
+
+### ARIMA model
+
+First, we plot the inverse roots of the ARIMA(6,1,2) model we chose for log BEV sales.
+
+```{r}
+library(forecast)
+plot(model_612)
+```
+
+We may see that the inverse of AR roots are all within the unit circle, indicating causality, while two roots of MA are lying on the unit circle. We can further check by getting the module of all roots.
+
+```{r eval=FALSE}
+AR_roots <- polyroot(c(1,-coef(model_612)[c("ar1", 'ar2', "ar3", 'ar4', "ar5", 'ar6')]))
+MA_roots <- polyroot(c(1,coef(model_612)[c("ma1", 'ma2')]))
+print(Mod(AR_roots))
+print(Mod(MA_roots))
+```
+
+Having unit MA roots indicates non-invertibility, and that we may have integrated the model unnecessarily. We thus fitted several ARIMA(p,0,q) model to see theri AIC:
+
+```{r}
+library(knitr)
+aic_table <- function(data,P,Q){ 
+  table <- matrix(NA,(P+1),(Q+1)) 
+  for(p in 0:P) {
+    for(q in 0:Q) {
+    try(table[p+1,q+1] <- arima(data,order=c(p,0,q), method='ML')$aic)
+    } 
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+aic_table2 <- aic_table(log(bev$BEV),6,6)
+
+kable(aic_table2,digits=2)
+```
+
+The best model seems to be ARIMA(6,0,3), and here are its inverse roots:
+
+```{r}
+model_603 = arima(log(bev$BEV), order=c(6,0,3), method='ML')
+plot(model_603)
+```
+
+```{r eval=FALSE}
+AR_roots <- polyroot(c(1,-coef(model_603)[c("ar1", 'ar2', "ar3", 'ar4', "ar5", 'ar6')]))
+MA_roots <- polyroot(c(1,coef(model_603)[c("ma1", 'ma2', 'ma3')]))
+print(Mod(AR_roots))
+print(Mod(MA_roots))
+```
+
+By checking the module of the roots, we know that the roots of ARIMA(6,0,3) model are all outside the unit circle.
+
+#### Chosen model
+
+The model is:
+
+```{r include=FALSE}
+summary603 = summary(model_603)
+```
+
+$$
+Y_n = -1.03Y_{n-1}+0.29Y_{n-2}+1.56Y_{n-3}+0.83Y_{n-4}-0.19Y_{n-5}-0.49Y_{n-6}+\epsilon_n+2.01\epsilon_{n-1}+1.69\epsilon_{n-2}+0.46\epsilon_{n-3}+8.04
+$$
+
+#### Fitted values plots
+
+```{r}
+plot(bev$Date, -resid(model_603) + log(bev$BEV), type='l', col='blue', main="fitted and original values of log of sales (ARMA(6,3))", xlab='year', ylab='log(sales)')
+lines(bev$Date, log(bev$BEV), col='black')
+legend('topleft', legend=c('Fitted Arima', 'Ground Truth'), col=c('blue','black'),lty=1)
+```
+
+```{r}
+plot(bev$Date, exp(-resid(model_603) + log(bev$BEV)), type='l', col='blue', main='Plot of Fitted vs. True Values (ARMA(6,3))',
+     xlab='Date', ylab='Number of Vehicles Sold (by Month)')
+lines(bev$Date, exp(log(bev$BEV)), col='black')
+legend('topleft', legend=c('Fitted Arima', 'Ground Truth'), col=c('blue','black'),lty=1)
+```
+
+#### Residuals 
+
+```{r}
+plot(model_603$residuals,main='Residuals - Model ARIMA(6,0,3)',ylab='Residuals',xlab='Month')
+```
+
+```{r}
+acf(resid(model_603), main='ACF ARMA(6,3)')
+```
+
+```{r}
+qqnorm(model_603$residuals)
+qqline(model_603$residuals)
+```
+
+```{r}
+hist(model_603$residuals, breaks=30, main = 'Histogram of residuals of ARMA(6,3)', xlab="residuals of ARMA(6,3)")
+```
+
+The plots of residuals all indicate that the residuals are stationary white noise with a distribution close to Gaussian.
+
+### Seasonal ARMA
+
+Based on the quarterly cycle we discovered from periodogram, we may plot the decomposition of the log of sales:
+
+```{r}
+dc <- decompose(ts(log(bev$BEV), frequency=3))
+plot(dc)
+```
+
+The quarterly cycle could be caused by the nature of vehicles sales, where salesman and agencies are encouraged to make more sales at the end of each quarter. ^[https://www.autotrader.com/car-reviews/buying-a-car-should-you-buy-at-the-end-of-the-month-228362]
+
+We then tried to fit SARMA models with different parameters to find a best model based on AIC. We only try seasonal order (P,Q) = (0,0), (0,1), (1,0), and (1,1). According to page 3 of chapter 6 slides ^[https://ionides.github.io/531w24/06/slides-annotated.pdf], the SARIMA model is specified as:
+
+$$
+\phi(B)\Phi(B^3)(Y_n-\mu)=\psi(B)\Psi(B^3)\epsilon_n
+$$
+
+where $\{\epsilon_n\}$ is a white noise process and 
+
+\begin{eqnarray}
+\mu &=& E(Y_n)
+\\
+\phi(x) &=& 1-\sum_{i=1}^{p} \phi_ix^i
+\\
+\Phi(x) &=& 1-\sum_{i=1}^{P} \Phi_ix^i
+\\
+\psi(x) &=& 1+\sum_{i=1}^{q} \psi_ix^i
+\\
+\Psi(x) &=& 1+\sum_{i=1}^{Q} \Psi_ix^i
+\end{eqnarray}
+
+
+```{r eval = FALSE}
+library(knitr)
+aic_table <- function(data,P,Q, season_order=c(0,0,0)){ 
+  table <- matrix(NA,(P+1),(Q+1)) 
+  for(p in 0:P) {
+    for(q in 0:Q) {
+    try(table[p+1,q+1] <- arima(data,order=c(p,0,q), seasonal=list(order=season_order, period=3), method='ML')$aic)
+    } 
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+aic_table00 <- aic_table(log(bev$BEV),6,6)
+aic_table01 <- aic_table(log(bev$BEV),6,6, season_order=c(0,0,1))
+aic_table10 <- aic_table(log(bev$BEV),6,6, season_order=c(1,0,0))
+aic_table11 <- aic_table(log(bev$BEV),6,6, season_order=c(1,0,1))
+
+kable(aic_table00,digits=2)
+kable(aic_table01,digits=2)
+kable(aic_table10,digits=2)
+kable(aic_table11,digits=2)
+```
+
+The best model in terms of AIC is $SARMA(5,4)\times(1,0)_3$. It has one more parameter than the ARMA(6,3) model, is it significantly better? We conduct a hypothesis test under Wilk's theorem:
+
+$$
+\begin{aligned} 
+H^{\langle 0 \rangle} &: ARMA(6,3) \\
+ H^{\langle 1 \rangle} &: SARMA(5,4)\times(1,0)_3
+\end{aligned}
+$$
+
+```{r}
+model_season <- arima(log(bev$BEV), order=c(5,0,4), seasonal=list(order=c(1,0,0), period=3), method='ML')
+test_stat <- model_season$loglik - model_603$loglik
+sprintf("test statistics: %s. p-value: %s.", test_stat, 1-pchisq(2*test_stat, 1))
+```
+
+The test result indicates we can reject the null hypothesis in favor of the SARMA model.
+
+The SARMA model's parameters are:
+
+
+$$
+\begin{aligned}
+\phi_i &= \{-0.71,  -0.21,  0.37,  0.70,  0.86\}
+\\
+\psi_i &= \{1.79,  2.33,  1.77,  0.94\}
+\\
+\Phi_1&=0.79
+\\
+\mu&=9.11
+\end{aligned}
+$$
+
+#### Fitted values plots
+
+```{r}
+plot(bev$Date, -resid(model_season) + log(bev$BEV), type='l', col='blue', main="fitted and original values of log of sales (model SARMA)", xlab='year', ylab='log(sales)')
+lines(bev$Date, log(bev$BEV), col='black')
+legend('topleft', legend=c('Fitted Arima', 'Ground Truth'), col=c('blue','black'),lty=1)
+```
+
+```{r}
+plot(bev$Date, exp(-resid(model_season) + log(bev$BEV)), type='l', col='blue', main='Plot of Fitted vs. True Values (model SARMA)',
+     xlab='Date', ylab='Number of Vehicles Sold (by Month)')
+lines(bev$Date, exp(log(bev$BEV)), col='black')
+legend('topleft', legend=c('Fitted Arima', 'Ground Truth'), col=c('blue','black'),lty=1)
+```
+
+#### Residuals 
+
+```{r}
+plot(model_season$residuals,main='Residuals - Model SARMA',ylab='Residuals',xlab='Month')
+```
+
+```{r}
+acf(resid(model_season), main= 'ACF - Model SARMA')
+```
+
+```{r}
+qqnorm(model_season$residuals)
+qqline(model_season$residuals)
+```
+
+```{r}
+hist(model_season$residuals, breaks=30, main = 'Histogram of residuals of SARMA', xlab="residuals of SARMA")
+```
+
+The plots of residuals of the SARMA model indicate that the residuals are stationary and distributed close to normal. However, the qqplot and histogram show that the residuals distribution might be long-tailed, which is inconsistent with the Gaussian assumption and may lead to the potentiality of over-fitting.
+
+## Prediction
+
+We plot the predictions based on the SARMA model.
+
+```{r}
+prediction_log = forecast(model_season, h=6)
+plot(prediction_log, main='forecast of log of sales based on our SARMA model', xlab='time point, 157=Dec 2023', ylab='log(sales)')
+```
+
+
+```{r}
+ff <- forecast(model_season, h = 6)
+ff$x <- exp(ff$x)
+ff$mean <- exp(ff$mean)
+ff$lower <- exp(ff$lower)
+ff$upper <- exp(ff$upper)
+plot(ff, main='forecast of sales based on our SARMA model', xlab='time point, 157=Dec 2023', ylab='sales')
+```
+
+The blue line is the predictions based on the SARMA model, and the grey areas are the 80% and 95% confidence intervals of the predictions. The predictions indicates that the Battery Electric Vehicles sales are going to increase continuously.
+
+## Conclusion
+
+We analyzed the Battery Electric Vehicles monthly sales in the United States from 2010 to 2023. The sales increased over the year exponentially so we analyzed them in log scale. The data are highly correlated, and have a quarterly cycle. We decide that a $SARMA(5,4)\times(1,0)_3$ model defined above fits our data best. The model diagnostics of residuals and likelihood ratio tests validate our model.
+
+## Contribution
+
+Contributions Hided for blinded version.
+
+We referred to project 14 of W22 ^[https://github.com/ionides/531w22/tree/main/midterm_project/project14] for .rmd formatting tips.
+
+## Reference
+
+
+

@@ -1,0 +1,377 @@
+---
+title: "Time Series Analysis of Log-Returns of Apple Stock Price"
+author: "Blinded Version"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+  pdf_document: default
+---
+
+```{r echo=FALSE, include = FALSE, warnings = FALSE}
+library(dplyr)
+library(forecast)
+library(fGarch)
+```
+
+# Introduction
+
+In the unpredictable and ever-changing world of finance, predicting the stock market is a notoriously difficult task due to volatility and the numerous variables that influence the price of a stock. However, time series analysis can help us uncover patterns in the stock prices and provide valuable insights to investors hoping to make a profit.
+
+In this analysis, we will focus on the log-returns of the daily opening stock price of Apple Inc., one of the largest and best-known tech companies of all time. Apple stock is traded on the National Association of Securities Dealers Automated Quotations (NASDAQ) Global Select Market under the ticker symbol AAPL.
+
+We aim to investigate the log-returns of Apple stock prices from January 2, 2004 to February 9, 2024 and answer the following questions:
+
+- Are there any seasonal patterns in the log-returns of Apple stock?
+- Can we model the log-returns of Apple stock prices? Are there certain models that are better suited for modeling log-returns?
+- How has the volatility of Apple stock changed over time? Are there certain events that may have caused drastic changes in volatility?
+
+# Data
+
+Our data is taken from Yahoo Finance and contains 5,061 records of Apple stock price from January 2, 2004 to February 9, 2024 ^[https://finance.yahoo.com/quote/AAPL/]. We begin our analysis with a time series plot of the Apple opening stock price over time.
+
+```{r echo = FALSE}
+apple <- read.csv("AAPL.csv")
+apple$Date2 <- as.Date(apple$Date)
+```
+
+```{r echo = FALSE, include = FALSE}
+min(apple$Date2)
+max(apple$Date2)
+```
+
+```{r echo = FALSE, include = FALSE}
+head(apple)
+summary(apple)
+```
+
+```{r echo = FALSE, fig.align='center', out.width="75%"}
+plot(Open ~ Date2, data = apple, type = "l",
+     ylab = "Opening Stock Price ($)",
+     xlab= "Date")
+title("Opening Price of APPL Stock from 2004-2024", line = 0.5)
+```
+
+From the time series plot, we notice an increasing trend in the opening Apple stock price over the 20-year period. There appears to be a steady increase from 2004 to 2018 with some small spikes, but we see a dramatic increase in stock price around 2020.
+
+Given that the data appears to be non-stationary, the log-returns of the opening stock price can be helpful to observe as they can reduce non-stationary properties of the data. In finance and economics, we often care about the percent chance in price rather than the absolute price change. Since log-returns are additive over time, they have become a popular method to measure the performance of an investment ^[https://en.wikipedia.org/wiki/Rate_of_return]. 
+
+We take the log and first difference to stabilize the time series and reduce the trend. After the log transformation, we take the first difference of the data. Note that the first difference time series $z_{2:N}$ is defined by $z_n =\Delta y^{*}_n = y^{*}_n - y^{*}_{n-1}$ ^[Chapter 3 Slide 25 Class Notes]. We then plot the log-returns of the opening stock price against time with a red dotted line at 0% change in price.
+
+```{r echo = FALSE, fig.align='center', out.width="75%"}
+apple_lr = diff(log(apple$Open))
+
+plot(apple$Date2[-1], apple_lr, type = "l", xlab = 'Date', ylab = "Percent Change (%)")
+abline(h = 0, col = "red", lty = 2)
+title("Apple Log Returns", line = 0.5)
+```
+
+From the plot, the log-returns appear to be centered around 0. We see some signs of high volatility around 2008 and the end of 2015 since there are some spikes in the log-returns indicating a large percent change in stock price. 
+
+To confirm our decision to analyze the log-returns of the stock price rather than the actual stock prices, we will compare their autocorrelation (ACF) plots.
+
+```{r echo = FALSE, fig.align='center', out.width="75%"}
+par(mfrow = c(1,2))
+acf(apple$Open, main = " ")
+title("ACF Plot of Stock Price", line = 0.5)
+
+acf(apple_lr, main = " ")
+title("ACF Plot of Log-Returns", line = 0.5)
+```
+
+The ACF plot of the log-returns show that the log-returns are not significantly different from 0 (except around lag 1 and lag 19). Overall, the log-returns appear to be uncorrelated. On the other hand, the ACF plot of the stock prices provide evidence that the stock prices are correlated. Hence, we will move forward by analyzing the log-returns.
+
+# Frequency Analysis
+
+Before fitting a model to the log-returns, it may be helpful to identify if there are any cyclic patterns in the log-returns. We plot a smoothed periodogram of the log-returns below using the default method to estimate the spectral density. Note that the default method is `pgram`, which is a form of non-parametric spectral estimation ^[https://lbelzile.github.io/timeseRies/spectral-estimation-in-r.html].
+
+```{r echo = FALSE, fig.align='center', out.width="75%"}
+spectrum(apple_lr, spans=c(30, 30), plot=TRUE, main = "")
+title("Smoothed Periodogram for Log-Returns", line = 0.5)
+```
+
+The periodogram of the log-returns of Apple stock price does not have a dominant frequency, which indicates that seasonality may not be present in the data. This could be attributed to the high volatility of the stock market, specifically for Apple stock.
+
+# ARMA Model
+
+Since the time series of the log-returns appears to be non-stationary, we begin our modeling process with the ARMA(p, q) model. If a time series $Y_n$ has a nonzero mean $\mu$, we can set $\alpha = \mu(1-\phi_1-...-\phi_p)$ and write the ARMA(p,q) model as follows:
+
+$$Y_n = \alpha + \phi_{1} Y_{n-1} + ... + \phi_{p} Y_{n-p} + \epsilon_{n} + \psi_{1} \epsilon_{n-1} + ... + \psi_{q} \epsilon_{n-q}$$ 
+
+where $\phi_{p} \ne 0$, $\psi_{q} \ne 0$, and $\sigma^2_{\epsilon} > 0$. We can also assume $\epsilon_{n}$ is a white noise process which follows $N(0, \sigma^2)$ ^[Chapter 3.2 (Page 92) of Time Series Analysis and Its Applications with R Examples]. Note that $\phi$ represents the autoregressive (AR) parameters and $\psi$ represents the moving average (MA) parameters, where $p$ is the order of the AR polynomial and $q$ is the order of the MA model. 
+
+## AIC Table
+
+To choose values of $p$ and $q$, we will begin with a plausible range of values for $p$ and $q$ and compare the ARMA(p,q) models using the Akaike Information Criterion (AIC). The AIC is given by:
+
+$$ AIC = -2*\ell(\theta^{*}) + 2D$$
+where $\ell(\theta^{*})$ is the maximized log-likelihood and $D$ is the number of parameters in the model ^[Chapter 5 Slide 21 Class Notes]. The AIC is often used for model selection, and by choosing the model with the lowest AIC, we can find the ARMA model that best fits the data.
+
+```{r echo = FALSE}
+aic_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- round(arima(data, order=c(p,0,q), method = "ML")$aic, 2)
+    }
+    }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+                          paste("MA",0:Q,sep=""))
+  table
+}
+```
+
+```{r echo = FALSE, warning = FALSE}
+arma_aic_table <- aic_table(apple_lr, 4,4)
+```
+
+```{r echo = FALSE}
+kableExtra::kbl(arma_aic_table, booktabs = T, linesep = "") %>%
+  kableExtra::kable_styling(latex_options = "HOLD_position") %>%
+  kableExtra::kable_classic()
+```
+
+We notice some inconsistencies in the AIC table above. Mathematically, adding a parameter to the ARMA model cannot decrease the maximized log-likelihood, so we should not see the AIC increase by more than 2 units ^[Chapter 5 Slide 30 Annotated Class Notes]. We see an example of an inconsistency in the table where the AIC increases by roughly 3 units from the ARMA(4,3) model to the ARMA(4,4) model.
+
+Due to inconsistencies in the AIC table, we will be careful not to choose models that are too large ^[Chapter 7 Slide 23 Class Notes]. Although the ARMA(4, 3) model is associated with the lowest AIC score, we will narrow our focus to small models in the table. Hence, we choose the ARMA(1,0) model which gives the lowest AIC score among small models.
+
+We will continue our analysis by fitting the ARMA(1, 0) model to the log-returns.
+
+## Model Fitting
+
+```{r echo = FALSE}
+# fitting ARMA model
+mod10 <- arima(apple_lr, order=c(1, 0, 0), method = "ML")
+```
+
+```{r echo = FALSE, warning = FALSE}
+ints <- c(mod10$coef[2])
+ses_int <- c(sqrt(mod10$var.coef[4]))
+ar1_coef <- c(mod10$coef[1])
+
+mod_table <- data.frame(ints, ses_int, ar1_coef)
+mod_table <- mutate(mod_table, across(where(is.numeric), round, 4))
+mod_table <- data.matrix(mod_table)
+
+rownames(mod_table) <- c("ARMA(1,0)")
+colnames(mod_table) <- c("Intercept", "SE (Intercept)", 
+                         "AR 1 Coefficient")
+
+kableExtra::kbl(mod_table, booktabs = T, linesep = "") %>%
+  kableExtra::kable_styling(latex_options = "HOLD_position") %>%
+  kableExtra::kable_classic()
+```
+
+We continue our analysis by fitting the ARMA model to the data and displaying the model summary above. Using the fitted values from the table, we can write the ARMA(1,0) model as follows:
+
+$$\text{ARMA(1,0): } Y_n = \alpha + \phi_{1} Y_{n-1} + \epsilon_{n}$$
+Note that if we use the backshift operator ^[Chapter 4 Slide 13 Class Notes] and denote $\phi(x)$ and $\psi(x)$ as the AR and MA polynomials respectively, we can rewrite the model as such:
+
+$$\phi(B)(Y_n - 0.0012) = \psi(B) \epsilon_n \text{ where } \phi(x) = 1-0.089x \text{ and } \psi(x) = 1$$
+We can focus on the roots of the AR and MA polynomials from the model to determine causality and invertibility. An ARMA process is causal only when the roots of $\phi(x)$ lie outside the unit circle, and invertible only when the roots of $\psi(x)$ lie outside the unit circle ^[Chapter 3.2 (Page 95) of Time Series Analysis and Its Applications with R Examples]. Note that the ARMA(1,0) model is always invertible since it does not contain MA roots, so we are mostly focused on determining causality.
+
+```{r echo = FALSE, include = FALSE}
+# AR root
+polyroot(c(1, coef(mod10)[1]))
+```
+
+```{r echo = FALSE, fig.align='center', out.width="55%"}
+autoplot(mod10, main = "Inverse Roots of ARMA(1, 0)")
+```
+
+From the visualization above, the inverse root of $\phi(x)$ lies inside the unit circle for the ARMA model. Hence, the root of the AR polynomial is outside the unit circle which indicates causality. Therefore, the ARMA(1,0) model is both causal and invertible.
+
+**Note:** Out of curiosity, we also fit the ARMA(4,3) model which had the lowest AIC of all the fitted ARMA(p,q) models and observed the roots of the AR and MA polynomials. There appeared to be canceling roots since the inverse AR roots were located on the exact same part of the unit circle as the three inverse MA roots. Additionally, most of the inverse roots were located on the boundaries of the unit circle. This observation gave us more motivation to continue our analysis with the ARMA(1,0) model instead of the ARMA(4,3) model.
+
+```{r echo = FALSE, include = FALSE}
+# EXTRA CODE: fit ARMA(4,3) model (not used in final report)
+mod43 <- arima(apple_lr, order=c(4, 0, 3), method = "ML")
+
+ints <- c(mod43$coef[8])
+ses_int <- c(sqrt(mod43$var.coef[64]))
+ar1_coef <- c(mod43$coef[1])
+ar2_coef <- c(mod43$coef[2])
+ar3_coef <- c(mod43$coef[3])
+ar4_coef <- c(mod43$coef[4])
+
+ma1_coef <- c(mod43$coef[5])
+ma2_coef <- c(mod43$coef[6])
+ma3_coef <- c(mod43$coef[7])
+
+mod_table <- data.frame(ints, ses_int, 
+                        ar1_coef, ar2_coef, ar3_coef, ar4_coef,
+                        ma1_coef, ma2_coef, ma3_coef)
+mod_table <- mutate(mod_table, across(where(is.numeric), round, 4))
+mod_table <- data.matrix(mod_table)
+
+rownames(mod_table) <- c("ARMA(4,3)")
+colnames(mod_table) <- c("Intercept", "SE (Intercept)", 
+                         "AR 1 Coefficient", "AR 2 Coefficient", 
+                         "AR 3 Coefficient", "AR 4 Coefficient",
+                         "MA 1 Coefficient", "MA 2 Coefficient",
+                         "MA 3 Coefficient")
+
+kableExtra::kbl(mod_table, booktabs = T, linesep = "") %>%
+  kableExtra::kable_styling(latex_options = "HOLD_position") %>%
+  kableExtra::kable_classic()
+
+# AR roots
+polyroot(c(1, coef(mod43)[1]))
+# MA roots
+polyroot(c(1, coef(mod43)[2]))
+
+autoplot(mod43, main = "Inverse Roots of ARMA(4, 3)")
+```
+
+## Model Diagnostics
+
+We continue by analyzing the residuals of the ARMA model and checking the validity of our model assumptions. If the model is correctly specified, the residuals should have the properties of white noise ^[Chapter 3.8 (Page 149) of Time Series Analysis and Its Applications with R Examples]. Hence, we will determine if the residuals of the model appear to have mean 0, are uncorrelated, and normally distributed.
+
+```{r echo = FALSE, fig.align='center', out.width="75%"}
+par(mar=c(4,4,2,2))
+layout(matrix(c(1,2,3,3), 2, 2, byrow = TRUE))
+
+plot(apple$Date2[-1], mod10$residuals, type = "l",
+     ylab = "Residuals", xlab = "Date")
+abline(h = 0, col = "red", lty = 2)
+title("ARMA(1, 0) Model Residuals", line = 0.5)
+
+acf(mod10$residuals, main = "")
+title("ARMA(1, 0) ACF Plot", line = 0.5)
+
+par(mar=c(2,14,2,14))
+qqnorm(mod10$residuals, main = "")
+qqline(mod10$residuals)
+title("QQ Plot of ARMA(1, 0) Residuals", line = 0.5)
+```
+
+We notice that the residuals are mostly centered at 0. However, the variance does not appear to be constant as the variance is quite large around 2008 and 2016.
+
+The ACF plot of the residuals show that the autocorrelations are not significantly different from 0. Overall, the errors appear to be uncorrelated. 
+
+The points on the QQ-plot are quite close to the identity line except for the left and right tail ends where we see deviation from the line. Hence, the normality assumption seems dubious as the tails are heavier than the normal distribution. The heavy tails could be caused by the large variances seen in the residual plot.
+
+# ARMA-GARCH Model 
+
+Since we have possible evidence that the ARMA(1,0) model residuals may violate some of the model assumptions, we continue our analysis by fitting a new model that may be more appropriate for the data.
+
+Researchers have long noticed that stock returns often have "heavy-tailed" distributions since the conditional variance is not constant, and outliers can occur when variance is large. ARMA models are unable to account for volatile behavior (non-constant variance) of the return values. Therefore, a Generalized Autoregressive Conditionally Heteroscedastic (GARCH) model may be better suited to the data as it can model both the conditional heteroskedasticity and the heavy-tailed distributions of financial markets data ^[Chapter 18.7 (Page 484) of Statistics and Data Analysis for Financial Engineering].
+
+We begin by discussing the ARCH model. ARCH(m) model can model the returns as:
+
+$$
+y_t = \sigma_t \epsilon_t \\
+\sigma^2_{t} = \alpha_{0} + \alpha_{1} y_{t-1}^2 + \dots + \alpha_{m} y_{t-m}^2
+$$
+
+where $\epsilon_t$ is standard Gaussian white noise, i.e., $\epsilon_t \sim \text{ iid } N(0,1)$. We also impose constraints $\alpha_0, \alpha_1, \dots, \alpha_m \geq 0$ on the model parameters to avoid negative variance. 
+
+We further extend the ARCH model to the Generalized ARCH (GARCH) model which uses values of the past squared observations and past variances to model the variance at time $t$. The GARCH(m, r) model retains $y_t = \sigma_t \epsilon_t$ and includes the conditional dependence of the previous conditional variance and expectation ^[Chapter 5.4 (Page 286) of Time Series Analysis and Its Applications with R Examples].
+
+$$
+\sigma_t^{2} = \alpha_0 + \sum_{j=1}^{m} \alpha_{j} y_{t-j}^{2} + \sum_{j=1}^{r} \beta_{j} \sigma_{t-j}^{2} 
+$$
+
+Many recent studies have selected the GARCH(1,1) model to analyze time series data since it is one of the simplest and most robust among volatility models. The GARCH(1,1) model equation is written as $\sigma^2_{t} = \alpha_{0} + \alpha_{1} y_{t-1}^2 + \beta_{1}\sigma^2_{t-1}$
+where $\alpha_1 + \beta_1 < 1$.
+
+ARMA-GARCH models are more popularly used to model the volatility of financial time series data, so we will continue our analysis by fitting a ARMA(1,0)-GARCH(1,1) model ^[https://iopscience.iop.org/article/10.1088/1757-899X/548/1/012023/pdf].
+
+## Model Fitting and Diagnostics
+
+We use the `fGarch` package to fit an ARMA(1,0)-GARCH(1,1) model to the log-returns ^[Chapter 5.4 (Page 284) of Time Series Analysis and Its Applications with R Examples].
+
+```{r echo = FALSE}
+arma_garch_f = garchFit( ~ arma(1,0) + garch(1, 1), data = apple_lr, trace = FALSE)
+# summary(arma_garch_f)
+```
+
+Since the ARMA-GARCH model assumes dependency of the conditional variance with previous values over time, observing no autocorrelations in the ARMA-GARCH standardized residuals or squared standardized residuals would indicate that the ARMA-GARCH model is appropriate for the data ^[Chapter 18.12 (Page 496) of Statistics and Data Analysis for Financial Engineering]. Hence, we create ACF plots of the standardized residuals and squared standardized residuals below.
+
+```{r echo = FALSE, fig.align='center', out.width="75%"}
+par(mfrow = c(1,2))
+e = residuals(arma_garch_f, standardize=TRUE)
+acf(e, main = "")
+title("Stand. Residuals ACF Plot", line = 0.5)
+
+acf(e^2, main = "")
+title("Stand. Residuals^2 ACF Plot", line = 0.5)
+```
+
+For both the standardized residuals and squared standardized residuals, the autocorrelations do not appear to be significantly different from 0. Although we see one autocorrelation above the blue line around lag 23 for the squared standardized residuals, we can conclude that overall, the standardized residuals and squared standardized residuals are uncorrelated.
+
+## Volatility Analysis
+
+One of the advantages of including the GARCH model is the ability to visualize volatility over time and further understand periods of high and low volatility. Hence, we use our ARMA-GARCH model to plot the volatility and identify significant events that may have caused spikes in volatility.
+
+```{r echo = FALSE, fig.align='center', out.width="75%"}
+plot(apple$Date2[-1], arma_garch_f@sigma.t, type = "l", xlab = "Date", ylab = "Volatility")
+title("Volatility of Log-Returns Over Time", line = 0.5)
+```
+
+```{r echo = FALSE, include = FALSE}
+# this code helps us more accurately identify which years had high volatility
+
+# vol_df <- data.frame("Date" = apple$Date2[-1], "Volatility" = arma_garch_f@sigma.t)
+# vol_df[which.max(vol_df$Volatility),]
+# vol_df[order(vol_df$Volatility, decreasing = TRUE),]
+```
+
+From the plot, we can observe at least three periods of significant increases in volatility:
+
+- **2007-2009:** We notice the largest increase in volatility during this period. This is likely related to the Great Recession, which was the worst economic downturn in the United States since the Great Depression. The Great Recession was related to the Subprime mortgage crisis where many high-risk mortgages went into default at the beginning of 2007 ^[https://www.researchgate.net/publication/265233838_Effect_of_Subprime_Crisis_on_US_Stock_Market_Return_and_Volatility]. 
+
+  Although Apple shares initially took a hit during the Great Recession, the release of the iPhone 3G in 2008 was a massive success, selling one million iPhone 3Gs in the first weekend ^[https://www.cbsnews.com/news/apples-iphone-defies-recession-as-mobile-takes-over/]. Apple also saw an increase in iPod sales as it was still an affordable product during the post-recession period. Due to Apple's innovation, they were able to survive the recession and face fewer financial troubles than their competitors.
+
+- **2015-2016:** The second highest increase in volatility from the plot above occurs from roughly 2015-2016. In October 2015, Apple's CEO, Tim Cook, stated that fiscal 2015 was Apple's most successful year ever with a revenue of nearly $234 billion ^[https://www.apple.com/newsroom/2015/10/27Apple-Reports-Record-Fourth-Quarter-Results/#]. During this time, consumers were captivated by the wide variety of Apple products such as the iPhone, iPad, Mac, and Apple Watch.
+
+- **2020-2021:** The increase in volatility during this period is likely linked to the COVID-19 pandemic, where millions of people all over the world heavily relied on technology to keep in touch with others and continue their professional careers. Although Apple dealt with massive layoffs and hiring freezes, their stock performance remained quite strong ^[https://www.investopedia.com/how-covid-affects-apple-aapl-5198334]. Apple also released the iPhone 12 in 2020 which included 5G technology and significantly improved download speeds and display quality.
+
+# Conclusion
+
+After fitting the ARMA(1,0) and ARMA(1,0)-GARCH(1,1) models to the log-returns, we found the ARMA(1,0)-GARCH(1,1) model to be more appropriate for modeling the log-returns of Apple stock prices. Although ARMA models have useful applications in real-world problems, the addition of the conditional variance model, GARCH(1,1), provided better insight on the behavior of the stock market, especially for high-volatility periods which are the most concerning for investors. 
+
+The ARMA(1,0)-GARCH(1,1) also allowed us to observe volatility over time and extract information about the history of Apple Inc. as well as possible internal and external factors that influenced the financial market, which would not have been possible with just the ARMA model. We speculate that the periods of high volatility may be related to extreme economic decline, successful product launches, and the COVID-19 pandemic.
+
+We did not find strong evidence of seasonality in our frequency analysis, which may be attributed to the high volatility of the stock market. 
+
+For future studies, it may be interesting to attempt to forecast the log-returns and predict spikes in volatility in the short-term. However, because the stock market is notoriously difficult to predict, it is not guaranteed that predictions made by our ARMA(1,0)-GARCH(1,1) model would provide reliable predictions of future volatility levels. 
+
+Additionally, when creating the AIC table for the ARMA model, we noticed inconsistencies in the table which led us to only consider small ARMA models. In the future, we could try the `arima2` package (created by Jesse Wheeler and Professor Ionides), which uses multiple starting values to improve the optimization performance of the `arima` function in the `stats` package and could lead to less inconsistencies in the AIC table ^[Chapter 9 Slide 23 Class Notes].
+
+# References
+
+[1] Apple reports record fourth quarter results. Apple Newsroom. (2015, October 27). https://www.apple.com/newsroom/2015/10/27Apple-Reports-Record-Fourth-Quarter-Results/#. 
+
+[2] Belzile, L. (n.d.). Spectral Estimation in R. 4.3 Spectral Estimation in R. https://lbelzile.github.io/timeseRies/spectral-estimation-in-r.html 
+
+[3] Choy, Yoke & Chong, CY. Effect of Subprime Crisis on U.S. Stock Market Return and Volatility. 
+
+[4] Downey, L. (2021, August 20). How COVID affects Apple (AAPL). Investopedia. https://www.investopedia.com/how-covid-affects-apple-aapl-5198334 
+
+[5] [Ionides, Edward. Analysis of Time Series Chapter 3 Lecture Slides](https://ionides.github.io/531w24/03/slides.pdf)
+
+[6] [Ionides, Edward. Analysis of Time Series Chapter 4 Lecture Slides](https://ionides.github.io/531w24/04/slides.pdf)
+
+[7] [Ionides, Edward. Analysis of Time Series Chapter 5 Lecture Slides](https://ionides.github.io/531w24/05/slides.pdf)
+
+[8] [Ionides, Edward. Analysis of Time Series Chapter 7 Lecture Slides](https://ionides.github.io/531w24/07/slides.pdf)
+
+[9] [Ionides, Edward. Analysis of Time Series Chapter 9 Lecture Slides](https://ionides.github.io/531w24/09/slides.pdf)
+
+[10] Modeling and Forecasting of Volatility using ARMA-GARCH: Case Study on Malaysia Natural Rubber Prices. (2019). https://iopscience.iop.org/article/10.1088/1757-899X/548/1/012023/pdf 
+
+[11] Ruppert, D. (2010). Statistics and Data Analysis for Financial Engineering (Springer Texts in Statistics). Springer, Berlin.
+
+[12] Shumway, R. H., & Stoffer, D. S. (2006). Time Series Analysis and Its Applications with R Examples. New York: Springer.
+
+[13] [STATS 531 Midterm Project : Bitcoin Historical Data](https://ionides.github.io/531w21/midterm_project/project01/project.html)
+
+[14] [Time Series Analysis for Log Returns of S&P500](https://ionides.github.io/531w18/midterm_project/project38/Midterm_proj.html)
+
+[15] Weir, D. (2009, April 23). Apple’s iphone defies recession as mobile takes over. CBS News. https://www.cbsnews.com/news/apples-iphone-defies-recession-as-mobile-takes-over/ 
+
+[16] Wikimedia Foundation. (2024, January 25). Rate of Return. Wikipedia. https://en.wikipedia.org/wiki/Rate_of_return 
+
+[17] Yahoo! (2024, February 21). Apple Inc. (AAPL) Stock Price, News, Quote & History. Yahoo! Finance. https://finance.yahoo.com/quote/AAPL 
+

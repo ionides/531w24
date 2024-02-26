@@ -1,0 +1,382 @@
+---
+title: "STATS531 Midterm Project"
+author: ""
+date: "02/22/2024"
+format:
+    html:
+        embed-resources: true 
+        code-line-numbers: true
+        # code-fold: true
+editor: 
+    render-on-save: false 
+---
+
+## Introduction
+
+The sun releases a stream of charged particles from its upper atmosphere called *solar wind*. [[1]](#ref1) It is largely deflected by the magnetosphere of the earth, which belongs to the space weather. [[2]](#ref2) The Geostationary Operational Environmental Satellites (GOES) are a series of geostationary satellites that provide continuous monitoring of the space environment. [[3]](#ref3) In this project, we analyze the X-ray flux data from GOES [[4]](#ref4) and perform time series analysis and forecasting on the data.
+
+## Data Processing
+
+We begin our analysis by a preview of the header of the dataset. 
+
+```{r, echo=FALSE}
+df <- read.csv("goes_daily.csv.gz")
+head(df)
+```
+
+### Interpolation and Log Transformation
+
+We interpolate the missing values using `na.approx` from `zoo` and perform a log transformation on the `flux1` and `flux2` columns as the STL decomposition below does not allow missing value. Below is a plot of the log-transformed and interpolated values for `flux1` and `flux2`. 
+
+```{r, echo=FALSE, message=FALSE}
+library(zoo)
+library(dplyr)
+```
+
+```{r, echo=FALSE}
+# Interpolate missing values
+df_interpolated <- df %>%
+  mutate(across(c(flux1, flux2), ~ na.approx(.x, na.rm = FALSE)))
+
+# Log transformation
+df_log_transformed <- df_interpolated %>%
+  mutate(across(c(flux1, flux2), log))
+```
+
+```{r, echo=FALSE, message=FALSE}
+library(ggplot2)
+
+# Add an index column to the dataframe
+df_log_transformed$Index <- seq_along(df_log_transformed$flux1)
+
+# Plot log transformed and interpolated values using the new Index column
+ggplot(data = df_log_transformed, aes(x = Index)) +
+  geom_line(aes(y = flux1, colour = "flux1")) +
+  geom_line(aes(y = flux2, colour = "flux2")) +
+  labs(title = "Log Transformed and Interpolated Values for Both Flux Series",
+       x = "Index", y = "Log Transformed Values") +
+  theme_minimal() +
+  scale_colour_manual("", values = c("flux1" = "blue", "flux2" = "red")) +
+  theme(legend.title = element_blank())
+```
+
+### Smoothing
+
+From the visualization, one can observe that the time series data is quite noisy. To reduce the noise and identify underlying patterns, we apply rolling mean and iterative rolling mean to the log-transformed values of `flux1` and `flux2`. 
+
+```{r, echo=FALSE, message=FALSE}
+# Rolling mean
+df_smoothed <- df_log_transformed %>%
+  mutate(across(c(flux1, flux2), ~ rollmean(.x, 117, fill = NA, align = "right")))
+
+# Iterative rolling mean
+df_itrsmoothed <- df_log_transformed
+for (i in 1:5) {
+  df_itrsmoothed <- df_itrsmoothed %>%
+    mutate(across(c(flux1, flux2), ~ rollmean(.x, 23, fill = NA, align = "right")))
+}
+```
+
+Below is a plot of the comparison among the original, rolling mean, and iteratively rolling mean time series data for `flux1` and `flux2`. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df_log_transformed$Index <- 1:nrow(df_log_transformed)
+df_smoothed$Index <- 1:nrow(df_smoothed)
+df_itrsmoothed$Index <- 1:nrow(df_itrsmoothed)
+
+ggplot() +
+  geom_line(data = df_log_transformed, aes(x = Index, y = flux1, colour = "Original flux1"), linetype = "dashed", alpha = 0.2) +
+  geom_line(data = df_smoothed, aes(x = Index, y = flux1, colour = "Rolling Mean flux1")) +
+  geom_line(data = df_itrsmoothed, aes(x = Index, y = flux1, colour = "Iteratively Rolling Mean flux1"), alpha = 0.5) +
+  geom_line(data = df_log_transformed, aes(x = Index, y = flux2, colour = "Original flux2"), linetype = "dashed", alpha = 0.2) +
+  geom_line(data = df_smoothed, aes(x = Index, y = flux2, colour = "Rolling Mean flux2")) +
+  geom_line(data = df_itrsmoothed, aes(x = Index, y = flux2, colour = "Iteratively Rolling Mean flux2"), alpha = 0.5) +
+  labs(title = "Original vs. Smoothed Time Series", x = "Index", y = "Log Transformed Values") +
+  theme_minimal() +
+  scale_colour_manual("", values = c("Original flux1" = "blue", "Rolling Mean flux1" = "lightblue", "Iteratively Rolling Mean flux1" = "darkblue",
+                                     "Original flux2" = "red", "Rolling Mean flux2" = "pink", "Iteratively Rolling Mean flux2" = "darkred")) +
+  theme(legend.title = element_blank())
+```
+
+## Time Series Analysis and Forecasting
+
+### Autocorrelation and ARIMA Modeling
+
+We first analyze the autocorrelation function in the dataset. Below is the ACF plot for the training set of `flux2`. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(forecast)
+
+curr_series <- tail(df_log_transformed$flux2, 2190)
+pred_range <- 31
+curr_series_training <- head(curr_series, -pred_range)
+
+Acf(curr_series_training, lag.max = 1800, main = "ACF for Training Series")
+```
+
+
+The Autocorrelation Function (ACF) plot displays the computed autocorrelation for lags extending up to approximately 1750. Initially, there is a sharp decline in autocorrelation values at the early lags, followed by a gradual decay, indicating strong autocorrelation at shorter lags. The ACF values remain beyond the confidence interval, delineated by dashed blue lines, across a broad range of lags. These bounds are generally indicative of the threshold beyond which autocorrelations are deemed statistically significant. The fact that the ACF values do not diminish rapidly but instead exhibit significant autocorrelation across numerous lags suggests that past values exert a prolonged influence on future values. An additional distinctive aspect is the oscillatory pattern, which implies cyclical behavior. Therefore, the flux2 series may exhibit a seasonal effect as the occurrence of spikes that surpass the significance bounds at regular intervals suggests.
+
+### ARIMA Modeling and Forecasting
+
+We then fit an ARIMA model to the training series. From the analysis of the ACF plot, we set the maximum values for p and q to 50 as the autocorrelation rapidly drops until lag 50. We specify seasonal = TRUE due to the presence of an oscillating pattern, and set d=1 to induce stationarity by differencing the series at most once. Below is a model summary for the model:
+
+```{r, echo=FALSE}
+model <- auto.arima(curr_series_training, seasonal = TRUE, stepwise = FALSE, approximation = FALSE, trace = FALSE, max.p = 50, max.q = 50, d = 1)
+
+forecasted <- forecast(model, h = pred_range)
+
+# Print model summary
+summary(model)
+```
+
+After searching for the best parameters for the model, the best model found is ARIMA(2,1,2). One can observe that the coefficient of ar1 is non-significant. The ME is close to zero, indicating that the forecasted values are not biased. However, the MAPE is relatively high, and the MASE is greater than 1, suggesting that the forecasted values are not very accurate.
+
+After that, we use the fitted model to forecast the next 31 days and plot the forecasted values alongside the actual values. Below are two plots for the forecasted values and the actual values. The first plot shows all the past time series with forecasting and confidence interval and the actual observations, and the second plot zooms in on the prediction of the series to further examine the difference between the prediction and actual observations.
+
+```{r, echo=FALSE, warning=FALSE}
+curr_series_df <- data.frame(
+  Time = seq_along(curr_series),
+  Value = curr_series
+)
+
+# Plot forecast
+autoplot(forecasted) +
+  labs(title = "ARIMA Forecast for Flux 2",
+       x = "Time", y = "Forecasted Values") +
+  geom_line(data = curr_series_df, aes(x = Time, y = Value), colour = "blue", alpha = 0.5) +
+  guides(colour = guide_legend(title = "Series"))
+
+# Forecast the next 31 points
+pred_range <- 31
+forecasted <- forecast(model, h = pred_range)
+
+# Create a data frame with the forecasted values
+forecast_df <- data.frame(
+  Time = length(curr_series_training) + seq(pred_range),
+  Forecast = as.numeric(forecasted$mean)
+)
+
+# Add the actual last 31 points to the data frame
+forecast_df$Actual <- c(rep(NA, length(forecast_df$Forecast) - pred_range), tail(curr_series, pred_range))
+
+# Convert 'Time' to a proper date format if necessary
+# This step assumes 'Time' is the index from the start of 'curr_series'
+# You need to convert it to actual dates if you have a 'Date' associated with your time series
+# Assuming the start date of 'curr_series_training' is "2017-05-24"
+start_date <- as.Date("2017-05-24")
+forecast_df$Date <- start_date + forecast_df$Time - 1
+
+# Plot forecasted values alongside the actual values
+ggplot(data = forecast_df, aes(x = Date)) +
+  geom_line(aes(y = Forecast, colour = "Forecast"), size = 1) +
+  geom_line(aes(y = Actual, colour = "Actual"), size = 1) +
+  labs(title = "ARIMA Forecast vs Actual Last 31 Points",
+       x = "Time", y = "Values") +
+  scale_colour_manual(values = c("Forecast" = "red", "Actual" = "blue")) +
+  theme(legend.title = element_blank())
+```
+
+From the two plots, the actual values appear to suffer from high volatility, whereas the forecasted values are relatively stable. Especially from the second plot, we can observe that the ARIMA model fails to capture the short-term oscillating patterns in the actual values of flux2. The forecasting by the ARIMA(2,1,2) model predicts only a general trend of the data but not the detailed periodic fluctuations.
+
+
+### STL Decomposition and Component Forecasting
+
+#### Decomposition
+
+To accurately determine the periodic frequency in the STL, we conducted spectral analysis to identify the frequency with the greatest power. This was achieved by detrending the original series using a rolling mean, which helps avoid the undesirable effects of the 0th frequency, representing the trend.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(forecast)
+sda = curr_series_training - rollmean(curr_series_training, 7, fill = NA, align = "right")
+sda = sda[!is.na(sda)]
+plot(sda, type = "l")
+spectrum_result <- spectrum(sda, spans=c(5,17,29))
+max_spec_index <- which.max(spectrum_result$spec)  # This finds the index of the max value in spec
+max_frequency <- spectrum_result$freq[max_spec_index]  # This finds the corresponding frequency
+
+period <- 1 / max_frequency
+# print(period)
+```
+
+From the smoothed periodogram, we can determine that the total time of an oscillation period is about 13.67089 days.
+
+We account for the frequency of daily data by setting `frequency` = 365.25 to account for leap years over a long period. Then, we interpolate the missing values and apply STL decomposition with the same window of rolling mean for the `t.window` and the identified period for `s.window`. Below is a plot of the STL components.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# The frequency for daily data can be approximated as 365.25 to account for leap years over a long period
+frequency <- 365.25
+period_frequency = period
+# The 'start' parameter for ts() only takes numeric values for year and month for non-daily data
+# For daily data, you can simply start from 1 and then set the frequency accordingly
+flux2_ts <- ts(curr_series_training, start = 2017, frequency = frequency)
+# , start = 2017
+# Interpolate missing values - assuming you have missing values to be interpolated
+flux2_ts <- na.interp(flux2_ts)
+
+# Apply STL decomposition - assuming you want to keep the same t.window and s.window
+stl_fit <- stl(flux2_ts, t.window = 7, s.window = period_frequency, robust = TRUE)
+
+# Autoplot the STL components
+autoplot(stl_fit)
+```
+
+The top panel shows the original time series data for `flux2` and the second one shows the trend component. The seasonal component is shown in the third panel, and the bottom panel shows the remainder component. The plot suggests that it has complex seasonality, and the large remainder components indicate that the model may not be sufficient to capture the underlying patterns in the data.
+
+#### Component Forecasting
+
+We fit separate ARIMA models to each component and forecast the next 31 points for each component. Below are the forecasts for the trend, seasonal, and remainder components. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+trend_component <- stl_fit$time.series[, "trend"]
+seasonal_component <- stl_fit$time.series[, "seasonal"]
+remainder_component <- stl_fit$time.series[, "remainder"]
+
+# Fit ARIMA models to each component
+model_trend <- auto.arima(trend_component, seasonal = FALSE, stepwise = FALSE,
+                          approximation = FALSE, trace = FALSE,
+                          max.p = 101, max.q = 101, d = 1)
+
+model_seasonal <- auto.arima(seasonal_component, seasonal = FALSE, stepwise = FALSE,
+                             approximation = FALSE, trace = FALSE,
+                             max.p = 101, max.q = 101, d = 1)
+
+model_remainder <- auto.arima(remainder_component, seasonal = FALSE, stepwise = FALSE,
+                              approximation = FALSE, trace = FALSE,
+                              max.p = 101, max.q = 101, d = 1)
+
+# Forecast each component
+pred_range <- 31  # Set the prediction range
+forecast_trend <- forecast(model_trend, h = pred_range)
+forecast_seasonal <- forecast(model_seasonal, h = pred_range)
+forecast_remainder <- forecast(model_remainder, h = pred_range)
+
+# Plot forecast for each component
+autoplot(forecast_trend) +
+  labs(title = "ARIMA Forecast for Trend Component",
+       x = "Time", y = "Forecasted Trend")
+
+# Seasonal
+autoplot(forecast_seasonal) +
+  labs(title = "ARIMA Forecast for Seasonal Component",
+       x = "Time", y = "Forecasted Seasonality")
+
+# Remainder
+autoplot(forecast_remainder) +
+  labs(title = "ARIMA Forecast for Remainder Component",
+       x = "Time", y = "Forecasted Remainder")
+```
+
+Each plot includes a blue shaded area that represents the forecasted values with their confidence intervals. It seems that the forecasting is good for seasonal and remainder components, but the trend component is not well captured. If we combine the forecasts, we get the following plot.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Sum the forecasts for the trend, seasonal, and remainder components
+combined_forecast <- forecast_trend$mean + forecast_seasonal$mean + forecast_remainder$mean
+
+# Create a time series object from the combined forecast
+# Assuming the start of the forecast is the end of 'curr_series_training' + 1 day
+combined_forecast_ts <- ts(combined_forecast, 
+                           start = c(2023, (length(curr_series_training) %% 365) + 1), 
+                           frequency = frequency)
+
+# Extract the actual last 31 points from 'curr_series'
+actual_last_31 <- tail(curr_series, 31)
+
+# Convert 'actual_last_31' to a time series object for plotting
+actual_last_31_ts <- ts(actual_last_31, 
+                        start = c(2023, (length(curr_series_training) %% 365) + 1), 
+                        frequency = frequency)
+
+# Plot the combined forecast and the actual last 31 points
+autoplot(combined_forecast_ts, series = "Forecast") +
+  autolayer(actual_last_31_ts, series = "Actual") +
+  labs(title = "Combined Forecast vs Actual Last 31 Points",
+       x = "Time", y = "Values") +
+  theme(legend.title = element_blank())
+```
+
+There is a visible discrepancy between the actual and forecasted values. The actual values are more volatile and has a general trend of decreasing. The forecasted values not only fail to capture the volatility but also show a general trend of increasing.
+
+### Model Diagnostics
+
+In this section, we perform a diagnostic check on both the baseline and STL model following similar procedures in [[5]](#ref5).
+
+#### Baseline Model
+
+We perform a diagnostic check on the combined forecast. Below is a plot of the residuals and the ACF plot of the residuals. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Plot residuals
+autoplot(residuals(model)) +
+  labs(title = "Residuals of ARIMA Model",
+       x = "Time", y = "Residuals") +
+  theme_minimal()
+
+# QQ plot of residuals
+qqnorm(residuals(model))
+qqline(residuals(model))
+```
+
+The residuals are uniformly distributed vertically but not horizontally, and the data points in the QQ plot do not fall on the line, indicating that the residuals are not normally distributed. 
+
+We also perform a Ljung-Box test to check for autocorrelation in the residuals. 
+
+```{r, echo=FALSE}
+# Ljung-Box test
+Box.test(residuals(model), lag = 20, type = "Ljung-Box")
+```
+
+It yields a p-value of $1.045\operatorname{e}{-5}$, which is less than $0.05$. This suggests that the residuals are autocorrelated, and the model is not capturing the underlying patterns in the data.
+
+#### STL Model
+
+Below is a plot of the residuals and the ACF plot of the residuals for the combined forecast. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Residuals
+combined_residuals <- actual_last_31 - combined_forecast
+combined_residuals_ts <- ts(combined_residuals, 
+                            start = c(2023, (length(curr_series_training) %% 365) + 1), 
+                            frequency = frequency)
+
+combined_residuals_plot <- autoplot(combined_residuals_ts, series = "Residuals") +
+  labs(title = "Residuals of Combined Forecast",
+       x = "Time", y = "Residuals") +
+  theme_minimal()
+
+combined_residuals_plot
+
+# QQ plot of residuals
+qqnorm(combined_residuals)
+qqline(combined_residuals)
+
+# ACF plot of residuals
+Acf(combined_residuals, lag.max = 1800, main = "ACF for Residuals of Combined Forecast")
+```
+
+The data points in the QQ plot now fall on the line more closely than the baseline model, and the ACF plot shows that the residuals are likely not autocorrelated since there are few significant lags.
+
+## Conclusion
+
+The time series analysis and forecasting part of this study explores two main approaches: the ARIMA modeling and forecasting method and the component forecasting method after the STL decomposition and the introduction of ARIMA modeling.
+
+The decision to use the ARIMA model (specifically the ARIMA(2,1,2) configuration) was based on the analysis of the autocorrelation function, which showed strong autocorrelation with oscillatory patterns at short lags. Nonetheless, the forecast plots of the ARIMA model show general trend forecasts and do not capture the short-term oscillations and detailed cyclical fluctuations observed in the actual values. This limitation is particularly evident in the plots of forecasts against actual observations, highlighting the model's inability to replicate the high volatility and complex patterns inherent in the data.
+
+In order to improve the accuracy of the forecasts, an STL decomposition of the time series data was used to provide a finer-grained analysis by decomposing the series into trends, seasons and residuals. Each component was then forecasted separately using the ARIMA model. As can be seen from the confidence intervals in the forecast plots, the component-based forecasting method performs well in capturing seasonal and residual variations. From the prediction plots we can clearly see that the prediction of the trend component after the addition of the stl model performs better compared to the prediction made by simply introducing the ARIMA model.
+
+Finally we plot model diagnostics for both methods reveal their fitting and predictive abilities. The residuals of the ARIMA model show signs of non-normal distribution and autocorrelation as shown in the QQ plot and the Ljung-Box test results. This suggests that the model may not adequately capture the underlying structure of the data. In contrast, the STL integrated prediction model is more consistent with the assumption of residual normality, with fewer significant lags in the ACF plot, indicating a better fit to the data.
+
+Considering both analysis and diagnosis, the STL decomposition and component forecasting approach appears to provide a more nuanced and flexible framework for understanding and forecasting time series data. The ability of the STL model to decompose the series into interpretable components and provide more detailed forecasts, particularly for seasonal and residual components, makes it potentially a more effective tool for this particular data set. Combined with the above analysis, the STL decomposition and reorganization and the introduction of the ARIMA modeling of the component prediction method fits the data better and has a higher prediction accuracy.
+
+
+## References
+
+[1] <a id="ref1"></a> Wikipedia contributors. "Solar Wind." *Wikipedia*, Wikimedia Foundation. Available [https://en.wikipedia.org/wiki/Solar_wind](https://en.wikipedia.org/wiki/Solar_wind). Accessed 22 Feb 2024.
+
+[2] <a id="ref2"></a> Wikipedia contributors. "Space Weather." *Wikipedia*, Wikimedia Foundation. Available [https://en.wikipedia.org/wiki/Space_weather](https://en.wikipedia.org/wiki/Space_weather). Accessed 22 Feb 2024.
+
+[3] <a id="ref3"></a> "Geostationary Operational Environmental Satellites (GOES) - Office of Satellite and Product Operations." *NOAA's Office of Satellite and Product Operations*, National Oceanic and Atmospheric Administration, [https://www.ospo.noaa.gov/Operations/GOES/index.html](https://www.ospo.noaa.gov/Operations/GOES/index.html). Accessed 22 Feb. 2024.
+
+[4] <a id="ref4"></a> terhorst. "GOES Daily." GitHub, [https://github.com/terhorst/stats504/blob/main/lectures/week5/goes_daily.csv.gz](https://github.com/terhorst/stats504/blob/main/lectures/week5/goes_daily.csv.gz). Accessed 22 Feb. 2024.
+
+[5] <a id="ref5"></a> STATS531 Midterm Project Group 15. "Forecasting Solar Flare from X-ray Flux Time Series." *STATS 531 Midterm Project*, University of Michigan, [https://ionides.github.io/531w21/midterm_project/project15/project.html](https://ionides.github.io/531w21/midterm_project/project15/project.html). Accessed 22 Feb. 2024.

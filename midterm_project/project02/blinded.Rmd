@@ -1,0 +1,727 @@
+---
+title: "Midterm Project: Analysis of BTC and DOGE"
+author: ""
+date: ""
+output: html_document
+---
+
+# Introduction
+
+Cryptocurrencies are a big deal nowadays, catching the eye of investors, traders, and researchers worldwide. Bitcoin (BTC) and Dogecoin (DOGE) are two that really stand out. Bitcoin, introduced in 2009, is the first and most well-known cryptocurrency, often regarded as digital gold. Dogecoin, on the other hand, started as a joke in 2013 but ended up gaining significant followings, partly due to its friendly community and low barrier to entry.
+
+Hence, the main purpose of our report is to examine the relationship between Dogecoin and Bitcoin and construct predictive models capable of forecasting the closing prices of both cryptocurrencies. By doing so, we seek to provide valuable insights into the dynamics between Dogecoin and Bitcoin, aiding investors, traders, and researchers in making informed decisions within the volatile cryptocurrency market.
+
+# Hypothesis
+
+1. **Bitcoin's Long-term Periodicity:** We hypothesize that Bitcoin exhibits long-term periodicity in its price movements. Its price is more stable compared to DOGE due to its market dominance.
+
+2. **Dogecoin's Short-term Fluctuation:** In contrast, we hypothesize Dogecoin to show more short-term fluctuation. Its price is likely influenced by social media trends and news events.
+
+# Data Information
+
+```{r read_data, message=FALSE, echo=FALSE}
+library(tidyverse)
+library(lubridate)
+library(tseries)
+library(forecast)
+
+# Load the datasets
+btc_data <- read.csv("~/Downloads/STATS531/midterm/BTC_Data.csv")
+doge_data <- read.csv("~/Downloads/STATS531/midterm/DOGE_Data.csv")
+
+# Convert the Date column to Date type 
+btc_data$Date <- as.Date(btc_data$Date)
+doge_data$Date <- as.Date(doge_data$Date)
+
+head(btc_data)
+head(doge_data)
+
+dim(btc_data)
+dim(doge_data)
+
+summary(btc_data)
+summary(doge_data)
+```
+<br>
+
+**Date**: A specific date and time.        
+**Open**: The opening price for each corresponding date.     
+**High**: The highest price reached during the day.    
+**Low**: The lowest price reached during the day.    
+**Close**: The closing price for each corresponding date.    
+**Volume**: The trading volume for each corresponding date.       
+**Dividends**: The dividends, if any, for each corresponding date.        
+**Stock Splits**: Stock splits, if any, for each corresponding date. 
+
+There are 3439 rows of data for btc_data.csv abd 2290 rows of data for doge_data. Both of them have 8 variables and our report will focus on "Date" and "Close" variables for analysis. 
+
+# Exploratory Data Analysis (EDA)
+
+## Price Plots
+
+```{r price_plots, echo=FALSE}
+library(ggplot2)
+
+# Filter BTC data as same range as DOGE
+btc_data_filtered <- btc_data %>%
+  filter(Date >= as.Date("2017-11-09") & Date <= as.Date("2024-02-15"))
+
+# BTC Price Plot
+ggplot(data = btc_data_filtered, aes(x = Date, y = Close)) +
+  geom_line(color = 'blue') +
+  labs(title = "BTC Closing Prices", x = "Date", y = "Close Price")
+
+# DOGE Price Plot
+doge_data %>%
+  ggplot(aes(x = Date, y = Close)) +
+  geom_line(color = 'red') +
+  labs(title = "DOGE Closing Prices", x = "Date", y = "Close Price")
+```
+
+**BTC Closing Prices Plot Description**
+
+The BTC price plot illustrates volatility alongside discernible patterns. The plot reveals that its closing price has experienced several peaks and troughs over the years, reflecting distinct market cycles. Despite dramatic price fluctuations (price increases and decreases), the long-term trend appears relatively stable, aligning with our hypothesis.
+
+**DOGE Closing Prices Plot Description**
+
+The DOGE price plot looks more unstable compared to BTC's. It is relatively flat from 2018 to 2021 and then experiences a big spike followed by a sharp decline. This could serve as evidence for the short-term fluctuations hypothesized, where prices are volatile and influenced by social media and news events. 
+
+<br>
+
+**Discussion of Visualization Findings**
+One significant observation is the remarkable increase in the price of DOGE coin from February 2021 to April 2021, driven primarily by a series of tweets from Elon Musk endorsing DOGE. We view this event as an outlier, unlikely to occur frequently [1]. Given that this spike was not the result of standard market dynamics and, at present, we lack appropriate models to account for such anomalies, we have chosen to exclude this atypical price fluctuation during the first half of 2021, treating it as an external disruption in the data. Consequently, we will segment our analysis into two periods: the first spanning from November 9, 2011, to December 31, 2020, before the unusual price movement, and the second from July 1, 2021, to February 2024, following the event. A similar approach will be applied to Bitcoin (BTC) data to enable a comparative analysis between the two cryptocurrencies.
+<br>
+```{r, spike, echo=FALSE, warning=FALSE}
+library(dplyr)
+##Abnormal Spike happens in H1 2023
+p <- ggplot(doge_data, aes(x = Date, y = Close)) +
+  geom_line(color = 'grey') + 
+  geom_line(data = doge_data %>% filter(Date >= as.Date("2021-01-01") & Date <= as.Date("2021-06-30")),
+            color = 'red', size = 1) + 
+  labs(title = "DOGE Closing Prices", x = "Date", y = "Close Price") +
+  annotate("text", x = as.Date("2021-03-15"), y = max(doge_data$Close, na.rm = TRUE), 
+           label = "Abnormal Spike", color = "black", size = 4, vjust = 1.5)
+p
+```
+<br>
+Another key observation is that prior to the first half of 2021, both currencies were trading at relatively lower prices but experienced substantial growth post-2021. This underscores the importance of excluding the aforementioned spike from our analysis, as the market dynamics at higher trading volumes may differ significantly.  
+<br>
+```{r, echo=FALSE, warning=FALSE}
+##BTC plot
+btc_data_filtered$Date <- as.Date(btc_data_filtered$Date)
+btc_data_filtered$Period <- ifelse(doge_data$Date < as.Date("2021-01-01"), "Before 2021", "2021 and After")
+ggplot(btc_data_filtered, aes(x = Date, y = Close, color = Period)) +
+  geom_line() +
+  labs(title = "BTC Closing Prices", x = "Date", y = "Close Price", color = "Period") +
+  scale_color_manual(values = c("Before 2021" = "black", "2021 and After" = "red"))
+##DOGE plot
+doge_data$Date <- as.Date(doge_data$Date)
+doge_data$Period <- ifelse(doge_data$Date < as.Date("2021-01-01"), "Before 2021", "2021 and After")
+ggplot(doge_data, aes(x = Date, y = Close, color = Period)) +
+  geom_line() +
+  labs(title = "DOGE Closing Prices", x = "Date", y = "Close Price", color = "Period") +
+  scale_color_manual(values = c("Before 2021" = "black", "2021 and After" = "red"))
+```
+## Visualization of Splited Data  
+We plot two sections of data to see the price movement before and after the spike. 
+<br>
+```{r, echo=FALSE, warning=FALSE}
+library(patchwork)
+##split doge data into two sections
+doge_data_1 <- doge_data %>% filter(Date < as.Date("2021-01-01"))
+doge_data_2 <- doge_data %>% filter(Date >= as.Date("2021-07-01"))
+##doge before 2021
+p1 <- ggplot(doge_data_1, aes(x = Date, y = Close)) +
+  geom_line(color = "blue") +
+  labs(title = "DOGE: Before 2021", x = "Date", y = "Close Price")
+##doge after June 2021
+p2 <- ggplot(doge_data_2, aes(x = Date, y = Close)) +
+  geom_line(color = "red") +
+  labs(title = "DOGE: After June 2021", x = "Date", y = "Close Price")
+p1 + p2
+##split btc data into two sections
+btc_data_1 <- btc_data_filtered %>% filter(Date < as.Date("2021-01-01"))
+btc_data_2 <- btc_data_filtered %>% filter(Date >= as.Date("2021-07-01"))
+##btc before 2021
+p1 <- ggplot(btc_data_1, aes(x = Date, y = Close)) +
+  geom_line(color = "blue") +
+  labs(title = "BTC: Before 2021", x = "Date", y = "Close Price")
+##btc after June 2021
+p2 <- ggplot(btc_data_2, aes(x = Date, y = Close)) +
+  geom_line(color = "red") +
+  labs(title = "BTC: After June 2021", x = "Date", y = "Close Price")
+p1 + p2
+```
+# Data processing
+## Log Tranform of Prices Plots
+Due to the high variability of these two cryptocurrencies identified in the previous section, we consider applying a logarithmic transform to the closing price. We expect to see a more clear pattern once we reduce the difference between the high and low values with the Log-transformation.
+<br>
+```{r, echo=FALSE}
+# Log-transform the closing prices and create new columns
+btc_data_filtered$log_Close = log(btc_data_filtered$Close)
+doge_data$log_Close = log(doge_data$Close)
+
+# BTC
+ggplot(data = btc_data_filtered, aes(x = Date, y = log_Close)) +
+  geom_line(color = 'blue') +
+  labs(title = "Log-transformed BTC Closing Prices", x = "Date", y = "Log Close Price")
+
+# DOGE
+doge_data %>%
+  ggplot(aes(x = Date, y = log_Close)) +
+  geom_line(color = 'red') +
+  labs(title = "Log-transformed DOGE Closing Prices", x = "Date", y = "Log Close Price")
+```
+Plotting the prices after applying a logarithmic transformation makes it more evident: BTC exhibits greater stability in the long term, while DOGE jumps in year 2021 and shows more obvious fluctuations. Given that the logarithmic transformation is working well to the price surge, we anticipate that it will interfere our analysis and time-series models. To investigate the issue, we will split the data into two parts, "before 2021" and "after June 2021", and compare to the data with the entire duration.
+<br>
+```{r, echo=FALSE, warning=FALSE}
+##construct log close column
+btc_data_filtered$log_Close = log(btc_data_filtered$Close)
+doge_data$log_Close = log(doge_data$Close)
+##construct log return column
+btc_data_filtered$log_Return <- c(NA, diff(btc_data_filtered$log_Close))
+doge_data$log_Return <- c(NA, diff(doge_data$log_Close))
+##construct first order difference of log return column
+btc_data_filtered$ordered_log_Return <- c(NA, diff(btc_data_filtered$log_Return))
+doge_data$ordered_log_Return <- c(NA, diff(doge_data$log_Return))
+##plot doge's log close price
+doge_data_1 <- doge_data %>% filter(Date < as.Date("2021-01-01"))
+doge_data_2 <- doge_data %>% filter(Date >= as.Date("2021-07-01"))
+p1 <- ggplot(doge_data_1, aes(x = Date, y = log_Close)) +
+  geom_line(color = "blue") +
+  labs(title = "DOGE: Before 2021", x = "Date", y = "Log Close Price")
+
+p2 <- ggplot(doge_data_2, aes(x = Date, y = log_Close)) +
+  geom_line(color = "red") +
+  labs(title = "DOGE: After June 2021", x = "Date", y = "Log Close Price")
+p1 + p2
+##plot btc's log close price
+btc_data_1 <- btc_data_filtered %>% filter(Date < as.Date("2021-01-01"))
+btc_data_2 <- btc_data_filtered %>% filter(Date >= as.Date("2021-07-01"))
+p1 <- ggplot(btc_data_1, aes(x = Date, y = log_Close)) +
+  geom_line(color = "blue") +
+  labs(title = "BTC: Before 2021", x = "Date", y = "Log Close Price")
+
+p2 <- ggplot(btc_data_2, aes(x = Date, y = log_Close)) +
+  geom_line(color = "red") +
+  labs(title = "BTC: After June 2021", x = "Date", y = "Log Close Price")
+p1 + p2
+```
+<br>
+As of right now, the stability increases in the plot of the log-transformation price after we split the data. The first half of the Log DOGE price fluctuates while the second half of DOGE price goes down. In contrast, a similar pattern is identified by naked eyes in the two splits of BTC data.
+
+## Return of cryptocurrencies
+Indeed, analyzing closing price directly is more intuitive to understand the market, but return is another popular observations for both stocks and cryptocurrencies. Here, we follow an equation from the lecture slide
+$$
+log(r_t)=\Delta log(Close_t) = log(Close_t)-log(Close_{t-1})
+$$ 
+where r is the return from the day t-1 to day t based on the closing price [2]. In fact, although "return" is a term used a lot in the Wall Street, it is the first difference of a time series data.
+<br>
+```{r, echo=FALSE, warning=FALSE}
+# Entire duration of price history
+# Calculate returns of BTC
+z1 = btc_data_filtered$log_Close[2:length(btc_data_filtered$log_Close)]
+z0 = btc_data_filtered$log_Close[1:length(btc_data_filtered$log_Close)-1]
+btc_return = data.frame(return = z1-z0, date = btc_data_filtered$Date[2:length(btc_data_filtered$log_Close)])
+# Calculate returns of DOGE
+z1 = doge_data$log_Close[2:length(doge_data$log_Close)]
+z0 = doge_data$log_Close[1:length(doge_data$log_Close)-1]
+doge_return = data.frame(return = z1-z0, date = doge_data$Date[2:length(doge_data$log_Close)])
+# BTC
+ggplot(data = btc_return, aes(x = date, y = return)) +
+  geom_line(color = 'blue') +
+  labs(title = "Return of BTC Closing Prices", x = "Date", y = "Return")
+
+# DOGE
+doge_return %>%
+  ggplot(aes(x = date, y = return)) +
+  geom_line(color = 'red') +
+  labs(title = "Return of DOGE Closing Prices", x = "Date", y = "Return")
+
+# Split duration of price history
+# plot log return of DOGE
+p1 <- ggplot(doge_data_1, aes(x = Date, y = log_Return)) +
+  geom_line(color = "blue") +
+  labs(title = "DOGE: Before 2021", x = "Date", y = "Log Return")
+
+p2 <- ggplot(doge_data_2, aes(x = Date, y = log_Return)) +
+  geom_line(color = "red") +
+  labs(title = "DOGE: After June 2021", x = "Date", y = "Log Return")
+p1 + p2
+# plot log return of BTC
+p1 <- ggplot(btc_data_1, aes(x = Date, y = log_Return)) +
+  geom_line(color = "blue") +
+  labs(title = "BTC: Before 2021", x = "Date", y = "Log Return")
+
+p2 <- ggplot(btc_data_2, aes(x = Date, y = log_Return)) +
+  geom_line(color = "red") +
+  labs(title = "BTC: After June 2021", x = "Date", y = "Log Return")
+p1 + p2
+```
+<br>
+As we have already seen in the previous sections, a big surge of DOGE leads to a big return in 2021. By contrast, a negative return is more obvious than other peaks in BTC price history. Before we applied any further models and analysis, we firstly investigate stationarity of the three different types of data, closing price, Log closing price, and return.
+$$
+log(r_t)=\frac{\psi(B)}{\phi(B)}\epsilon_t
+$$
+```{r, echo=FALSE, warning=FALSE}
+# Entire data of log return
+# plot ACF
+acf(na.omit(doge_data$log_Return), main="ACF Plot of closing price: DOGE", lag.max=30)
+# plot ACF
+acf(na.omit(btc_data_filtered$log_Return), main="ACF Plot of closing price: BTC", lag.max=30)
+
+# Split data of log return
+# plot ACF of DOGE before 2021
+acf(na.omit(doge_data_1$log_Return), main="ACF Plot of Log closing price: DOGE Before 2021", lag.max=30)
+# plot ACF of BTC before 2021
+acf(na.omit(btc_data_1$log_Return), main="ACF Plot of Log closing price: BTC Before 2021", lag.max=30)
+# plot ACF of DOGE after JUNE 2021
+acf(na.omit(doge_data_2$log_Return), main="ACF Plot of Log closing price: DOGE After June 2021", lag.max=30)
+#plot ACF of BTC after JUNE 2021
+acf(na.omit(btc_data_2$log_Return), main="ACF Plot of Log closing price: BTC After June 2021", lag.max=30)
+``` 
+<br>
+Using either closing price or log closing price, ACF plots gradually decrease which points out an non-stationary characteristic (Not shown). Even if we split the data, the characteristic is not going away. Surprisingly, the pattern of ACF plots gets closer to the pattern of white noise ACF based on the return, especially for BTC. Additionally, the two splits of time-series do not evidently improve in terms of ACF plots; thus, we will analyze the entire time series in the following sections. More importantly, it can be seen that the ACFs of BTC decay quickly to zero without periodicity while significant spikes are present in the ACF of DOGE plot. Therefore, the data is more possible to be stationary. However, the worries about Burton Malkiel’s “A Random Walk Down Wall Street” raises [3]. The theory tells us that the market data is not predictable. To validate this idea, we will perform spectral analysis and fit the data with ARIMA models to answer the questions: 1) Is there any periodic or seasonal behaviors? 2) Is there any existing ARIMA model that are capable of modeling/forecasting the time-series of cryptocurrencies?
+<br>
+
+# Spectral analysis
+Although the pattern of ACFs look like white noise processes, some significant pikes, especially for DOGE, inspire us to investigate the frequency domain. 
+
+## Unsmoothed Periodogram
+```{r unsmoothed_periodogram, echo=FALSE}
+# BTC
+btc_ts <- ts(btc_data_filtered$Close, frequency = 365)
+btc_spec <- spectrum(btc_ts, spans = NULL, plot = FALSE)
+plot(btc_spec, main = "BTC Unsmoothed Periodogram")
+
+# DOGE
+doge_ts <- ts(doge_data$Close, frequency = 365)
+doge_spec <- spectrum(doge_ts, spans = NULL, plot = FALSE)
+plot(doge_spec, main = "DOGE Unsmoothed Periodogram")
+```
+<br>
+Both periodograms show a clear trend of decreasing power with increasing frequency. However, DOGE displays greater variability than BTC, potentially indicating heightened short-term fluctuations. To gain further insights, smoothed periodograms are required.
+
+<br>
+
+## Smoothed Periodogram
+```{r smoothed_periodogram, echo=FALSE}
+# BTC
+btc_spec_smooth <- spectrum(btc_ts, spans = c(3, 3), plot = FALSE)
+plot(btc_spec_smooth, main = "BTC Smoothed Periodogram")
+btc_spec_smooth$freq[which.max(btc_spec_smooth$spec)]
+
+# DOGE
+doge_spec_smooth <- spectrum(doge_ts, spans = c(3, 3), plot = FALSE)
+plot(doge_spec_smooth, main = "DOGE Smoothed Periodogram")
+cat('The peak frequency of BTC:')
+btc_spec_smooth$freq[which.max(btc_spec_smooth$spec)]
+cat('The peak frequency of DOGE:')
+doge_spec_smooth$freq[which.max(doge_spec_smooth$spec)]
+
+# smoothed periodogram of BTC selected by AIC
+btc_ar_aic = spectrum(btc_ts, method="ar", main="Spectrum of BTC estimated via AR model picked by AIC")
+btc_ar_aic$freq[which.max(btc_ar_aic$spec)]
+# smoothed periodogram of BTC selected by AIC
+doge_ar_aic = spectrum(doge_ts, method="ar", main="Spectrum of DOGE estimated via AR model picked by AIC")
+doge_ar_aic$freq[which.max(doge_ar_aic$spec)]
+```
+<br>
+Both BTC and DOGE lack clear periodic cycles in their smoothed periodograms, indicating stronger long-term trends. Smoothed periodograms support the opinion that DOGE's spectrum shows more variability at higher frequencies, which may suggest relatively more short-term fluctuations. Despite this, the highest frequency in the smoothed BTC and DOGE data are both 0.3168 which is a period $T=1/\omege=3.16$. 3.16 years implies that a long-term periodicity may still exist in less obvious forms, such as trends or recurring patterns, which do not produce distinct peaks in the periodogram but influence price movement over longer time periods.
+
+That being said, using AIC to select the best estimators considers **0 frequency** as the highest peak in which larger values of span are certainly used to smooth the data. The result leads to an infinity period that means no periodic behavior. All in all, we are hard to claim that there is any periodic behavior in BTC and DOGE.
+
+<br>
+
+# Build ARIMA models and select the best parameters
+Like we mentioned in the previous section, we wonder if it is possible to model the two cryptocurrencies' data. We firstly leverage AIC as an indicator
+$$AIC=2k-2log(L)$$
+to choose the best combinations of p and q for ARIMA models. $k$ is number of parameter, and $L$ is likelihood [4]. The lower AIC is, the better model is.  
+For selection of parameter selection we decide to use AIC score as an indicator. Although there is no obvious periodic behaviors identified in the previous analysis, we assume that a linear trend exists in the time-series datasets according to the consensus of the market [5]. We then simply scan the two parameters to build an ARIMA model with linear trend [6, 7].
+$$
+(1 − ϕ_1B)(Y_n − μ − βt_n) = ϵ_n
+$$
+```{r, echo=FALSE, warning=FALSE}
+# AIC table of BTC's log return before 2021
+aic_table <- function(data,P,Q){
+table <- matrix(NA,(P+1),(Q+1))
+for(p in 0:P) {
+for(q in 0:Q) {
+table[p+1,q+1] <- tryCatch({
+  arima(data$log_Close, order=c(p,0,q), xreg = data$Date)$aic
+  }, error = function(err) {
+    print("Err msg:")
+    print(err)
+    return(NA)
+})
+}
+}
+dimnames(table) <- list(paste("AR",0:P, sep=""),
+paste("MA",0:Q,sep=""))
+table
+}
+
+# BTC
+res <- aic_table(btc_data_filtered, 5, 5)
+require(knitr)
+kable(res, digits=2)
+res[which.min(res)]
+
+# DOGE
+res <- aic_table(doge_data, 5, 5)
+require(knitr)
+kable(res, digits=2)
+res[which.min(res)]
+```
+<br>
+The lowest AIC values (-8499.202 for BTC and -5551.335 for DOGE) are obtained from an ARIMA(4,0,4) and an ARIMA(4,0,5) models. However, an ARMA models with P+Q>5 could be problematic. To verify if the linear trend model is required for the ARIMA model, we apply Likelihood Ratio Tests (LRT) to test a null hypothesis: the coefficient of the linear model is zero and an alternative hypothesis: the coefficient of the linear model is not zero [8].
+<br>
+$$
+l_1-l_0 ≈ 1/2χ_1^2
+$$
+
+```{r, echo=FALSE, warning=FALSE}
+# BTC
+arma0 = arima(btc_data_filtered$log_Close, order=c(4,0,4), xreg = btc_data_filtered$Date)
+arma1 = arima(btc_data_filtered$log_Close, order=c(4,0,4))
+dftmp = length(coef(arma1)) - length(coef(arma0))  # degree of freedom
+teststat = 2*(as.numeric(logLik(arma0))-as.numeric(logLik(arma1)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE)
+
+# DOGE
+arma0 = arima(doge_data$log_Close, order=c(4,0,5), xreg = doge_data$Date)
+arma1 = arima(doge_data$log_Close, order=c(4,0,5))
+dftmp = length(coef(arma1)) - length(coef(arma0))  # degree of freedom
+teststat = 2*(as.numeric(logLik(arma0))-as.numeric(logLik(arma1)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE) 
+```
+<br>
+As a result, we can see that both models show significance (p=0.01577435 for BTC and 0.02340156 for DOGE) and reject the null hypothesis which means the linear model is required. The LRT tests lead us to difference the data. That being said, coupling ARIMA with a linear model might not be sufficient to represent the times series of crypotocurrencies. We aggressively fit a quadratic model with ARIMA on log prices of both assets to study and visualize the trend of price movement.
+$$log(Close_t)=\beta_0+\beta_1t+\beta_2t^2+ARMA(p,q)$$
+```{r,echo=FALSE,warning=FALSE}
+library(forecast)
+# construct variables used in regression
+dates_1 <- doge_data$Date
+t_1 <- 1:length(dates_1)
+t_reg_1 <- cbind("t" = t_1, "t_squared" = t_1^2)
+y_doge <- doge_data$log_Close
+
+# fit quadratic ARMA model with log price of DOGE
+model_1_doge <- auto.arima(y_doge, xreg = t_reg_1)
+coef <- coef(model_1_doge)
+coef
+predicted_values <- coef["intercept"] + coef["t"] * t_reg_1[, "t"] + coef["t_squared"] * t_reg_1[, "t_squared"]
+p <- ggplot(doge_data, aes(x = Date)) +
+  geom_line(aes(y = log_Close), color = "blue") +
+  labs(title = "Trend of DOGE", x = "Date", y = "Log Close Price") +
+  geom_line(aes(y = predicted_values), colour = "red", linetype = "dashed")
+
+p
+
+# construct variables used in regression
+dates_1 <- btc_data_filtered$Date
+t_1 <- 1:length(dates_1)
+t_reg_1 <- cbind("t" = t_1, "t_squared" = t_1^2)
+y_btc <- btc_data_filtered$log_Close
+# fit quadratic ARMA model with log price of BTC
+model_1_btc <- auto.arima(y_btc, xreg = t_reg_1)
+coef <- coef(model_1_btc)
+coef
+predicted_values <- coef["intercept"] + coef["t"] * t_reg_1[, "t"] + coef["t_squared"] * t_reg_1[, "t_squared"]
+p <- ggplot(btc_data_filtered, aes(x = Date)) +
+  geom_line(aes(y = log_Close), color = "blue") +
+  labs(title = "Trend of BTC", x = "Date", y = "Log Close Price") +
+  geom_line(aes(y = predicted_values), colour = "red", linetype = "dashed")
+
+p
+```
+<br>
+The two plots suggest that trends exist and go upward, but linear function would be sufficient to represent the trend while the fitting curve is not totally linear in the BTC plot. With the sense to choose simple models, we tend to choose an ARIMA model with a linear model and decide to difference the data with d=1. In fact, applying d=1 to the Log closing prices is similar to turning the data into the Log returns. Thus, in the following sections, we will build models with the first-order differencing.
+<br>
+```{r,echo=FALSE,warning=FALSE}
+# AIC table
+aic_table <- function(data,P,Q){
+table <- matrix(NA,(P+1),(Q+1))
+for(p in 0:P) {
+for(q in 0:Q) {
+table[p+1,q+1] <- tryCatch({
+  arima(data$log_Close, order=c(p,1,q))$aic
+  }, error = function(err) {
+    print("Err msg:")
+    print(err)
+    return(NA)
+})
+}
+}
+dimnames(table) <- list(paste("AR",0:P, sep=""),
+paste("MA",0:Q,sep=""))
+table
+}
+
+# BTC
+res <- aic_table(btc_data_filtered, 5, 5)
+require(knitr)
+kable(res, digits=2)
+res[which.min(res)]
+
+# DOGE
+res <- aic_table(doge_data, 5, 5)
+require(knitr)
+kable(res, digits=2)
+res[which.min(res)]
+```
+<br>
+According to the AIC table, we aquire the lowest AIC with ARIMA(2,1,4) for BTC and with ARIMA(5,1,5) for DOGE. In addition to scanning parameters with AIC, we are interested in the model selections with `auto.arima` method in R. 
+<br>
+```{r,echo=FALSE,warning=FALSE}
+# fit models
+automodel_doge <- auto.arima(doge_data$log_Close)
+automodel_btc <- auto.arima(btc_data_filtered$log_Close)
+automodel_doge
+automodel_btc
+```
+<br>
+`auto.arima` chooses ARIMA(1,1,4) and ARIMA(4,1,1) for DOGE and BTC, respectively. It is a good sign to see that `auto.arima` automatically suggests d=1 for both models which aligns with our findings with linear and quadratic models. To pick the best models for the two data, we apply LRT again. In other words, we test that the performance of the models generated from the AIC tables and `auto.arima` are equal for null hypothesis or not equal for the alternative hypothesis [9].
+<br>
+```{r, echo=FALSE, warning=FALSE}
+# BTC
+arma0_btc = arima(btc_data_filtered$log_Close, order=c(2,1,4))
+dftmp = length(coef(automodel_btc)) - length(coef(arma0_btc))  # degree of freedom
+teststat = 2*(as.numeric(logLik(automodel_btc))-as.numeric(logLik(arma0_btc)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE)
+
+# DOGE
+arma0_doge = arima(doge_data$log_Close, order=c(5,1,5))
+dftmp = length(coef(automodel_doge)) - length(coef(arma0_doge))  # degree of freedom
+teststat = 2*(as.numeric(logLik(automodel_doge))-as.numeric(logLik(arma0_doge)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE) 
+```
+<br>
+Both tests report p-values greater than 0.05, so we cannot reject the null hypothesis. Although `auto.arima` suggests two models with less complexity and with P+Q=5, we will keep all the models for the next diagnosis. More importantly, we have previously mentioned that modeling the crypto data are doubtful since it is considered as a random walk process. We here compare the `auto.arima`-based models with the first-order differencing data ARIMA(0,1,0) with respect to the LRT p-values.
+<br>
+```{r, echo=FALSE, warning=FALSE}
+# BTC
+arma010_btc = arima(btc_data_filtered$log_Close, order=c(0,1,0))
+dftmp = length(coef(automodel_btc)) - length(coef(arma010_btc))  # degree of freedom
+teststat = 2*(as.numeric(logLik(automodel_btc))-as.numeric(logLik(arma010_btc)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE)
+
+
+# DOGE
+arma010_doge = arima(doge_data$log_Close, order=c(0,1,0))
+dftmp = length(coef(automodel_doge)) - length(coef(arma010_doge))  # degree of freedom
+teststat = 2*(as.numeric(logLik(automodel_doge))-as.numeric(logLik(arma010_doge)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE)
+
+# BTC
+arma010_btc = arima(btc_data_filtered$log_Close, order=c(0,1,0))
+dftmp = length(coef(arma0_btc)) - length(coef(arma010_btc))  # degree of freedom
+teststat = 2*(as.numeric(logLik(arma0_btc))-as.numeric(logLik(arma010_btc)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE)
+
+# DOGE
+arma010_doge = arima(doge_data$log_Close, order=c(0,1,0))
+dftmp = length(coef(arma0_doge)) - length(coef(arma010_doge))  # degree of freedom
+teststat = 2*(as.numeric(logLik(arma0_doge))-as.numeric(logLik(arma010_doge)))
+pchisq(teststat,df=abs(dftmp),lower.tail=FALSE)
+```
+<br>
+A good news and a bad news for the `auto.arima`-based models--we cannot reject the null hypothesis for BTC while it is significant for DOGE. That is, the ARIMA model could capture certain patterns which cannot be modeled by a model of "yesterday's return". The ARIMA model of BTC, however, is unfortunately outperformed by ARIMA(0,1,0). The two AIC-table-based models are significantly better, albeit more complex than the auto.arima`-based models, than the ARIMA(0,1,0). Given the ambiguous results, We tend to explain that the ARIMA models are required to be improved or might not be ideal for the crypo data. Despite the significant LRT for the AIC-table-based models, P+Q>5 implies hidden unsolvable issues. To further confirm the idea, we will proceed more diagnosis.
+<br>
+
+# Diagnosis of selected models
+## Compare the original time series to the fitted prices
+We simply visualize the original the Log closing prices and the fitted prices generated from the two different methods.
+<br>
+```{r, echo=FALSE, warning=FALSE}
+btc_data_filtered$forecast_aicTB = fitted(arma0_btc)
+btc_data_filtered$forecast_autoAIC = fitted(automodel_btc)
+doge_data$forecast_aicTB = fitted(arma0_doge)
+doge_data$forecast_autoAIC = fitted(automodel_doge)
+library(plotly) 
+fig1 <- plot_ly(x = btc_data_filtered$Date, y = btc_data_filtered$log_Close, type = 'scatter', mode = 'lines', name='Original data') 
+fig2 <- plot_ly(x = btc_data_filtered$Date, y =  btc_data_filtered$forecast_aicTB, type = 'scatter', mode = 'lines', name='aicTB') 
+fig3 <- plot_ly(x = btc_data_filtered$Date, y =  btc_data_filtered$forecast_autoAIC, type = 'scatter', mode = 'lines', name='autoARIMA') 
+fig <- subplot(fig1, fig2, fig3, nrows = 3) %>% 
+  layout(title = list(text = "Compare the original and fitted Log closing prices of BTC"),
+         plot_bgcolor='#e5ecf6', 
+         xaxis = list( 
+           title='Date',
+           zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff'), 
+         yaxis = list( 
+           title='Log Close',
+           zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff')
+         ) 
+fig
+```
+```{r, echo=FALSE, warning=FALSE}
+library(plotly) 
+fig1 <- plot_ly(x = doge_data$Date, y = doge_data$log_Close, type = 'scatter', mode = 'lines', name='Original data') 
+fig2 <- plot_ly(x = doge_data$Date, y =  doge_data$forecast_aicTB, type = 'scatter', mode = 'lines', name='aicTB') 
+fig3 <- plot_ly(x = doge_data$Date, y =  doge_data$forecast_autoAIC, type = 'scatter', mode = 'lines', name='autoARIMA') 
+fig <- subplot(fig1, fig2, fig3, nrows = 3) %>% 
+  layout(title = list(text = "Compare the original and fitted Log closing prices of DOGE"),
+         plot_bgcolor='#e5ecf6', 
+         xaxis = list( 
+           title='Date',
+           zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff'), 
+         yaxis = list( 
+           title='Log Close',
+           zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff')
+         ) 
+fig
+```
+<br>
+The fitted values apparently recapitulate the behaviors of the original closing prices.
+
+## Diagnosis of residuals
+Based on the assumptions for time-series models, the residuals should behave like a white noise process which means nothing else left to be modeled. We then visualize the ACF of residuals.
+<br>
+```{r, echo=FALSE, warning=FALSE} 
+acf(arma0_btc$residuals, main = "Residuals Autocorrelation")
+acf(arma0_doge$residuals, main = "Residuals Autocorrelation")
+acf(automodel_btc$residuals, main = "Residuals Autocorrelation")
+acf(automodel_doge$residuals, main = "Residuals Autocorrelation")
+``` 
+<br>
+In spite of one or two significant spikes, the ACFs indeed drops from 0 to 1 lags and are similar to the patterns of ACFs of white noises. Besides, there are more significant spikes detected in DOGE.
+<br>
+
+
+## Diagnosis of invertibility, stationarity, and causality
+If the roots fall outside the unit circle for the AR part, the model is stationary. Likewise, if the roots are outside the circle, it is invertible. However, our analysis suggests that the model is neither stationary and invertible. This also confirms that causality is not satisfied [10].
+<br>
+```{r, echo=FALSE, warning=FALSE}   
+autoplot(arma0_btc, main = "ARIMA(2,1,4) for BTC")
+autoplot(arma0_doge, main = "ARIMA(5,1,5) for DOGE")
+autoplot(automodel_btc, main = "ARIMA(4,1,1) for BTC")
+autoplot(automodel_doge, main = "ARIMA(1,1,4) for DOGE")
+``` 
+<br>
+If the roots fall outside the unit circle for the AR part, the model is stationary. Likewise, if the roots are outside the circle, it is invertible. However, our analysis suggests that the model is neither stationary and invertible while the roots are almost on the unit circles. This also confirms that causality is not satisfied. To verify if the models are really not stable, we then perform Bootstrapping method to the ARIMA(5,1,5) model which has roots close to the unit circle [11].
+<br>
+```{r, echo=FALSE, warning=FALSE}
+library(doParallel)
+registerDoParallel()
+set.seed(1)
+J <- 1000
+params <- coef(arma0_doge)
+ar <- params[grep("^ar",names(params))]
+ma <- params[grep("^ma",names(params))]
+intercept <- 0# params["intercept"]
+sigma <- sqrt(arma0_doge$sigma2)
+theta <- matrix(NA,nrow=J,ncol=length(params),
+dimnames=list(NULL,names(params)))
+t1 <- system.time(
+crypto_sim <- foreach(j=1:J) %dopar% {
+Y_j <- arima.sim(list(ar=ar),n=length(doge_data$log_Close),
+sd=sigma)+intercept
+try(coef(arima(Y_j,order=c(5,1,5))))
+}
+)
+``` 
+
+
+```{r, echo=FALSE, warning=FALSE}
+ma1 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma1"] else NULL ))
+ar1 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ar1"] else NULL ))
+hist(ar1,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+hist(ma1,freq=TRUE,breaks=50, xlim=c(-1,1))
+ma2 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma2"] else NULL ))
+ar2 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ar2"] else NULL ))
+hist(ar2,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+hist(ma2,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+ma3 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma3"] else NULL ))
+ar3 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ar3"] else NULL ))
+hist(ar3,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+hist(ma3,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+ma4 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma4"] else NULL ))
+ar4 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ar4"] else NULL ))
+hist(ar4,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+hist(ma4,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+ma5 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma5"] else NULL ))
+ar5 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ar5"] else NULL ))
+hist(ar5,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+hist(ma5,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+``` 
+<br>
+We can find a dominant peak in each plot for all the coefficients with the scale and breaks provided in the lecture slides [5]. The result suggests the stability of the ARIMA model.
+<br>
+```{r, echo=FALSE, warning=FALSE}
+library(doParallel)
+registerDoParallel()
+set.seed(1)
+J <- 1000
+params <- coef(automodel_doge)
+ar <- params[grep("^ar",names(params))]
+ma <- params[grep("^ma",names(params))]
+intercept <- 0# params["intercept"]
+sigma <- sqrt(automodel_doge$sigma2)
+theta <- matrix(NA,nrow=J,ncol=length(params),
+dimnames=list(NULL,names(params)))
+t1 <- system.time(
+crypto_sim <- foreach(j=1:J) %dopar% {
+Y_j <- arima.sim(list(ar=ar),n=length(doge_data$log_Close),
+sd=sigma)+intercept
+try(coef(arima(Y_j,order=c(1,1,4))))
+}
+)
+``` 
+<br>
+Then, we applied the same method to investigate ARIMA(1,1,4) generated from `auto.arima`.
+<br>
+```{r, echo=FALSE, warning=FALSE}
+ma1 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma1"] else NULL ))
+ar1 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ar1"] else NULL ))
+hist(ar1,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+hist(ma1,freq=TRUE,breaks=50, xlim=c(-2,0))
+ma2 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma2"] else NULL ))
+hist(ma2,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+ma3 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma3"] else NULL ))
+hist(ma3,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+ma4 <- unlist(lapply(crypto_sim,function(x) 
+  if(!inherits(x,"try-error"))x["ma4"] else NULL ))
+hist(ma4,freq=TRUE,breaks=50, xlim=c(-1,1)) 
+``` 
+<br>
+Concentrating peaks are still detectable in the ARIMA model that suggests a stable model.
+<br>
+
+# Conclusion
+We successfully applied time-series models and analysis to study the closing prices of cryptocurrencies, BTC and DOGE. Our research indicates that a log-transformation can improve time series analysis while the transformed data are still not stationary. We also recognize linear trends in the time-series data, but no periodic behaviors are identified. After de-trending the data, we select models that can provide good fitted values and satisfy the assumptions of residuals. While the model selected by `auto.arima` for BTC does not outperform the ARIMA(0,1,0), the significance of the rest of the models do not support the idea of "A Random Walk Down Wall Street". In other words, a good combination of P and Q is possible to improve an ARIMA model detecting and recapitulating the time-series of cryptocurrencies. We indeed demonstrate the stability of the parameters, but the concerns of the causality, invertibility, and stationarity still questions the models. In addition, we anticipate that the greater fluctuating behaviors of DOGE would lead to worse models and unpredictable outcomes compared to BTC. However, except for the high frequencies of "ups and downs", both BTC and DOGE share similar characteristics such as trends, ACFs, and models. In the end, while we tend to claim that the time series of crypto market can be modeled by ARIMA, the results may vary due to different time windows. Particularly, the forecasting and predictive power of the models are not yet tested, which is considered one of the most important reasons to study time-series modeling.
+
+
+# Reference
+1. Dogecoin price soars more than 100% to new record after Elon Musk tweets. CNN. https://www.cnn.com/2021/04/16/investing/dogecoin-price-elon-musk-int-hk/index.html
+2. Returns of S&P data. lecture slides Ch01 p.19.
+3. A random walk down Wall Street: the time-tested strategy for successful investing. Burton Malkiel (2011).
+4. Akaike’s information criterion (AIC). lecture slides Ch05 p.21.
+5. Understanding the crypto-asset phenomenon, its risks and measurement issues. ECB Economic Bulletin (2019). https://www.ecb.europa.eu/pub/economic-bulletin/articles/2019/html/ecb.ebart201905_03~c83aeaa44c.en.html
+6. Project02: Ethereum and Investment. (2022).
+7. Project07: Average Price for Car License. (2022).
+8. Likelihood ratio test. lecture slides Ch05 p.19.
+9. Likelihood Ratio Test. Peter Roessler-Caram. (2018) https://rpubs.com/roes7096/LTR
+10. Fitting ARMA models in R: Choosing p and q. lecture slides Ch05 p.32.
+11. Fitting ARMA models in R: Boostrapping test. lecture slides Ch05 p.36.
