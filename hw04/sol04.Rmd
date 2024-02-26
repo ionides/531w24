@@ -1,6 +1,6 @@
 ---
 title: "Solution to Homework 4"
-author: "STATS/DATASCI 531, Winter 2022"
+author: "STATS/DATASCI 531, Winter 2024"
 output:
   html_document:
     toc: no
