@@ -1,0 +1,861 @@
+---
+title: "Unveiling the Dynamics of Historical Vehicle Sales in the U.S."
+output: 
+  rmarkdown::html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    code_folding: hide
+    theme: spacelab 
+    highlight: tango
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+\newcommand\cos{\mathrm{cos}}
+\newcommand\sin{\mathrm{sin}}
+\newcommand\ar{\phi}
+\newcommand\AR{\Phi}
+\newcommand\ma{\psi}
+\newcommand\MA{\Psi}
+\newcommand\argmax{\mathop{\mathrm{argmax}}}
+\newcommand\argmin{\mathop{\mathrm{argmin}}}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+```{r}
+# install.packages("feasts")
+# install.packages("devtools")
+# devtools::install_github("r-lib/conflicted")
+library(conflicted)
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(tsibble)
+library(ggplot2)
+library(stats)
+library(tseries) # ADF test
+library(feasts) # STL
+library(forecast) # Plot ARMA roots
+```
+
+# Introduction
+
+The automotive industry is a crucial sector of the U.S. economy, contributing significantly to employment, economic output, and innovation. Vehicle sales data serves as a key economic indicator, often reflecting the broader health of the economy. Trends in vehicle sales can be influenced by various factors, including economic cycles, consumer confidence, fuel prices, and technological advancements. Understanding these trends is vital for stakeholders ranging from policymakers to manufacturers and dealers.
+
+With this motivation, we carry out a time series analysis guided exploration of the U.S. vehicle market. The dataset for this project is sourced from the U.S. Bureau of Economic Analysis (BEA), an authoritative federal agency that provides comprehensive economic statistics including national, international, regional, and industry data. The BEA's data is meticulously collected and widely used for economic analysis and policy-making. The dataset in question records the total vehicle sales in the United States, measured on a monthly basis from January 1, 1976, to January 1, 2024$^{[1]}$. This longitudinal data spans nearly five decades, offering a robust foundation for analyzing temporal patterns, trends, and cyclical behaviors in vehicle sales.
+
+
+# Exploratory Data Analysis
+
+```{r, echo=FALSE}
+data <- read.csv("data/TOTALNSA.csv")
+
+df <- tsibble(
+    date=yearmonth(as.Date(data$DATE)),
+    sales=as.numeric(data$TOTALNSA),
+    index=date
+)
+```
+
+```{r, fig.width=12, fig.height=4}
+df %>%
+  ggplot(aes(x = date, y = sales)) +
+  geom_line(color = 'darkblue') +
+  labs(title = "Total Vehicle Sales in the U.S. (Jan 1976 - Jan 2024)", x = "Date", y = "Sales (Thousands of Units)")
+```
+
+The time series plot depicts monthly total vehicle sales in the United States from January 1976 to January 2024 (577 data points). 
+
+The data exhibits a non-stationary pattern with noticeable fluctuations and potentially some seasonality, as suggested by the regular peaks and troughs throughout the series. These peaks may indicate higher sales at certain times of the year, possibly aligning with economic cycles, consumer behavior, or industry events. There's a visible overall volatility in the sales numbers, with some sharp increases and decreases. The downward spikes, particularly noticeable towards the end, might indicate periods of significant sales drops. These could be due to economic downturns, changes in consumer preferences, or external shocks like financial crises or pandemics. 
+
+
+```{r, echo=FALSE}
+# Check for missing values
+sum(is.na(df))
+```
+
+There are no missing values in the dataset, which means there is a complete time series without gaps, and imputation or data reconstruction techniques are not required before proceeding with further analysis or modeling. This completeness is beneficial for time series analysis as it ensures consistency in temporal spacing between data points.
+
+
+```{r}
+# Check the basic statistic of the dataset
+Mean = mean(data$TOTALNSA, na.rm = TRUE)
+Median = median(data$TOTALNSA, na.rm = TRUE)
+SD = sd(data$TOTALNSA, na.rm = TRUE)
+Min = min(data$TOTALNSA, na.rm = TRUE)
+Max = max(data$TOTALNSA, na.rm = TRUE)
+IQR = IQR(data$TOTALNSA, na.rm = TRUE)
+cat("The mean of the sales is", Mean,
+    "\nThe median of the sales is", Median,
+    "\nThe sd of the sales is", SD,
+    "\nThe minimum of the sales is", Min,
+    "\nThe maximum of the sales is", Max,
+    "\nThe IQR of the sales is", IQR)
+```
+
+The basic statistics for the time series data indicate a mean monthly sale of approximately 1261.95 and a median of 1268.462, suggesting the data distribution is slightly right-skewed since the mean is higher than the median. The standard deviation is about 221.94, reflecting moderate variability in monthly sales. The sales data ranges from a minimum of 670.466 thousand to a maximum of 1845.713 thousand, with an interquartile range (IQR) of 303.585, indicating the middle 50% of the data has a range of sales of approximately 304,000.
+
+
+```{r}
+# Plot the distribution
+df %>%
+  ggplot(aes(x = sales)) +
+  geom_histogram(bins = 30) +
+  labs(title = "Histogram of Total Vehicle Sales", x = "Total Sales (Thousands of Units)", y = "Count")
+```
+
+The histogram of total vehicle sales displays a unimodal and right-skewed distribution, with a single, prominent peak reflecting the most common sales range. The concentration of data towards the left side of the histogram, coupled with a tail extending to the right, indicates that while most of the monthly sales figures are moderate, there are occasional periods with exceptionally high vehicle sales. The skewness suggests that higher sales figures are less frequent but significantly impact the overall sales distribution. Understanding this distribution is critical for inventory management and forecasting; businesses must be prepared for the typical moderate sales volume while also being capable of responding to surges in demand. Analyzing the factors that lead to the spikes could provide valuable insights for strategic planning and optimizing sales operations.
+
+
+```{r, fig.width=12, fig.height=5}
+par(mfrow=c(1, 2))
+ts_data <- ts(df$sales)
+# Plot ACF
+acf(ts_data, main="ACF for Monthly Vehicle Sales", lag.max=50)
+# Plot PACF
+pacf(ts_data, main="PACF for Monthly Vehicle Sales", lag.max=50)
+```
+
+* The ACF (Autocorrelation Function) plot shows the correlation of the time series with its own lagged values. The gradual decline of the ACF bars as the lag increases suggests that the time series data is likely non-stationary, as the correlation with past values slowly diminishes rather than cutting off sharply. The fact that several bars exceed the blue dashed significance lines indicates that there are significant autocorrelations at those lags.
+
+* The PACF (Partial Autocorrelation Function) plot, on the other hand, indicates the partial correlation of the series with its own lagged values, controlling for the values of the time series at all shorter lags. The sharp cut-off after the first lag in the PACF suggests an AR(1) process might be appropriate for this time series. However, the significant spikes at later lags, such as lag 12, suggest that there might be some seasonal effects present, considering this is monthly data and 12 corresponds to a yearly cycle.
+
+
+```{r}
+df_trans <- data %>%
+  mutate(year = year(ymd(DATE))) %>%
+  group_by(year) %>%
+  summarise(variance = var(TOTALNSA, na.rm = TRUE))  
+
+# Plotting the variance over years
+ggplot(df_trans, aes(x = year, y = variance)) +
+  geom_line() +
+  labs(title = "Yearly Variance of Total Vehicle Sales",
+       x = "Year",
+       y = "Variance of Sales")
+```
+
+
+The plot displaying the yearly variance of total vehicle sales shows significant fluctuations over time, indicating variability in sales figures from year to year. Notably, there are pronounced spikes suggesting years with particularly high variation in sales numbers. This could be attributed to various factors, such as economic cycles, market volatility, changes in consumer preferences, or significant industry events.
+
+
+
+# Stationarity Analysis
+
+We are going to use Augmented Dickey-Fuller (ADF) test$^{[2]}$ to check the stationarity of our time series. The ADF test tests the null hypothesis that a unit root is present in a time series sample:
+
+-   $H_0$: The time series has a unit root i.e. it is non-stationary.
+-   $H_1$: The time series has no unit root i.e. it is stationary.
+
+```{r, echo=FALSE}
+adf_test_result <- adf.test(df$sales)
+adf_test_result
+```
+
+From the ADF test, we can see that p-value is 0.2015 which is larger than 0.05. So we cannot reject the null hypothesis and we can conclude that the time series is non-stationary.
+
+
+
+# Trend & Seasonality Analysis
+
+
+## Seasonal Plot {.tabset .tabset-fade .tabset-pills}
+
+In a seasonal plot for monthly data, each year is plotted separately with all the plots sharing the same months axis. This gives better insights into the underlying seasonal pattern and can help identify years in which the pattern changes$^{[3]}$.
+
+
+### Full Data (Jan 1976 - Jan 2024)
+
+```{r, fig.height=6, fig.width=12}
+df %>%
+  gg_season(sales, labels = "both") +
+  labs(x = "Date", y = "Sales (Thousands of Units)",
+       title = "Seasonal Plot: Total Vehicle Sales (Jan 1976 - Jan 2024)")
+```
+
+There is a clear pattern that most years follow. For example, Jan-Feb-March is characterized by an increase in vehicle sales which then fall off in April. Similar patterns can be seen for other months. There are some years that immediately stand out as outliers which could be investigated further.
+
+
+### 2005
+
+```{r, fig.height=6, fig.width=12}
+df %>% 
+    dplyr::filter(date >= yearmonth("2003-01-01") & date < yearmonth("2008-01-01")) %>%
+    gg_season(sales, labels = "both") +
+    labs(x = "Date", y = "Sales (Thousands of Units)",
+         title = "Seasonal Plot: Total Vehicle Sales (Jan 2003 - Dec 2007)")
+```
+
+The graph for 2005 reveals a spike in vehicle sales in July. Although we won't be investigating it further here, it would be interesting to analyze this in the context of other socio-economic factors at the time.
+
+
+### 2020
+
+```{r, fig.height=6, fig.width=12}
+df %>% 
+    dplyr::filter(date >= yearmonth("2018-01-01") & date < yearmonth("2023-01-01")) %>%
+    gg_season(sales, labels = "both") +
+    labs(x = "Date", y = "Sales (Thousands of Units)",
+         title = "Seasonal Plot: Total Vehicle Sales (Jan 2018 - Dec 2022)")
+```
+
+The pattern of sales in 2020 diverges from the rest with a sharp dip in April corresponding to the proliferation of the COVID-19 pandemic and its impact on purchasing behaviors.
+
+
+## Seasonal Subseries Plot
+
+This plot enables the underlying seasonal pattern to be seen clearly, and also shows the changes in seasonality over time. It is especially useful in identifying changes within particular seasons$^{[4]}$. 
+
+```{r, fig.height=5, fig.width=12}
+df %>% 
+  gg_subseries(sales) +
+  labs(x = "Date", y = "Sales (Thousands of Units)", 
+       title = "Total Vehicle Sales (Jan 1976 - Jan 2024)")
+```
+
+Blue lines indicate the mean sales for the respective months. On average, sales are the lowest in January and the highest in March and May. One possible explanation could be that people are less likely to making big purchases soon after the expenses incurred during the December holiday season.
+
+
+## Time Series Decomposition
+
+From the time plot, we see that the variability around the trend is roughly the same throughout and does not increase with time. So an additive decomposition is suitable here. If the variance were increasing with time, a multiplicative model would have been more appropriate$^{[5]}$.
+
+The additive decomposition of a time series $Y_t$ at period $t$ is given by $Y_t = T_t + S_t + R_t$ where 
+
+- $T_t$ is the trend-cycle component that follows the overall movement of a series. Trend represents changes in direction ("turning points") while cycles are patterns of slow fluctuations (long-term rises and falls) that do not have any fixed period and usually reflect larger socio-economic conditions$^{[6]}$.
+
+- $S_t$ is the seasonal component that represents recurring patterns of a fixed period associated with a calendar position e.g. day of week, month. Seasonal fluctuations typically occur on a shorter time-scale than cyclic fluctuations.
+
+- $R_t$ is the remainder component after trend-cycle and seasonal components are subtracted from the original series.
+
+There are various methods to carry out this decomposition as explained in $[7]$. We will be considering STL decomposition (Seasonal and Trend decomposition by Loess)$^{[8]}$ which has some advantages over classical decomposition:
+
+- The trend-cycle is determined by LOESS (LOcally Estimated Scatterplot Smoothing)$^{[9]}$ that fits polynomial regressions to local windows and is suitable for modeling non-linear relationships.
+
+- The seasonal component is not fixed and is allowed to change over time.
+
+- Robust to outliers so that the impact of shocks is not propagated to the estimated trend-cycle and seasonal components.
+
+
+There are two parameters to be tuned as described in $[8]$:
+
+- The trend window, which is the no. of consecutive observations to be used in estimating the trend-cycle component.
+- The seasonal window, which is the no. of consecutive years to be used in estimating each value of the seasonal component.
+
+
+```{r, fig.cap=cap_stl, fig.width=12, fig.height=10}
+# https://feasts.tidyverts.org/reference/STL.html
+dcmp <- df %>% 
+    model(STL(sales, robust=TRUE))
+
+stl <- components(dcmp)
+stl %>% autoplot()
+
+cap_stl = "<i>STL decomposition of total vehicle sales</i>. The seasonal and trend-cycle windows which control the smoothness of the respective components are set to their defaults of 13 and 21 for monthly data, respectively. The estimates seem reasonable and tuning them doesn't significantly affect our analysis."
+```
+
+
+- `trend`: The trend-cycle curve is smooth with dips corresponding to purchasing habits of customers in an economy heading into and recovering from a recession$^{[13]}$.
+
+- `season_year`: The seasonal component changes over time, so any two consecutive years have similar patterns but years far apart may have different seasonal patterns (similar to $[5, \text{Fig. 3.7}]$).
+
+- `remainder`: The robustness of STL is evident in the behavior for April 2020 as the remainder component absorbs the shock and leaves the estimated trend-cycle and seasonal components unaffected.
+
+
+## Detrending
+
+Before carrying out a spectral analysis, it is helpful to detrend the time series so it can be modeled as a stationary process.
+
+```{r, fig.height=5, fig.width=12}
+df$sales_detrend <- df$sales - stl$trend
+
+df %>%
+  autoplot(sales, aes(colour="Observed")) +
+  geom_line(aes(y=stl$trend, colour="LOESS Trend")) +
+  geom_line(aes(y=sales_detrend, colour="Detrended")) +
+  scale_colour_manual("", breaks = c("Observed", "LOESS Trend", "Detrended"), values = c("darkgray", "black", "darkblue")) +
+  labs(x = "Date", y = "Sales (Thousands of Units)", 
+       title = "Total Vehicle Sales (Jan 1976 - Jan 2024)")
+```
+
+The detrended series appears to be stationary with a constant mean function and a constant variance that doesn't seem to increase over time except for the occasional outlier. Stationarity can be verified with a formal test.
+
+
+### Stationarity test after detrending
+
+Consider the ADF test from earlier:
+
+-   $H_0$: The time series is non-stationary
+-   $H_1$: The time series is stationary
+
+```{r}
+adf.test(df$sales_detrend)
+```
+
+
+As the p-value is \< 0.05, we can reject $H_0$ at the 5% significance level and infer that the detrended time series is stationary.
+
+
+
+# Spectral Analysis {.tabset .tabset-fade .tabset-pills}
+
+
+Any stationary time series can be approximated by linear combinations of sines and cosines of different frequencies with random coefficients. 
+
+From $[10]$, consider a series $X_t$:
+
+$$X_t = \sum\limits_{j=1}^{M} \{ A_j \cos(2\pi\omega_jt) + B_j \sin(2\pi\omega_jt) \} $$ 
+where $\{A_j\}$, $\{B_j\}$ are mean zero mutually uncorrelated random variables with $\var(A_j) = \var(A_j) = \sigma^2_j$ and $\cov(A_j, B_j) = 0$.
+
+$X_t$ is stationary with:
+
+- $\E[X_t] = 0$
+- $\var(X_t) = \sigma^2_1 + ... + \sigma^2_M$
+- $\cov(X_t, X_{t+h}) = \gamma(h) = \sum\limits_{j=1}^{M} \sigma^2_j \cos(2\pi\omega_jh)$
+
+
+Thus, $\sigma_j^2$ is the contribution of the $j$th periodic series with frequency $\omega_j$ to the total variance in the series. The goal of spectral analysis is to estimate the coefficients $\sigma_j^2$ based on the observed data so as to understand which frequencies contribute more to the variance than the others.
+
+The **spectral density** of $X_t$ is the frequency domain representation of the series given by the discrete Fourier transform of its autocovariance function:
+
+$$
+f(\omega) = \sum\limits_{-\infty}^{\infty} \gamma(h) \mathrm{exp}(-i 2 \pi \omega h)
+$$
+
+Suppose $\omega_j = j/n, j = 1, ... , M$, where $M$ is the largest integer for which $M/n < 1/2$. $A_j$ and $B_j$ can be estimated from the observed data ${X_1, ..., X_n}$ using least squares$^{[10, \text{ Section 13.10.2}]}$:
+
+$$
+\hat{A}_j = (2/n)\sum\limits_{t=1}^{n} X_t \cos(2\pi\omega_jt) \text{ , } 
+\hat{B}_j = (2/n)\sum\limits_{t=1}^{n} X_t \sin(2\pi\omega_jt)
+$$
+
+Scaled periodogram: $P(\omega_j) = \hat{A}^2_j + \hat{B}^2_j$
+
+**Periodogram**: $I(\omega_j) = (n/4) P(\omega_j)$
+
+The periodogram $I(\omega_j)$ calculated from a sample is used as an estimator of the spectral density $f(\omega_j)$ of the population at frequency $\omega_j = j/n$. It is an almost unbiased but inconsistent estimator$^{[10, \text{ Section 13.10.3}]}$.
+
+Consider the discrete Fourier transform of the data:
+
+$$d(\omega_j) = (1/\sqrt{n}) \sum\limits_{t=1}^{n} X_t \mathrm{exp}(-i 2 \pi \omega_j t) = c_n(\omega_j) - i s_n(\omega_j)$$
+where $c_n(\omega_j)$ and $s_n(\omega_j)$ are the discrete cosine and sine transforms of the data.
+
+Relationship between the periodogram $I(\omega_j)$ and discrete Fourier transform of the data $d(\omega_j)$:
+
+$$ I(\omega_j) = |d(\omega_j)|^2 = {c_n(\omega_j)}^2 + {s_n(\omega_j)}^2 $$
+
+## Raw Periodogram
+
+The raw periodogram is a rough estimate of the population spectral density. As explained in $[11]$, the estimate is “rough” partly because the periodogram only uses the discrete fundamental harmonic frequencies whereas the spectral density is defined over a continuum of frequencies.
+
+
+```{r, fig.width=8, fig.height=5}
+sd.pg_raw <- spectrum(df$sales_detrend,
+                      xlab = "cycles per month", sub="", main = "Unsmoothed Periodogram")
+
+freq.pg_raw <- sd.pg_raw$freq[which.max(sd.pg_raw$spec)]
+abline(v=freq.pg_raw, lty=2, col="red")
+```
+
+```{r}
+cat(paste("Dominant frequency =", round(freq.pg_raw, 4), "cycles per month", 
+          "\nEstimated period =", round(1/(12 * freq.pg_raw), 2), "years"))
+```
+
+## Smoothed Periodogram
+
+One way to improve the periodogram estimate is by smoothing it using localized centered moving average windows$^{[11]}$. This is a non-parametric method for estimating the spectral density. R's `spectrum` function includes tapering by default, which weighs the ends less than the center. 
+
+
+```{r, fig.width=8, fig.height=5}
+sd.pg_sm <- spectrum(df$sales_detrend, spans=c(3,5,3),
+                     main="Smoothed Periodogram", xlab="cycles per month", sub="")
+
+freq.pg_sm <- sd.pg_sm$freq[which.max(sd.pg_sm$spec)]
+abline(v=freq.pg_sm, lty=2, col="red")
+```
+
+```{r}
+cat(paste("Dominant frequency =", round(freq.pg_sm, 4), "cycles per month", 
+          "\nEstimated Period =", round(1/(12 * freq.pg_sm), 2), "years"))
+```
+
+
+## Parametric Estimation with AR(p)
+
+The stationary process is approximated by an AR model of some order and the spectral density of the process is estimated as the spectral density of the fitted AR model$^{[11]}$.
+
+
+```{r, fig.width=8, fig.height=5}
+sd.ar <- spectrum(df$sales_detrend, method="ar", log="no", 
+                  xlab="cycles per month", sub="")
+
+freq.ar <- sd.ar$freq[which.max(sd.ar$spec)]
+abline(v=freq.ar, lty=2, col="red")
+```
+
+```{r}
+cat(paste("Dominant frequency =", round(freq.ar, 4), "cycles per month", 
+          "\nEstimated Period =", round(1/(12 * freq.ar), 2), "years"))
+```
+
+
+All the methods indicate a **dominant period of 1 year**. It is this frequency that explains most of the variability in monthly vehicle sales.
+
+
+
+# Modeling - ARIMA
+
+Model fitting: ARMA (AutoRegressive Moving Average) models are widely used in time series analysis to capture the temporal dependencies and stochastic nature of sequential data. An ARMA(p, q) model combines autoregressive (AR) and moving average (MA) components, with parameters `p` and `q` representing the number of lagged observations used in each component, respectively.
+
+The AR component models the current observation as a linear combination of its past values, while the MA component models the current observation as a linear combination of past error terms. Mathematically, the ARMA(p, q) model [14] can be expressed as:
+
+$$Y_t = \mu + \phi_1 Y_{t-1} + \phi_2 Y_{t-2} + \ldots + \phi_p Y_{t-p} + \theta_1 \epsilon_{t-1} + \theta_2 \epsilon_{t-2} + \ldots + \theta_q \epsilon_{t-q} + \epsilon_t$$
+where:
+
+```{=latex}
+\begin{align*}
+Y_t & \text{ is the observed value at time } t. \\
+\mu & \text{ is the constant term (mean) of the time series.} \\
+\phi_1, \phi_2, \ldots, \phi_p & \text{ are the autoregressive coefficients.} \\
+\theta_1, \theta_2, \ldots, \theta_q & \text{ are the moving average coefficients.} \\
+\epsilon_t & \text{ is the white noise error term at time } t.
+\end{align*}
+```
+
+Model selection for ARMA models involves choosing appropriate values for the (p,q) parameters [15]. This is typically done by comparing models based on their Akaike Information Criterion (AIC) values. The AIC quantifies the trade-off between model complexity and goodness of fit, with lower AIC values indicating better model performance. In the provided R code, an exhaustive search is conducted over a predefined range of (p,q) values to identify the ARMA model with the lowest AIC. The selected model provides insights into the underlying temporal dynamics of the time series data, aiding in forecasting and analysis tasks.
+
+```{r}
+arma_aic_table <- function(data, P, Q) {
+  best_aic <- Inf
+  best_p <- NULL
+  best_q <- NULL
+  table <- matrix(NA, (P+1), (Q+1))
+  
+  for (p in 0:P) {
+    for (q in 0:Q) {
+       aic_pq <- arima(data, order=c(p,0,q))$aic
+       table[p+1, q+1] <- aic_pq
+       if (aic_pq < best_aic) {
+         best_aic <- aic_pq
+         best_p <- p
+         best_q <- q
+       }
+    }
+  }
+  dimnames(table) <- list(paste("AR", 0:P, sep=""), paste("MA", 0:Q, sep=""))
+  
+  print(table)
+  cat("\n")
+  cat("Selected p:", best_p, "\nSelected q:", best_q)
+}
+
+max_ar <- 3  # Maximum AR order
+max_ma <- 3  # Maximum MA order
+arma_aic_table(df$sales_detrend, max_ar, max_ma)
+```
+
+```{r}
+arma22 <- arima(df$sales_detrend, order = c(2, 0, 2))
+arma22
+```
+
+A Likelihood Ratio Test can be conducted to compare the fit of two ARMA models: a smaller model (arma1) and a larger model (arma2). The null hypothesis posits that the smaller model adequately represents the data, while the alternative hypothesis suggests that the larger model provides a better fit. 
+
+```{r}
+p <- 2
+q <- 2 
+
+# Fit the smaller ARMA model (null hypothesis)
+arma1 <- arima(df$sales_detrend, order=c(p-1,0,q))
+
+# Fit the larger ARMA model (alternative hypothesis)
+arma2 <- arima(df$sales_detrend, order=c(p,0,q))
+
+# Calculate the log-likelihood for each model
+logLik_arma1 <- logLik(arma1)
+logLik_arma2 <- logLik(arma2)
+
+# Calculate the test statistic
+test_statistic <- -2 * (logLik_arma1 - logLik_arma2)
+
+# Degrees of freedom is the difference in the number of parameters between the two models
+degf <- length(coef(arma2)) - length(coef(arma1))
+
+# Calculate p-value using a chi-squared distribution
+p_value <- pchisq(test_statistic, degf, lower.tail=FALSE)
+
+cat("Likelihood Ratio Test Statistic:", test_statistic,
+    "\nDegrees of Freedom:", degf,
+    "\nP-value:", p_value)
+```
+
+As the test yielded a p-value that is significantly lower than the predetermined significance threshold of 0.05, we reject the null hypothesis. Consequently, we conclude that the larger ARMA model (arma2) significantly improves the fit to the data compared to the smaller model (arma1). This underscores the importance of incorporating additional parameters in the model to better capture the underlying dynamics of the time series data, thus enhancing our understanding and predictive capabilities.
+
+
+```{r}
+plot(arma22$residuals)
+```
+
+From the above plot, we can infer that the residuals appear as random fluctuations around zero without any patterns. Hence, the model being selected turns out to be a good fit.
+
+The Box-Ljung test is a statistical test used to assess the presence of autocorrelation in the residuals of a time series model [16]. In this test, the null hypothesis is that there is no autocorrelation in the residuals, indicating that the model adequately captures the temporal dependencies in the data. The Ljung-Box test statistic `Q` is defined as:
+
+$$Q = n(n+2) \sum_{k=1}^{h} \frac{\hat{\rho}^2_k}{n-k}$$
+where:
+
+```{=latex}
+\begin{align*}
+Q & \text{ is the Ljung-Box test statistic.} \\
+n & \text{ is the sample size.} \\
+h & \text{ is the number of lags being tested.} \\
+\hat{\rho}_k & \text{ is the sample autocorrelation function (ACF) at lag } k.
+\end{align*}
+```
+
+The Ljung-Box test statistic follows approximately a chi-squared distribution with `h` degrees of freedom under the null hypothesis of no autocorrelation in the residuals. The Ljung-Box test is used to test the null hypothesis that the autocorrelations of a time series at various lags are jointly equal to zero. If the computed test statistic is greater than the critical value from the chi-squared distribution at a specified significance level, the null hypothesis is rejected, indicating evidence of autocorrelation in the residuals. Otherwise, if the test statistic is not greater than the critical value, the null hypothesis is not rejected, suggesting no evidence of autocorrelation.
+
+```{r}
+Box.test(arma22$residuals, type="Ljung-Box")
+```
+
+In the provided output, the test statistic (X-squared) is calculated to be 1.9694 with 1 degree of freedom, resulting in a p-value of 0.1605. This p-value is higher than the conventional significance level of 0.05. Therefore, we fail to reject the null hypothesis at the 5% significance level. This suggests that there is no strong evidence to suggest the presence of autocorrelation in the residuals, indicating that the ARMA model adequately captures the autocorrelation structure of the data.
+
+For a model to be causal and invertible, all the AR and MA roots must lie outside the unit circle i.e. the inverse roots should lie inside the unit circle.
+
+```{r}
+plot(arma22, type = "both")
+```
+
+The AR and MA roots lie on the unit circle, resulting in a model that is on the verge of non-causality and non-invertibility. Typically, such models are not very well-suited to forecasts.
+
+
+# Modeling - SARIMA {.tabset .tabset-fade .tabset-pills}
+
+As seen earlier, for monthly vehicle sales, the ACF has peaks at lags that are multiples of 12 and the spectral analysis indicates a dominant period of 1 year which means that the series approximately repeats itself every 12 month. So in a given year, the vehicle sales in a particular month closely follow the sales for that month from the preceding year(s). This reveals a strong periodic signal that we can incorporate into our model.
+
+SARMA (Seasonal Autoregressive Moving Average) is an extension of ARMA to include seasonal influences. A general SARIMA$(p,d,q)\times(P,D,Q)_{12}$ model for non-stationary monthly data is given by$^{[12, \text{ Eq. S5}]}$: 
+
+$$\ar(B)\AR(B^{12})\big[ (1-B)^d(1-B^{12})^D Y_n - \mu \big] = \ma(B)\MA(B^{12}) \epsilon_n$$,
+
+where $\{\epsilon_n\}$ is a white noise process, the intercept $\mu$ is the mean of the differenced process $\{(1-B)^d(1-B^{12})^D Y_n\}$, and $\ar(x)$, $\AR(x)$, $\ma(x)$, $\MA(x)$ are the ARMA polynomials.
+
+Differencing is a tool to transform a time series to stationarity. We saw earlier that the detrended data is stationary, so there is no real need to use differencing here. All models explored here will have $d = D = 0$.
+
+
+## SARIMA$((2, 0, 2) \times (P, 0, Q)_{12})$
+
+Consider the set of SARIMA$((2, 0, 2) \times (P, 0, Q)_{12})$ models: 
+
+```{r}
+get_aic_table_sarma = function(data, P, Q, p, q){ 
+    table = matrix(NA, (P+1), (Q+1))
+    for (Pi in 0:P) {
+        for (Qi in 0:Q) {
+            table[Pi+1, Qi+1] = arima(data, 
+                                      order=c(p, 0, q),
+                                      seasonal=list(order=c(Pi, 0, Qi), period=12))$aic
+        }
+    }
+    dimnames(table) = list(paste('SAR', 0:P, sep=' '), paste('SMA', 0:Q, sep=' '))
+    table
+}
+
+aic_table_sarma <- get_aic_table_sarma(df$sales_detrend, 3, 3, 2, 2)
+cat("\n")
+print(aic_table_sarma)
+cat("\n")
+
+min_aic <- min(aic_table_sarma)
+which_min <- which(aic_table_sarma == min_aic, arr.ind = TRUE)
+sar_p <- rownames(which_min)
+sma_q <- colnames(aic_table_sarma)[which_min[,2]]
+cat(paste0("Minimum AIC = ", round(min_aic, 2), " for ", sar_p, " ", sma_q))
+```
+
+According to AIC, SARIMA$((2, 0, 2) \times (3, 0, 2)_{12})$ is the best fit for our data in terms of predictive power. 
+
+```{r}
+sarma2232 <- arima(df$sales_detrend, order=c(2, 0, 2), seasonal=list(order=c(3, 0, 2), period=12))
+sarma2232
+```
+
+The ar1 and ma2 coefficients are small compared to their Fisher standard errors (less than 2 standard errors away from the null hypothesis of 0) so they are insignificant.
+
+```{r}
+plot(sarma2232, type = "both")
+```
+
+
+Earlier we saw that the ARMA(2,2) model had all its roots almost on the unit circle with the AR and MA roots nearly equal to each other. So there is grounds to investigate if the model is reducible. 
+
+
+## SARIMA$((1, 0, 1) \times (P, 0, Q)_{12})$
+
+Consider the set of SARIMA$((1, 0, 1) \times (P, 0, Q)_{12})$ models (p = 1, q = 1): 
+
+```{r}
+get_aic_table_sarma = function(data, P, Q, p, q){ 
+    table = matrix(NA, (P+1), (Q+1))
+    for (Pi in 0:P) {
+        for (Qi in 0:Q) {
+            table[Pi+1, Qi+1] = arima(data, 
+                                      order=c(p, 0, q),
+                                      seasonal=list(order=c(Pi, 0, Qi), period=12))$aic
+        }
+    }
+    dimnames(table) = list(paste('SAR', 0:P, sep=' '), paste('SMA', 0:Q, sep=' '))
+    table
+}
+
+aic_table_sarma <- get_aic_table_sarma(df$sales_detrend, 3, 3, 1, 1)
+cat("\n"); aic_table_sarma
+
+min_aic <- min(aic_table_sarma)
+which_min <- which(aic_table_sarma == min_aic, arr.ind = TRUE)
+sar_p <- rownames(which_min)
+sma_q <- colnames(aic_table_sarma)[which_min[,2]]
+cat(paste0("Minimum AIC = ", round(min_aic, 2), " for ", sar_p, " ", sma_q))
+
+```
+
+According to AIC, SARIMA$((1, 0, 1) \times (3, 0, 2)_{12})$ is the best fit for our data in terms of predictive power. 
+
+```{r}
+sarma1132 <- arima(df$sales_detrend, order=c(1, 0, 1), seasonal=list(order=c(3, 0, 2), period=12))
+sarma1132
+```
+
+The ma1 coefficient is still insignificant.
+
+```{r}
+plot(sarma1132, type = "both")
+```
+
+There are some roots on the unit circle and close to it. The MA root is almost 0.
+
+
+**Likelihood Ratio Test**: This is a test to compare two nested hypotheses where the parameter space of the smaller model $\Theta_0$ is a subspace of the parameter space of the larger model $\Theta_1$.
+
+Using notation similar to that introduced in Chapter 5 Slide 18:
+
+- Full parameter space on which the model is defined: $\Theta \subset \mathbb{R}^D$
+- Null hypothesis $H_0: \theta \in \Theta_0 \subset \mathbb{R}^{D_0}$ (smaller model)
+- Alternate hypothesis $H_1: \theta \in \Theta_1 \subset \mathbb{R}^{D_1}$ (larger model)
+- $D_0 < D_1 \leq D$
+
+Maximum likelihood estimation: 
+
+- For $H_0$, $\ell_0 = \sup_{\theta \in \Theta_0} \ell(\theta)$ and $AIC = AIC_0$
+- For $H_1$, $\ell_1 = \sup_{\theta \in \Theta_1} \ell(\theta)$ and $AIC = AIC_1$
+
+The sample size here is large enough for the Wilks approximation to be valid. So under $H_0$, the likelihood ratio test statistic $\ell_1 - \ell_0 \approx \frac{1}{2} \chi^2_{D_1 - D_0}$.
+
+$\Delta AIC = AIC_0 - AIC_1 = 2(\ell_1 - \ell_0) - 2(D_1 - D_0)$. We want to reject $H_0$ if $AIC_0 > AIC_1$ i.e. $\Delta AIC > 0$. So size of the AIC test can be defined as $\prob_{H_0}(\Delta AIC > 0) = \prob(\chi^2_{D_1 - D_0} > 2(D_1 - D_0))$.
+
+
+Consider a Likelihood Ratio Test to compare the two nested models :
+
+- $H_0$: SARIMA$((1, 0, 1) \times (3, 0, 2)_{12})$ (p = q = 1)
+- $H_A$: SARIMA$((2, 0, 2) \times (3, 0, 2)_{12})$ (p = q = 2)
+
+```{r}
+aic_0 <- sarma1132$aic
+aic_1 <- sarma2232$aic
+aic_diff <- aic_0 - aic_1
+
+d_diff <- 2 # 1 AR and 1 MA parameter
+
+cat(paste("P(AIC0 > AIC1) = ", round(1 - pchisq(2 * d_diff, df=d_diff), 4)))
+```
+
+As the p-value is > 0.05, we fail to reject $H_0$ i.e. there is not enough evidence to suggest that the extra AR and MA parameters cause a significant decrease in the AIC. So we exclude SARIMA$((2, 0, 2) \times (3, 0, 2)_{12})$ from further analysis.
+
+
+## SARIMA$((1, 0, 0) \times (P, 0, Q)_{12})$
+
+As we saw, the MA root of the previous model was almost zero. So consider the set of SARIMA$((1, 0, 0) \times (P, 0, Q)_{12})$ models (q = 0):
+
+```{r}
+get_aic_table_sarma = function(data, P, Q, p, q){ 
+    table = matrix(NA, (P+1), (Q+1))
+    for (Pi in 0:P) {
+        for (Qi in 0:Q) {
+            table[Pi+1, Qi+1] = arima(data, 
+                                      order=c(p, 0, q),
+                                      seasonal=list(order=c(Pi, 0, Qi), period=12))$aic
+        }
+    }
+    dimnames(table) = list(paste('SAR', 0:P, sep=' '), paste('SMA', 0:Q, sep=' '))
+    table
+}
+
+aic_table_sarma <- get_aic_table_sarma(df$sales_detrend, 3, 3, 1, 0)
+cat("\n"); aic_table_sarma
+
+min_aic <- min(aic_table_sarma)
+which_min <- which(aic_table_sarma == min_aic, arr.ind = TRUE)
+sar_p <- rownames(which_min)
+sma_q <- colnames(aic_table_sarma)[which_min[,2]]
+cat(paste0("Minimum AIC = ", round(min_aic, 2), " for ", sar_p, " ", sma_q))
+```
+
+According to AIC, SARIMA$((1, 0, 0) \times (3, 0, 2)_{12})$ is the best fit for our data in terms of predictive power. 
+
+```{r}
+sarma1032 <- arima(df$sales_detrend, order=c(1, 0, 0), seasonal=list(order=c(3, 0, 2), period = 12))
+sarma1032
+```
+
+All the coefficients are significant at the 5% level as they are more than 2 Fisher standard errors away from the null hypothesis of 0.
+
+```{r}
+plot(sarma1032, type = "both")
+```
+
+The complex conjugate pairs for both the AR and MA components are close to the unit circle. 
+
+
+Consider a Likelihood Ratio Test to compare the two nested models :
+
+- $H_0$: SARIMA$((1, 0, 0) \times (3, 0, 2)_{12})$ (q = 0)
+- $H_A$: SARIMA$((1, 0, 1) \times (3, 0, 2)_{12})$ (q = 1)
+
+```{r}
+aic_0 <- sarma1032$aic
+aic_1 <- sarma1132$aic
+aic_diff <- aic_0 - aic_1
+
+d_diff <- 1 # 1 MA parameter
+
+cat(paste("P(AIC0 > AIC1) = ", round(1 - pchisq(2 * d_diff, df=d_diff), 4)))
+```
+
+Once again, the p-value is > 0.05, so we fail to reject $H_0$ and infer that including an MA(1) component does not significantly decrease the AIC so it can be dropped.
+
+
+# Final Model {.tabset .tabset-fade .tabset-pills}
+
+
+Based on the above analysis, we pick the stationary Gaussian white noise SARIMA$((1, 0, 0) \times (3, 0, 2)_{12})$ as our final model.
+
+
+## Without trend
+
+```{r, fig.width=12, fig.height=5}
+df %>%
+  ggplot(aes(x=date, y=sales_detrend)) +
+  geom_line(aes(color="Observed (Detrended)")) +
+  geom_line(aes(x=date, y=fitted(sarma1032), color="Fitted")) +
+  scale_colour_manual("", breaks = c("Observed (Detrended)", "Fitted"), values = c("darkgray", "red")) +
+  labs(x="date", y="sales units (thousands)", title="Total Vehicle Sales")
+```
+
+## With trend
+
+The trend-cycle estimated from the observed data using LOESS is added back to the detrended data as well as to the SARMA fitted values.
+
+```{r, fig.width=12, fig.height=5}
+
+fitted_plus_trend <- fitted(sarma1032) + stl$trend
+
+df %>%
+  ggplot(aes(x=date, y=sales)) +
+  geom_line(aes(color="Observed")) +
+  geom_line(aes(x=date, y=fitted_plus_trend, color="Fitted Plus Trend")) +
+  scale_colour_manual("", breaks = c("Observed", "Fitted Plus Trend"), values = c("darkgray", "red")) +
+  labs(x="Date", y="Sales (Thousands of Units)", title="Total Vehicle Sales")
+```
+
+
+# Model Diagnostics {.tabset .tabset-fade .tabset-pills}
+
+**Residual Analysis**: We need to verify the model assumptions ($\epsilon_n \sim \text{iid } N(0, \sigma^2)$) to make sure the results of our analysis can be trusted.
+
+## Constant Mean & Variance
+
+```{r, echo=F}
+
+df %>% ggplot(aes(x=df$date, y=sarma1032$residuals)) +
+  geom_point() +
+  geom_hline(yintercept=0, linetype="dashed") + 
+  labs(x="Date", y="Sales (Thousands of Units)", title="Residuals of SARIMA{(1, 0, 0) x (3, 0, 2)_12}")
+```
+
+- The residuals are centered around 0, so the constant mean function assumption is valid.
+- Further, there is no indication of non-constant variance as the residuals are scattered randomly around the mean with no dependence on time (except for some large outliers corresponding to shocks).
+
+
+## Independence
+
+```{r, echo=F}
+acf(sarma1032$residuals, main="Residuals of SARIMA{(1, 0, 0) x (3, 0, 2)_12}")
+```
+
+- There are some small significant correlations at lags 10, 13, 23 but overall our assumption of independent errors seems valid.
+
+
+## Normality
+
+```{r, fig.width=5, fig.height=5, echo=F}
+qqnorm(sarma1032$residuals, pch = 1)
+qqline(sarma1032$residuals, col="blue")
+```
+
+
+- The bulk of the residuals closely follow the normal line, with large deviations at the ends indicating outliers. So the residual distribution has heavier tails than the normal distribution.
+
+
+Overall, there are no major violations of the model assumptions so our analysis is fairly reliable.
+
+
+# Conclusion
+
+In this project, we analyzed monthly vehicle sales in the U.S. spanning nearly five decades (Jan 1976 - Jan 2024). We started by looking at the ACF which revealed a periodic pattern in the data. We observed non-stationarity which we handled by detrending. We then conducted a spectral analysis to determine the periodicity of fluctuations in the detrended data. These insights guided our modeling decisions. We started with an ARMA model and incorporated seasonal influences using SARMA. Through meticulous exploration and model fitting, the optimal model was determined to be a SARIMA$((1, 0, 0) \times (3, 0, 2)_{12})$ which seems to achieve a decent balance between goodness of fit and model complexity.
+
+In summary, time series analysis provides valuable insights into the historical patterns of total vehicle sales, allowing us to understand trends, seasonality, and periodicity, and build time series models. This project in particular underscores the efficacy of SARMA in modeling vehicle sales. Now that we have understood our data, the next logical step would be to use it as a forecasting tool to guide decision-making and future planning in the automotive industry. 
+
+However, external factors such as economic conditions, consumer confidence, industry innovation, regulatory changes and other unforeseen events (pandemics!) play an important role in affecting vehicle sales. These factors may introduce fluctuations and changes that may not be predicted by purely historical data. So while time series analysis is a powerful tool for understanding past behavior, a comprehensive analysis must also consider the broader context affecting the automotive industry.
+
+
+
+# References
+
+[1] [U.S. Bureau of Economic Analysis, Total Vehicle Sales [TOTALNSA], retrieved from FRED, Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org/series/TOTALNSA)
+
+[2] [Augmented Dickey-Fuller test](https://en.wikipedia.org/wiki/Augmented_Dickey%E2%80%93Fuller_test)
+
+[3] [Seasonal Plots](https://otexts.com/fpp3/seasonal-plots.html)
+
+[4] [Seasonal Subseries Plot](https://otexts.com/fpp3/subseries.html)
+
+[5] [Time Series Components](https://otexts.com/fpp3/components.html#components)
+
+[6] [Time Series Patterns](https://otexts.com/fpp3/tspatterns.html)
+
+[7] [Time Series Decomposition]([https://otexts.com/fpp3/decomposition.html)
+
+[8] [STL Decomposition](https://otexts.com/fpp3/stl.html)
+
+[9] [LOESS](https://en.wikipedia.org/wiki/Local_regression)
+
+[10] [P.K. Bhattacharya and Prabir Burman, Chapter 13 - Time Series, Theory and Methods of Statistics (2016)](https://www.sciencedirect.com/science/article/pii/B9780128024409000138)
+
+[11] [Estimating the Spectral Density](https://online.stat.psu.edu/stat510/lesson/12/12.1)
+
+[12] Edward L. Ionides, [DATASCI/STATS 531 Chapter 6: Extending the ARMA model: Seasonality,
+integration and trend](https://ionides.github.io/531w24/06/slides-annotated.pdf)
+
+[13] [U.S. recession periods](https://fredhelp.stlouisfed.org/fred/data/understanding-the-data/recession-bars/)
+
+[14] https://ionides.github.io/531w24/05/index.html
+
+[15] https://ionides.github.io/531w24/06/index.html
+
+[16] https://a-little-book-of-r-for-time-series.readthedocs.io/en/latest/src/timeseries.html
+

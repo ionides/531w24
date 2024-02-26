@@ -1,0 +1,410 @@
+---
+title: "Midterm Project"
+author: 
+date: "2024-02-23"
+bibliography: references.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+output: 
+  bookdown::html_document2:
+    fig_caption: yes
+    theme: flatly
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+![Image captured by the Daniel K. Inouye Solar Telescope.](C:\Users\petep\OneDrive\Documents\School\WI24\531\STATS-531-Midterm-Project\assets\sunspotpic.jpeg)
+
+--------
+
+Check out NASA's sunspot live feed [here.](https://soho.nascom.nasa.gov/sunspots/) And the solar cycle progression from the [Space Weather Prediction Center.](https://www.swpc.noaa.gov/products/solar-cycle-progression)
+
+--------
+
+# Introduction
+
+The term 'sunspots' refers to areas on the Sun's surface with significantly stronger magnetic fields than others. Visually they manifest as areas visibly darker than the rest of the solar surface. Most often they have an inner, darker part called the *umbra* surrounded by a lighter *penumbra* region. They most commonly appear in pairs with magnetic fields with opposite polarities [@hoyt1979variations]. Though the extent of causality is often difficult to definitively state there are a number of reasons that the monitoring and forecasting of sunspots could have significant positive ramifications.
+
+Coronal Mass Ejections (CMEs) are large clouds of plasma and magnetic fields that, upon hitting the Earth, cause heavy fluctuations in the planet's magnetic fields [@energyparticles]. Solar flares are intense bursts of radiation that can affect the Earth's atmosphere. The occurrence of both of these phenomena are relatively strongly correlated with the prevalence of sunspots. Solar flares are known to disrupt communications and systems that rely on radio waves such as GPS. CMEs likewise are known to, through their effect on Earth's magnetic field, affect the efficacy and durability of satellite technology [@powergrid]. 
+
+The effects of both these solar events can have potentially significant effects on satellite, radio and many other technologies. As a dramatic example, the Carrington event of 1859 was a period of unusually high solar activity, mirrored by a high number of sunspots [@Carrington]. The event caused telegraph systems around the world go haywire and make the aurora borealis visible in even some tropical areas (as opposed to being confined to polar regions like usual). If scientists can predict high periods of sunspot activity they can better take measures to preserve their satellite technology and mitigate the effects on an ever widening array of technologies used in the modern world.
+
+Additionally, it is generally agreed that sunspot prevalence, through associated solar activity levels, plays a role in earth's climate [@climate]. A dramatic example is that of the Maunder minimum. The term refers to the period from 1645 to 1715 where sunspots were exceedingly rare. It also happened to coincide significantly with the 'Little Ice Age' experienced by the earth in the 17th C [@hoyt1979variations]. How exactly and to what extent the effect is causal is still a topic of debate, however. Research of late has suggested that the effect on climate change depends strongly on the time scale in question. The causal effects on climate seem to be very small on the 11-year solar period but increase in magnitude sharply as one takes into account much longer 'secular cycles' in sunspot activity (which have a period of 100 to more than 200 years) [@climate]. There seems to be no indication that the Earth is heading to a new Maunder minimum so understanding the long-term trend of solar activity could be crucial in planning and simulating the effects of impending climate change.
+
+It's evident that a robust understanding of space weather is of extreme importance given our world's increasing reliance on modern technologies. Moreover, space is a fascinating topic. That said, there is no shortage of scientific research on applying different statistical modeling techniques to this particular data set. Sunspots and related solar activities have been studied using various techniques including, multifractal analysis, correlation analysis, wavelet transforms, deep neural networks, autoregression, and much more. 
+
+Despite the varying modeling techniques, there is one phenomenon that all researchers agree on - the sun exhibits an approximate 11 year solar cycle. The solar cycle is indicated by the frequency and intensity of visible sunspots, and have proven to be quite difficult to predict [@daisy]. In this study, we will employ various classical time series methods in attempt to capture the implicit behavior in sunspot activity. 
+
+--------
+
+```{r load_packages, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(zoo)
+library(forecast)
+library(lmtest)
+library(astsa)
+library(cowplot)
+library(scales)
+library(tseries)
+library(tidyquant)
+```
+
+## Data
+
+Our data includes 3300 (as of February 15, 2024) observations of monthly mean relative sunspot numbers (count) from 1749 to present. The data was collected by the Swiss Federal Observatory, Zurich until 1960, then the Tokyo Astronomical Observatory. The data is readily available at the Solar Influences Data Analysis Center's (SIDC) [website](https://www.sidc.be/SILSO/datafiles). A description of the data set provided by the SIDC is given below: 
+
+- Column 1-2: Gregorian Calender Date
+- Column 3: Date in fraction of year for the middle of the corresponding month
+- Column 4: Monthly mean total sunspot number
+- Column 5: Monthly mean standard deviation of the input sunspot numbers from individual stations.
+- Column 6: Number of observations used to compute the monthly mean total sunspot number.
+- Column 7: Definitive/provisional marker. A blank indicates that the value is definitive. A '*' symbol indicates that the monthly value is still provisional and is subject to a possible revision (Usually the last 3 to 6 months).
+
+This report will focus on uni-variate analysis, and thus we will only use column 4, monthly mean total sunspot number. 
+
+```{r table, echo=FALSE, results="asis"}
+# Comment out the line of code for the machine you are not on...
+
+#data <- read.csv("/Users/petepritchard/Documents/School/UM WI24/531/STATS-531-Midterm-Project/data/SN_m_tot_V2.0.csv", 
+#                 sep = ";") # Mac machine
+
+data <- read.csv("C:/Users/petep/OneDrive/Documents/School/WI24/531/STATS-531-Midterm-Project/data/SN_m_tot_V2.0.csv", 
+                 sep = ";") # Windows machine
+
+data <- data %>%
+  rename(
+    Year = X1749, 
+    Month = X01,
+    date.franction = X1749.042, 
+    monthly.mean = X96.7,
+    monthly.sd = X.1.0,
+    monthly.obs = X.1,
+    prov.marker = X1
+  )
+
+knitr::kable(data[1:5,], caption = "Monthly mean sunspot data")
+```
+
+--------
+
+# Analysis
+
+## Exploratory Analysis
+
+As one does in time series modeling, we start off by simply plotting the data.
+
+```{r, echo=FALSE}
+# Create time stamps
+start_date <- c(1749, 1) # Start date
+
+# Create ts
+ss <- ts(data$monthly.mean, start = start_date, frequency = 12) # full data
+
+# Data frame with formatted date for plots
+df <- data.frame(y = as.matrix(ss), date=time(ss)) # data frame
+```
+
+```{r 1st-plot, fig.cap="Time series plots of full data and tail subset", warning=FALSE, message=FALSE, echo=FALSE}
+p1 <- df %>%
+    ggplot(aes(date, y)) +
+    geom_point(color = palette_light()[[1]], alpha = 0.5) +
+    geom_smooth(method = "loess", span = 0.2, se = FALSE) +
+    theme_tq() +
+    labs(
+        title = "From 1749 to 2024 (Full Data Set)",
+        ylab = "Sunspot count"
+    )
+
+p2 <- df %>%
+    filter(date > 2000) %>%
+    ggplot(aes(date, y)) +
+    geom_line(color = palette_light()[[1]], alpha = 0.5) +
+    geom_point(color = palette_light()[[1]]) +
+    geom_smooth(method = "loess", span = 0.2, se = FALSE) +
+    theme_tq() +
+    labs(
+        title = "2008 to 2024 (Zoomed In To Show Cycle)",
+        caption = "",
+        ylab = "Sunspot count"
+    )
+
+p_title <- ggdraw() + 
+    draw_label("Sunspots", size = 18, fontface = "bold", colour = palette_light()[[1]])
+
+plot_grid(p_title, p1, p2, ncol = 1, rel_heights = c(0.1, 1, 1))
+```
+
+From the top plot in Figure \@ref(fig:1st-plot), there is no obvious trend. However, the sharp peaks seem to be regular indicating there might be some form seasonality. It's difficult to tell if the data is stationary. For a time series to be stationary, it must possess properties that do not depend on the time at which the series is observed [@OTEXT_stat]. So, a series of data points with trends or seasonality are not stationary, but a series with cyclic behavior (but no trend or seasonality) is stationary [@OTEXT_stat]. We zoom into the data in the bottom plot in Figure \@ref(fig:1st-plot) to get a better idea of what's going on.
+
+Over short term periods, it may appear that there are linear trends. However, looking back at the full data, it becomes apparent that these are elements of a much broader cyclical trend. There are many successive points indicating auto-regression, however the strength of the relationship changes over time with a stronger relationship occurring at the trough of the cycle. This shows an obvious change in variance. Furthermore, the bottom plot highlights the general consensus of an approximate 11 year solar cycle. 
+
+```{r acf-pacf-full, fig.cap="ACF of full data at lags = 250", echo=FALSE}
+acf(ss, lag=250, main="ACF Sunspots")
+```
+
+The sample autocorrelation plot in Figure \@ref(fig:acf-pacf-full) also provide us with some insight. 250 lags displays a patterned behavior in which a decaying sin wave becomes obvious, suggesting, again, that future values of the series are correlated with past values. There is autocorrelation of 0.5 at approximately lag 11 (132/12moth re-scaled), supplying further evidence of the solar cycle. Ultimately, this process appears to be non-stationary and seasonal.  
+
+First, we'll seasonally difference the data, shown in Figure \@ref(fig:seasonal-diff). Although it is not obvious, this appears to be stationary, so we won't take an additional first difference.
+
+```{r seasonal-diff, echo=FALSE, fig.cap="Seasonally differenced full data with ACF and PACF"}
+ss.s.diff <- diff(ss, lag = 12, differences = 1)
+ggtsdisplay(ss.s.diff)
+```
+
+Later in the report, we'll use the ACF and PACF shown in Figure \@ref(fig:seasonal-diff) to estimate the appropriate model parameters to fit to our series.
+
+
+--------
+
+## Spectral Analysis {.tabset}
+
+Over the course of 234 years, we observe 22 peaks, approximately equally spaced. This hints us there may be a period of 10.6 years.
+
+To investigate the periodical behavior of the time series data, we apply Fourier transform on the data to obtain signals in the frequency domain. This involves estimating the spectral density function of our time series data.
+
+Let $\gamma_h$ be the stationary autocovariance function of our time series data. The spectral density function is given by 
+$$\lambda(\omega)=\sum_{h=-\infty}^\infty \gamma_he^{-2\pi i\omega h},$$
+where $\omega$ is frequency [@Chap8Slides].
+Euler's formula gives a sinusoidal expression of the exponentials  [@Chap8Slides]. We write
+$$e^{2\pi i\omega h}=\cos(2\pi\omega h)+i\sin(2\pi\omega h).$$
+The sine and cosine terms give a Fourier basis for expressing the time series as a weighted sum of these sinusoidal bases. We are interested in the weights of the bases, that is the frequency components  [@Chap8Slides]. We wish to estimate the spectral density function and identify the dominant frequency (that is the frequency where the frequency component is the largest). We apply the three methods shown in the figures below to estimate the spectral density function.
+
+We use R to compute the periodogram on the unsmoothed raw data directly and will use the formula, $\frac{1}{\omega\times12}$ where $\omega$ = frequency to translate the values from the **frequency domain** back to the **time domain**. Note that we multiply $\omega$ by 12 since we are dealing with monthly data. We first compute the dominant frequency an unsmoothed method (shown in Figure \@ref(fig:unsmooth-spec)), which is **0.0917** cycles per year, that is **10.909** years per cycle. This is close to our first observation. However, the unsmoothed periodogram doesn't provide us much visual clue on the data.
+
+Now, we compute the periodogram on smoothed data. One way of smoothing the data is to use the default smoother provided by `spec.pgram`. This smooth the periodogram with modified Daniell smoothers [@R]. We set the window sizes to be 15 and 15, based on the previous analysis on the approximate cycle length of the data. From the plot in Figure \@ref(fig:smoothed-spec), we find the dominant frequency is **0.0917** cycles per year and equivalently **10.90** years per cycle.
+
+Beside the non-parametric models based on periodograms, we can also fit an autoregressive model to estimate the spectral density function. An autoregressive model with order $p$ ($AR(p)$ for short) is written as,
+
+$$Y_n=\sum_{i=1}^p\varphi_i Y_{n-i}+\epsilon_n,$$
+
+where $Y_{1:n}$ are random variables representing the AR($p$) model, $\varphi_{1:p}$ are parameters of the model and $\epsilon_{1:n}$ is a white noise process of independent and identically distributed normal random variables [@Chap3Slides]. The order $p$ itself is also a parameter and is determined using Akaike Information Criterion (AIC) [@Chap5Slides]. We don't go into the details of AIC here and we refer the readers to [@Chap5Slides] or later in the report for more details. We run the following code to fit an $AR(p)$ model, where the parameter $p$ is picked based on AIC by R.
+
+We observe the $AR(p)$ model, shown in Figure \@ref(fig:ar-spec), has a dominant frequency of **0.0841** cycles per year, or **11.88** years per cycle.
+
+All three models give a period of around 11 years, which confirm our observation and also coincide with our prior knowledge of sunspot cycles.
+
+### Unsmoothed Data
+
+```{r unsmooth-spec, fig.cap="Unsoothed periodogram", echo=FALSE, message=FALSE, warning=FALSE}
+unsmoothed_spectrum<-spectrum(ss, main = "Unsmoothed periodogram",
+  xlab="frequency (cycles per month)")
+unsmoothed_freq <- unsmoothed_spectrum$freq[which.max(unsmoothed_spectrum$spec)]
+#unsmoothed_freq
+#1/unsmoothed_freq
+```
+
+### Smoothed Data
+
+```{r smoothed-spec, fig.cap="Smoothed periodogram", echo=FALSE, warning=FALSE, message=FALSE}
+smoothed_spectrum <- spectrum(ss, spans=c(15, 15), main = "Smoothed periodogram", xlab="Frequency (cycles per month)")
+freq <- smoothed_spectrum$freq[which.max(smoothed_spectrum$spec)]
+#freq
+#1/freq
+```
+
+### Estimating SDF with AR model
+
+```{r ar-spec, fig.cap="Spectral Density selected by AR process", echo=FALSE, warning=FALSE, message=FALSE}
+ar_spectrum <- spectrum(ss, method = "ar",
+                         main = "Spectral Density by an AR Model, selected by AIC",
+                         xlab = "Frequency (cycles per month)")
+ar_freq <- ar_spectrum$freq[which.max(ar_spectrum $spec)]
+```
+
+--------
+
+# Model Selection
+
+## SARMA 
+
+A seasonal ARMA model (SARMA) is construed by including additional season terms in a ARMA models [@Chap4Slides]. It is defined as follows:
+$$SARMA(p,q)\times(P,Q)_m$$
+Where *m* = number of observations per year. For example, a general $SARMA(p,q)\times(P,Q)_{12}$ model for monthly data is
+$$\phi(B)\Phi(B^{12})(Y_n-\mu)=\psi(B)\Psi(B^{12})\epsilon_n,$$
+where $\epsilon_n$ is a white noise process and
+
+$$
+\begin{aligned}
+ \mu = \exp && \\
+ \phi(x) = 1-\phi_1x-\dots-\phi_px^p,&& \\
+ \psi(x) = 1+\psi_1x+\dots+\psi_qx^q,&& \\
+ \Phi(x) = 1-\Phi_1x-\dots-\Phi_Px^P,&& \\
+ \Psi(x) = 1+\Psi_1x+\dots+\Psi_Qx^Q.&& \\
+\end{aligned}
+$$
+
+The seasonal part of an AR or MA model can be discovered through the seasonal lags of the PACF and ACF [@OTEXT_stat]. We will consider the ACF and PACF from Figure \@ref(fig:acf-pacf-full) to estimate values for $p,q,P,Q$. Then we will select a second model using a more algorithmic approach called grid search and compare the performance of both. Grid search is used to find optimal hyper parameters of a model which results in the most accurate fitting.  
+
+There are spikes in the PACF at lags 12, 24 and 26, but nothing similar in the ACF. This could be indicative of a seasonal AR(2) term. In terms of non-seasonal lags, the PACF shows numerous significant spikes, suggesting a high, complex $AR(p)$ term. Lastly, the decaying wave pattern in the ACF isn't suggestive of any straightforward model. 
+
+## Grid Search {.tabset}
+
+Our eye-balling analysis suggests that an $SARIMA(3,0,0)\times(2,0,0)_{12}$ (Model 1) might be a good fit. We'll fit this along with several other models using an algorithmic approach called grid search. 
+
+Of these models *(results shown in tables below)*, we select the one with the lowest Akaike's information criterion (AIC). AIC is essentially "minus twice the maximized log likelihood plus twice the number of parameters [@Chap5Slides]," and is defined by:
+
+$$AIC=-2\times\ell(\theta^*)+2D$$
+
+The grid search approach chose the $ARIMA(1,0,2)\times(1,0,0)_{12}$ (Model 2) model with the lowest AIC (i.e., the best). For our final model, we will incorporate findings from the exploratory analysis, spectral analysis, and knowledge from related readings. When fitting a seasonal component or SARIMA model, it is often times done so with some prior knowledge. An example of this prior is the 11-year solar cycle. This cycle is easily noticeable when plotting the data on a short term, and confirmed by our spectral analysis. That being said, we will now fit a simple $AR(2)$ (Model 3) model with an external regressor to capture the 11-year cycle. This model is defined by, 
+
+$$y_t=\beta_0 + \beta \cos(2\pi t\times132)+\epsilon_t$$
+where $\epsilon_t$ is the $AR(2)$ process.
+
+### Table 1
+
+```{r sarima-grid, echo=FALSE, warning=FALSE, message=FALSE}
+aic_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data,order=c(p,0,q),
+                              seasonal=list(order=c(1,0,0),
+                                              period=12))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""), 
+    paste("MA",0:Q,sep=""))
+  table
+}
+ss_aic_table <- aic_table(ss,3,3)
+require(knitr)
+kable(ss_aic_table,digits=2, caption = "P=1, Q=0")
+```
+
+### Table 2
+
+```{r sarima-grid-2, echo=FALSE, warning=FALSE, message=FALSE}
+aic_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data,order=c(p,0,q),
+                              seasonal=list(order=c(1,0,1),
+                                              period=12))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""), 
+    paste("MA",0:Q,sep=""))
+  table
+}
+ss_aic_table <- aic_table(ss,3,3)
+require(knitr)
+kable(ss_aic_table,digits=2, caption = "P=1, Q=1")
+```
+
+### Table 3
+
+```{r sarima-grid-3, echo=FALSE, warning=FALSE, message=FALSE}
+aic_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data,order=c(p,0,q),
+                              seasonal=list(order=c(0,0,1),
+                                              period=12))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""), 
+    paste("MA",0:Q,sep=""))
+  table
+}
+ss_aic_table <- aic_table(ss,3,3)
+require(knitr)
+kable(ss_aic_table,digits=2, caption = "P=0, Q=1")
+```
+
+
+```{r model_3, echo=FALSE}
+n <- length(ss)
+cycle_length <- 12*11
+cycle <- cos(2 * pi * (1:n) / cycle_length)
+
+mod.3 <- arima(ss, order = c(2,0,0), xreg = cycle) # 11-cycle 
+```
+
+
+```{r models_1_2, echo=FALSE}
+mod.1 <- arima(ss, order=c(3,0,0), seasonal=list(order=c(2,0,0), period=12)) # eyeballing
+mod.2 <- arima(ss, order=c(1,0,2), seasonal=list(order=c(1,0,0), period=12)) # grid search
+
+aic.1 <- mod.1$aic
+aic.2 <- mod.2$aic
+aic.3 <- mod.3$aic
+```
+
+
+--------
+
+# Diagnostics
+
+## Residual Check {.tabset}
+
+A good way to check if we are overfitting the data or leaving out useful information is by checking the residuals. A residual is simply the difference between an observation and an estimated value:
+
+$$e_t=y_t-\hat{y_t}$$ 
+A model that has adequately captured the information in the data will produced residuals with the following properties: 
+
+a. Residuals are uncorrelated
+b. Residuals have mean zero
+c. Residuals have constant variance
+d. Residuals are normally distributed [@OTEXT_stat].
+
+We will use the `checkresiduals()` function to help us determine if these properties are satisfied. 
+
+Using the visualizations and summary outputs from Figures (\@ref(fig:qq-1), \@ref(fig:qq-2), \@ref(fig:qq-3)) it's obvious we haven't fit the data as well as one would hope. Looking at the ACFs on the bottom right hand side, each model has several significant spikes, telling us there is correlation in the residual series. The histograms in the bottom right show approximate normality, however all three models display a concerning hint of right skewness. Lastly, we have the results from the Ljung-Box test. The Ljung-Box test is a method of testing for the lack of serial correlation [@ljung]; $H_0$ the model appears good, $H_A$ the model shows lack of it. Yet again, with a p-values for all three models significant at the $\alpha=0.05$ level, we receive another residual violation. 
+
+### Model 1
+
+```{r qq-1, fig.cap="Residual fheck for model 1", echo=FALSE}
+checkresiduals(mod.1$residuals)
+```
+
+### Model 3
+
+```{r qq-2, fig.cap="Residual check for model 2", echo=FALSE}
+checkresiduals(mod.2$residuals)
+```
+
+### Model 3
+
+```{r qq-3, fig.cap="Residual Check for Model 3", echo=FALSE}
+checkresiduals(mod.3$residuals)
+```
+
+--------
+
+# Conclusion and Future extensions
+
+In this report, we deployed a number of classical time series approaches to "re-discover" a known scientific fact. Despite the big ending being spoiled, it's beneficial to go through steps and gain a robust understanding of the process - kind of like an episode of [Columbo](https://en.wikipedia.org/wiki/Columbo). This analysis showed that modeling something that is seeming regular isn't always straight forward. There's, without question, a lot of room to improve on our models. It might be useful to take a more in-depth look at the spectrum in higher frequencies, or, perhaps, there are additional cycles that we overlooked.
+
+There are numerous avenues one could take exploring this data set. It would be interesting to see how more modern machine/deep learning methods perform in comparison to classical time series approaches, especially in terms of forecasting. The 11-year solar cycle is indeed glaring, however perhaps it's so bright that it's caused researchers to overlook hidden seasonal trends?  After becoming comfortable with modeling that data in the long-run it would be a good extra challenge to take a stab at the unpredictable variation in the short term. Developing a robust understanding of the variation in the seasonal peaks of solar activity would give scientists heightened abilities to mitigate the effects of harmful solar events.  
+
+--------
+
+# History
+
+To save readers time, we decided to add this to the end of the report. However, some of you might enjoy this! 
+
+Since ancient times dark spots on the surface of the Sun have been observed by cultures around the world. The earliest written records of these blemishes, known as 'sunspots' date back to ancient China, at least as early as 364 B.C. Arab, Armenian, Russian and other texts from soon after the 4th Century B.C all make reference to dark formations on the Sun's surface. In medieval Europe, the first records of observations of these formations in medieval Europe are found in chronicles dated 1128 A.D.[@vasiljeva2021history].
+
+In 1608 the invention (or at least patenting) of the telescope in Holland changed the face of astronomy together, including the study of sunspots. By 1609 Thomas Harriot had made detailed sketches of the sunspots on the surface of the Sun. By 1610 Johann Fabricius had published the first paper detailing the appearance of sunspots (by tracking the position of particular sunspots he was also able to deduce that the Sun rotated on its axis with a period of about 30 days which turned out to be very accurate) [@casanovas1997early]. Soon after their discovery a number of astronomers across Europe diligently took notes on the formation of sunspots. However, by the middle of the 18th Century, interest had waned and so the number of observations reached a nadir before picking up later in that century.
+
+This history makes sunspots the earliest recorded feature of the solar surface. Until 1776 when Christian Horrebu suggested periodicity in the presence of sunspots, scientists were of the opinion that their appearance was completely stochastic. In 1843, Heinrich Schwabe showed that the number of observed sunspots had a period of approximately 10 years [@vasiljeva2021history. In 1852 Rudolph Wolff in Zurich started the first permanent record keeping of sunspot numbers. He also introduced the idea of a daily 'relative' sunspot number (a.k. the 'Wolf number') and calculated a solar period of 11.1 years (an improvement from Horrebu's calculation).
+
+From Wolff's work, records of sunspot observations from around 1740 onwards are considered to be quite reliable. In 2011 researchers started a project to reconstruct sunspot data from as far back as 1610, however these still have significant issues that cause worries about reliability [@vasiljeva2021history]. In 2015 the SILSO (Sunspot Index and Long-term Solar Observations International Data Center [@sidc]) adopted a formula for a new Wolf number (Version 2.0). It is also known that the maximum Wolf number of a solar cycle is directly (inversely) proportional to the minimum Wolf number of the previous cycle (the duration of the previous cycle), significant at $1\%$ significance levels [@vasiljeva2021history].
+
+--------
+
+# Refernces

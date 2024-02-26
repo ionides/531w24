@@ -1,0 +1,460 @@
+---
+title: 'STATS 531: Time Series   Midterm Project Report on Bitcoin''s price behavior'
+author: "Blinded"
+date: "2024-02-17"
+output: html_document
+---
+
+## **Contents:**
+
+1.  Introduction and Background
+
+    1.1 Introduction
+
+    1.2 Dataset Overview
+
+2.  Dataset Preprocessing
+
+    2.1 Handling Missing Values
+
+    2.2 Time Series Induction 
+
+    2.3 Code Implementation
+
+3.  Exploratory Data Analysis (EDA)
+
+    3.1 Trend Analysis
+
+    3.2 Correlation Analysis
+
+4.  Time Series Analysis
+
+    4.1 Model Fitting
+
+    4.2 Model Diagnostics
+
+    4.3 Forecasting
+
+5.  Conclusion and Discussion
+
+    5.1 Analysis Results
+
+    5.2 Practical Significance
+
+    5.3 Limitations
+
+6.  References
+
+7.  Appendix
+
+## **1. Introduction and Background** {#sec-1.-introduction-and-background}
+
+### **1.1 Introduction**
+
+      As we navigate through the dynamic and ever-evolving landscape of financial markets, Bitcoin has undeniably cemented its position as a focal point of global financial discourse. Introduced to the world in 2009 by the pseudonymous entity Satoshi Nakamoto, Bitcoin has journeyed from being an innovative digital concept to becoming a pivotal asset in the financial markets. This journey has been marked by significant milestones, such as the advent of Bitcoin ETFs and periods of interest rate stabilization, which have collectively contributed to its price experiencing a surge of over 300% from 2022. Amidst the rapidly expanding domain of cryptocurrencies, Bitcoin distinguishes itself as the forerunner, capturing the attention of a diverse cohort comprising investors, technologists, and economists. The hallmark of Bitcoin's journey has been its pronounced price volatility, rendering it an ideal candidate for rigorous time series analysis. This report is dedicated to dissecting the complex interplay of patterns, trends, and potential predictors influencing Bitcoin's price movements. Through the application of sophisticated statistical techniques, our objective is to demystify the market dynamics that underpin Bitcoin's valuation.
+
+### **1.2 Dataset Overview**
+
+      The dataset we obtained from [Kaggle](https://www.kaggle.com/datasets/sushilkumarinfo/bitcoin-transactional-data/data) stands out for its extensive and varied collection of data, boasting an impressive 738 unique attributes that significantly enhance the depth and breadth of our analysis capabilities. Among its wide array of features, the 'sentinudUSD' user sentiment index notably captures the essence of public opinion on Bitcoin and other cryptocurrencies as reflected in social media conversations. This index, when analyzed alongside attributes measuring market volatility, provides a comprehensive snapshot of market sentiment, weaving a rich tapestry of insights. Furthermore, the dataset delves into various volatility-related metrics, enriching our understanding of market dynamics. The detailed categorization of attributes, segmented into diverse time frames such as 7 days, 30 days, and seasonal periods, facilitates a granular analysis of market trends and patterns. This temporal specificity affords us a sophisticated lens through which to observe the evolving landscape of the cryptocurrency market, offering a meticulous chronological perspective of its fluctuations and tendencies.
+
+      Delving deeper into this dataset, our report sets out to reveal the intricate dynamics between market sentiment and the fluctuations in Bitcoin's price. By meticulously examining the relationships between these pivotal elements and their combined influence on Bitcoin's market trajectory, our analysis will employ advanced statistical methodologies, including time series analysis. Our objective is to enhance the comprehension of the patterns governing Bitcoin's pricing trends, offering valuable perspectives on its potential growth and establishing its credibility within the digital currency domain. This thorough investigation aims not only to decipher past and present market behaviors but also to forecast future movements, thereby equipping investors and stakeholders with the knowledge to make informed decisions in the ever-evolving cryptocurrency landscape.
+
+## **2. Dataset Preprocessing** {#sec-2.-dataset-preprocessing}
+
+        To ensure the integrity and reliability of our analysis, we undertook a meticulous data preprocessing phase. This phase was crucial for preparing the dataset for in-depth time series analysis, focusing on the relationship between Bitcoin's market sentiment and its price fluctuations.
+
+### **2.1 Handling Missing Values**
+
+       In our dataset, careful scrutiny revealed instances of missing values within the 'priceUSD" and 'sentinusdUSD' variables. Given the importance of maintaining a continuous time series for accurate analysis, we adopted a methodological approach to handle these gaps effectively.
+
+       For this dataset, we utilized linear interpolation to impute missing values. This decision was underpinned by several considerations:
+
+\- Temporal Continuity: Given the time series nature of our data, linear interpolation is particularly apt as it assumes that the change between two points is linear and can be used to estimate missing values based on the points immediately preceding and following the gap. This is a reasonable assumption for financial data, where short-term fluctuations between recorded data points are often gradual rather than abrupt.
+
+\- Data Integrity: Linear interpolation allows us to preserve as much of the original data as possible. By estimating missing values based on existing data, we avoid the potential bias introduced by removing significant portions of the time series, ensuring our analysis remains robust.
+
+\- Analytical Consistency: Maintaining a complete dataset without gaps is crucial for time series analysis, especially when employing methods like ARIMA modeling, which require evenly spaced intervals. Interpolation ensures that our dataset meets this requirement, facilitating more reliable and consistent analytical outcomes.
+
+### **2.2 Time Series Reduction**
+
+        Given the extensive span of the dataset, encompassing over 4,000 time points, we aimed to distill the data into a more manageable size without sacrificing analytical depth. This reduction was achieved through the following process:
+
+1\. Averaging: We condensed the dataset by calculating the monthly average for both 'priceUSD' and 'sentinusdUSD'. This approach smoothed short-term fluctuations and brought forward the underlying trends, providing a clearer view of long-term patterns. The averaging was performed by grouping data points by month and calculating the mean for each group.
+
+2\. Resampling: To further refine the dataset to approximately 100 time points, we resampled the data on a monthly basis. This was facilitated by using the
+
+'floor_date" function from the 'lubridate" package to assign each data point to its respective month and then averaging the values within each monthly period. The resulting dataset retained the temporal essence of the original data while significantly reducing its complexity.
+
+### **2.3 Code Implementation**
+
+       The preprocessing of our dataset was meticulously conducted using R. Due to the extensive nature of our preprocessing steps, including linear interpolation for missing values and time series reduction via averaging and resampling, the specific code snippets employed are presented below.
+
+```{r,echo=FALSE,warning=FALSE}
+library(dplyr)
+library(lubridate)
+library(zoo)
+data <- read.csv("BTC_DATA.csv",header=TRUE)
+
+# Applying linear interpolation for 'priceUSD' and 'sentinusdUSD'
+data$priceUSD <- na.approx(data$priceUSD, na.rm = FALSE)
+data$sentinusdUSD <- na.approx(data$sentinusdUSD, na.rm = FALSE)
+
+data$Date <- as.Date(data$Date, format="%Y/%m/%d")
+monthly_data <- data %>%
+group_by(month = floor_date(Date, "month")) %>%
+summarise(priceUSD = mean(priceUSD, na.rm = TRUE),
+sentinusdUSD = mean(sentinusdUSD, na.rm = TRUE)) %>%
+select(month, priceUSD, sentinusdUSD)
+write.csv(monthly_data, "reduced_BTC_DATA.csv", row.names = FALSE)
+data <- read.csv("reduced_BTC_DATA.csv",header=TRUE)
+```
+
+       After the preprocessing steps were applied, our dataset was significantly condensed, focusing on approximately 100 key time points that retain the original data's temporal essence. Below is a representative excerpt from the processed dataset, showcasing the monthly averaged values for 'priceUSD' and 'sentinusdUSD':
+
+```{r}
+head(data,10)
+```
+
+Note: The table above shows only a subset of 10 rows from our processed dataset, which in total comprises 154 rows. This selection is intended to provide a clear example of the data structure post-preprocessing. The complete processed dataset is available in [Appendix A].
+
+## **3.Exploratory Data Analysis (EDA)**
+
+### **3.1 Trend Analysis**
+
+```{r,echo=FALSE,warning=FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+
+data$month <- as.Date(data$month, format="%Y-%m-%d")
+
+# Assuming 'data' is your data frame and it has 'month', 'priceUSD', and 'sentinusdUSD' columns
+
+# First, create a scaling factor for the secondary axis
+scale_factor <- max(data$priceUSD) / max(data$sentinusdUSD)
+
+# Trend Analysis
+# Create the plot with a secondary axis
+ggplot(data) +
+  # Plot the Bitcoin price trend
+  geom_line(aes(x = month, y = priceUSD, color = "Bitcoin Price Trend")) +
+  # Add the market sentiment trend, applying the scale factor
+  geom_line(aes(x = month, y = sentinusdUSD * scale_factor, color = "Market Sentiment Trend")) +
+  ggtitle("Bitcoin Price and Market Sentiment Trend") +
+  xlab("Month") +
+  ylab("Price in USD") +
+  # Define the secondary axis, applying the inverse of the scale factor for labels
+  scale_y_continuous(sec.axis = sec_axis(~ . / scale_factor, name = "Sentiment Index")) +
+  scale_color_manual(values = c("Bitcoin Price Trend" = "blue", "Market Sentiment Trend" = "orange")) +
+  theme_minimal() +
+  guides(color = guide_legend(title = "Legend"))
+
+```
+
+       The Bitcoin market has long been characterized by its volatility, which is vividly captured in the trend analysis of its price over time. As illustrated in the Bitcoin Price Trend graph, there is a remarkable evolution in the price trajectory from 2010 to the present. The graph shows a period of relative stability until approximately 2017, after which there is a notable inflection point leading to a steep increase in price. This surge peaks in early 2021, followed by significant fluctuations, which are emblematic of the Bitcoin market's known volatility.
+
+       Concurrent with the price fluctuations, the Market Sentiment Trend graph reflects a somewhat correlated pattern in the sentiment index, 'sentinusdUSD'. The sentiment exhibits several peaks and valleys, particularly aligning with the dramatic price movements of Bitcoin. The spikes in sentiment could be indicative of heightened market activity and interest, potentially driven by news events, investor behavior, or market dynamics. Notably, a substantial rise in sentiment is observed in periods leading up to significant price increases, suggesting a possible predictive relationship between sentiment and subsequent price movements.
+
+\
+
+```{r,echo=FALSE,warning=FALSE}
+# Correlation Analysis
+correlation <- cor(data$priceUSD, data$sentinusdUSD, use = "complete.obs")
+print(paste("Correlation between priceUSD and sentinusdUSD:", correlation))
+```
+
+### **3.2 Correlation Analysis**
+
+       The statistical correlation between the Bitcoin price ('priceUSD') and market sentiment ('sentinusdUSD') presents a compelling narrative. A correlation coefficient of 0.8547 indicates a strong positive relationship between the two variables. This high degree of correlation suggests that as market sentiment rises, there is a strong likelihood that the Bitcoin price will increase correspondingly. This relationship is substantiated by the observed trends where notable increases in sentiment often precede or accompany price hikes.
+
+       This correlation underpins the hypothesis that market sentiment is a significant influencer of Bitcoin's price. The data implies that positive sentiment can lead to increased buying pressure, driving up prices, while negative sentiment could trigger selling and price declines.
+
+## **4. Time Series Analysis**
+
+### **4.1 Model Fitting**
+
+#### 4.1.1 'auto arima' function for ARIMA model
+
+       To model Bitcoin's price movements, we employed the 'auto arima' function from the 'forecast" package in R. This function conducts a search over possible models within the ARIMA framework and selects the model with the best fit based on the Akaike Information Criterion (AIC), a measure that balances model fit and complexity to prevent overfitting.
+
+```{r}
+library(forecast)
+
+# Selecting the priceUSD column and converting it to a ts object
+btc_ts <- ts(data$priceUSD, frequency=12, start=c(year(min(data$month)), month(min(data$month))))
+
+# Using stepwise algorithm to trace the model selection process
+arima_model <- auto.arima(btc_ts, stepwise = TRUE, approximation = FALSE, trace = TRUE)
+
+# Output candidate models considered by auto.arima
+print(arima_model$arma)
+
+```
+
+      We carefully examined the output from "auto.arima", which included a set of models with varying orders of differencing, autoregressive, and moving average components. Each candidate model is typically represented by the notation ARIMA(p,d,q), where:
+
+-   p = number of autoregressive terms,
+
+-   d = number of nonseasonal differences needed for stationarity,
+
+-   q = number of lagged forecast errors in the prediction equation.
+
+For example, an ARIMA(1,1,0) model would be mathematically expressed as:
+
+$$
+\left(1-\phi_1 B\right)(1-B) Y_t=\varepsilon_t
+$$
+
+Where $B$ is the backshift operator, $Y_t$ is the time series, $\phi_1$ is the parameter for the autoregressive term, and $\varepsilon_t$ is the error term.
+
+The BIC was calculated for each model, and the one with the lowest BIC was selected for further consideration. The BIC calculation for a model can be expressed as:
+
+$$
+B I C=n \ln \left(\hat{\sigma}^2\right)+k \ln (n)
+$$
+
+Where $n$ is the sample size, $\hat{\sigma}^2$ is the estimated variance of the residuals, and $k$ is the number of estimated parameters in the model.
+
+       The ARIMA (2,1,1)(0,0,1)[12] model was chosen based on its lowest AIC value amongst the models considered, indicating a favorable balance between model complexity and goodness of fit. The parameters of this model reflect the following components:
+
+\- AR(2): A second-order autoregressive component suggests that the current value is based on its own previous two values.
+
+\- I(1): The differencing order of one indicates that the data needed to be differenced once to achieve stationarity.
+
+\- MA(1): A first-order moving average component implies that the model accounts for the moving average of the previous term.
+
+\- SMA(1): A first-order seasonal moving average component with a periodicity of 12 months captures the seasonal effects in the data, which are not prominent but are considered in the model.
+
+       The 'auto.arima' function also takes into account the potential for overfitting, ensuring that the selected model is general enough to forecast future data points without being too tailored to the historical data.
+
+#### 4.1.2 Introducing the GARCH Model
+
+       Given the significant autocorrelation in the squared residuals indicated by the low p-value from the Box-Ljung test, we propose the introduction of a GARCH model to account for the observed volatility clustering. This step is imperative as it allows us to model the conditional variance (volatility) of the series, which is a common characteristic of financial time series data like Bitcoin prices.
+
+**Why GARCH?**
+
+       GARCH models are particularly adept at capturing the time-varying volatility inherent in financial markets. They allow for volatility predictions that adapt based on past variances and covariances, providing a more nuanced understanding of market dynamics. This is crucial for accurately forecasting under conditions of financial uncertainty, which characterizes the Bitcoin market.
+
+**GARCH Model Specification**
+
+A typical GARCH(1,1) model can be specified as follows:
+
+$$
+\sigma_t^2=\omega+\alpha \varepsilon_{t-1}^2+\beta \sigma_{t-1}^2
+$$
+
+Where:
+
+\- $\sigma_t^2$ is the conditional variance at time $\mathrm{t}$,
+
+\- $\varepsilon_{t-1}$ is the lagged error term,
+
+\- $\omega, \alpha$, and $\beta$ are parameters to be estimated,
+
+\- $\omega$ is a constant term,
+
+\- $\alpha$ captures the effect of lagged squared residuals on current variance (ARCH term),
+
+\- $\beta$ represents the impact of lagged conditional variance on current variance (GARCH term).
+
+This model suggests that today's volatility $\left(\sigma_t^2\right)$can be explained by a constant part, the impact of the shock from the previous period squared ( $\left.\varepsilon_{t-1}^2\right)$, and the volatility of the previous period $\left(\sigma_{t-1}^2\right)$
+
+```{r}
+library(rugarch)
+
+spec <- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+                   mean.model = list(armaOrder = c(2, 1), include.mean = TRUE),
+                   distribution.model = "norm")
+
+garch_fit <- ugarchfit(spec = spec, data = btc_ts)
+summary(garch_fit)
+
+```
+
+### 4.2 Model Diagnostics
+
+#### 4.2.1 ARIMA Diagnostics
+
+```{r,echo=FALSE,warning=FALSE}
+# Model diagnostics
+# Checking the residuals of the model
+checkresiduals(arima_model)
+```
+
+       The Residuals from ARIMA plot does not show any obvious patterns, which suggests that the model has captured the data's structure adequately. Moreover, the ACF plot of the residuals further confirms this, showing that there is no significant autocorrelation at lagged intervals. The Q-Q plot indicates that the residuals are normally distributed, with only minor deviations from normality.
+
+       These diagnostic plots affirm that the model residuals are behaving as white noise, suggesting that the ARIMA model is well-specified and that the fitted model has effectively captured the information in the historical data.
+
+**ARCH Effects**
+
+       To further our diagnostics, we tested for autoregressive conditional heteroskedasticity (ARCH) effects to assess whether volatility clustering is present in the time series---a common characteristic of financial market data. For this purpose, we employed the Box-Ljung test on the squared residuals of our ARIMA model:
+
+```{r,echo=FALSE,warning=FALSE}
+
+library(lmtest)
+
+# Assuming arima_model$residuals contains the residuals from your ARIMA model
+# Testing for ARCH effects using the Box-Ljung test on squared residuals
+squared_residuals <- residuals(arima_model)^2
+arch_test_result <- Box.test(squared_residuals, type = "Ljung-Box")
+
+print(arch_test_result)
+
+
+```
+
+The Box-Ljung test results were as follows:
+
+\- $X^2$=14.383\
+
+\- Degrees of Freedom (df) =1
+
+\- p-value =0.0001492
+
+The low p-value (significantly less than 0.05) from the Box-Ljung test indicates the rejection of the null hypothesis, suggesting the presence of significant autocorrelation in the squared residuals. This finding points towards the existence of ARCH effects, implying that the variance of the model's residuals is not constant over time but instead exhibits volatility clustering.
+
+      To ensure the GARCH model adequately captures the conditional heteroscedasticity of the Bitcoin price series, we conduct diagnostic checks similar to those performed for the ARIMA model. These include examining the standardized residuals for any remaining patterns and testing for remaining ARCH effects to confirm that the model has successfully accounted for volatility clustering.
+
+#### 4.2.2 **GARCH Diagnostics**
+
+      To assess the adequacy of the GARCH model in capturing the volatility of Bitcoin prices, we performed a series of diagnostic checks on the standardized residuals of the fitted GARCH model.
+
+**Examining Standardized Residuals**
+
+```{r,echo=FALSE,warning=FALSE}
+# Extracting standardized residuals
+std_resid <- residuals(garch_fit, standardize = TRUE)
+
+# Plotting standardized residuals
+plot(std_resid, main = "Standardized Residuals of the GARCH Model", ylab = "Standardized Residuals")
+
+```
+
+      The plot of the standardized residuals does not exhibit any significant patterns or systematic behavior, which is indicative of a well-fitting model. The absence of discernible trends or cycles suggests that the GARCH model has effectively normalized the volatility in the price data.
+
+**Autocorrelation of Squared Residuals**
+
+```{r,echo=FALSE,warning=FALSE}
+# ACF plot for squared standardized residuals
+acf(std_resid^2, main = "ACF of Squared Standardized Residuals")
+
+```
+
+      The ACF plot of the squared standardized residuals provides a visual check for remaining ARCH effects. Ideally, the ACF should not show significant correlations for any lag, which would imply that there's no autocorrelation in the volatility. In our case, the ACF plot reveals that the correlations are within the confidence bounds, suggesting that the conditional heteroskedasticity has been adequately modeled.
+
+**Box-Ljung Test**
+
+```{r,echo=FALSE,warning=FALSE}
+# Ljung-Box test on squared standardized residuals
+Box.test(std_resid^2, lag = 10, type = "Ljung-Box")
+
+```
+
+      We further substantiated our findings with the Box-Ljung test, which tests the null hypothesis that there is no autocorrelation present in the series. For the squared standardized residuals, the test yielded an X-squared statistic of 68.723 with a p-value of 7.816e-11, indicating a rejection of the null hypothesis at the 10 lag order. This significant p-value suggests that some autocorrelation remains unexplained by the GARCH model, which warrants a closer examination or potential model refinement.
+
+### 4.3 Forecasting
+
+#### 4.3.1 Forecasting with ARIMA
+
+```{r,echo=FALSE}
+# Forecasting the next 12 months (1 year)
+forecasted_values <- forecast(arima_model, h=12)
+plot(forecasted_values)
+```
+
+       The Forecasts from ARIMA plot projects future values of Bitcoin prices, with the shaded area representing the 80 % prediction intervals. These intervals convey the uncertainty associated with the forecasts, providing a range in which future prices are likely to fall.
+
+```{r,echo=FALSE}
+# Output the forecasted values and the 80% and 95% prediction intervals
+print(forecasted_values)
+```
+
+       The point forecasts for the months from August 2022 to May 2023 indicate expected Bitcoin prices, with a general trend of fluctuation. For instance, the forecast for August 2022 is approximately \$ 23,320, which is within the 80 % confidence interval ranging from approximately \$ 19,993 to \$ 26,647. Notably, the model predicts an increase in the following months with a peak in November 2022 at around \$ 29,968, before a slight decrease in subsequent months.
+
+#### 4.3.2 Forecasting with GARCH
+
+```{r,echo=FALSE}
+# Forecasting with the GARCH model
+garch_forecast <- ugarchforecast(garch_fit, n.ahead = 10)
+print(garch_forecast)
+```
+
+       Our GARCH model forecasts provide a dual perspective on future Bitcoin prices, encompassing both the expected price levels and the anticipated volatility. The model's predictive mean suggests a downward trend over the next ten periods , while the forecasted volatility indicates an increase in market uncertainty over the same horizon .
+
+**Forecasted Mean Prices:**
+
+       The point forecasts for the coming ten periods are as follows, which show a decline in the expected price of Bitcoin:
+
+```{r,echo=FALSE}
+# Displaying the forecasted mean and volatility
+print(garch_forecast@forecast$seriesFor)
+```
+
+       These values suggest a bearish outlook for the near future, with the GARCH model anticipating a continuous decline in the Bitcoin price over the forecasted period.
+
+**Forecasted Volatility:**
+
+       The model's volatility forecasts are equally important, as they reflect the level of risk or uncertainty associated with the price forecasts:
+
+```{r,echo=FALSE}
+print(garch_forecast@forecast$sigmaFor)
+```
+
+       The increasing volatility reflects growing uncertainty in the market, highlighting the potential for larger price swings and the need for caution among investors and analysts.
+
+### **4.4 Model Comparison and Final Selection**
+
+       After comprehensive diagnostics and forecasting with both the ARIMA and GARCH models, we are now positioned to compare the two and determine which provides a more accurate and informative perspective on Bitcoin's future price movements.
+
+**Comparing Point Forecasts:**
+
+       The ARIMA model suggests fluctuating prices with a peak in November 2022, while the GARCH model predicts a consistent downward trend over the next ten periods. The difference in these forecasts highlights the distinct methodologies of the models---the ARIMA model focuses on the temporal dependency of prices, while the GARCH model emphasizes the dynamics of volatility.
+
+**Volatility Forecasts:**
+
+       The GARCH model provides additional insights into the expected volatility, projecting an increase over the forecast horizon. This is particularly valuable for risk assessment, as high volatility periods are often associated with increased trading risk.
+
+**Model Suitability:**
+
+\- ARIMA Model: Offers reliable baseline predictions based on historical price patterns.
+
+\- GARCH Model: Captures the time-varying volatility, providing a more detailed forecast that includes not just price levels but also the expected variability in prices.
+
+**Final Recommendation:**
+
+Considering the highly volatile nature of Bitcoin, a model that captures not only price movements but also the volatility pattern is crucial. Although the ARIMA model provides valuable insights, the GARCH model's ability to project volatility makes it particularly suitable for financial markets, where risk management is as critical as price forecasting.
+
+Hence, we recommend the GARCH model for forecasting Bitcoin prices due to its comprehensive approach to capturing the full spectrum of market behavior. Investors and analysts can benefit from understanding both the expected price levels and the associated volatility, enabling more informed decision-making.
+
+## **5.Conclusion and Discussion**
+
+### 5.1 Analysis Results
+
+       Our comprehensive time series analysis revealed a strong positive correlation between market sentiment and Bitcoin prices, supporting the hypothesis that sentiment significantly influences market behavior. The ARIMA (2,1,1)(0,0,1)[12] model provided a statistical foundation for forecasting future price movements, indicating potential fluctuations with a peak in November 2022. Complementing this, the GARCH model captured the dynamic volatility characteristic of Bitcoin's price series, offering insights into the risk and uncertainty associated with future prices.
+
+### 5.2 Practical Significance
+
+       The integration of ARIMA and GARCH models presents a robust framework for market analysts and investors, providing a dual perspective on expected price levels and volatility. This enhanced forecasting capability is invaluable for forming comprehensive investment strategies, where understanding both the direction of price movements and the associated risks is crucial. While the ARIMA model helps forecast future prices based on past trends, the GARCH model's volatility forecasts are particularly useful for risk management and option pricing, crucial aspects of financial planning in the cryptocurrency domain.
+
+### 5.3 Limitations
+
+       Despite the models' predictive capabilities, we must recognize their limitations:
+
+-   **Model Simplicity**: The linear nature of the ARIMA model may not fully capture the complex, often nonlinear dynamics of financial markets. Although the GARCH model adds a layer by accounting for volatility changes, it still might miss some subtleties of market behavior.
+
+-   **External Influences**: Factors like regulatory shifts, tech breakthroughs, and economic trends can greatly sway Bitcoin's price. Our models, focusing mainly on past price patterns and volatility, don't directly incorporate these external elements, potentially impacting forecast precision.
+
+-   **Past-Based Predictions**: Our approach is rooted in historical data, assuming that future movements will mirror the past. This assumption is precarious in the fast-paced world of cryptocurrencies, where market conditions can rapidly transform.
+
+For instance, the unexpected collapse of a major crypto exchange and the approval of a Bitcoin ETF were events our models didn't foresee, leading to significant market shifts. These examples highlight the challenge of predicting in a sector known for its swift changes and volatility, underscoring the inherent complexities of forecasting in the cryptocurrency domain.
+
+## 6.References
+
+1.  <https://cointelegraph.com/news/bitcoin-etf-investment-portfolio>
+
+2.  <https://blog.csdn.net/foneone/article/details/90141213>
+
+3.  <https://ionides.github.io/531w21/midterm_project/project10/project.html>
+
+## 7.Appendix
