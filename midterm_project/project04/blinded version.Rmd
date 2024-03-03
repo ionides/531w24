@@ -1,0 +1,305 @@
+---
+title: "CO2 emissions in United States"
+author: ""
+date: "2024-02-22"
+output: html_document
+---
+
+```{r, echo=FALSE}
+
+
+
+library(dplyr)
+library(graphics)
+library(stats)
+library(zoo)
+library(tseries)
+library(ggplot2)
+library(forecast)
+library(astsa)
+```
+
+
+## Exploratory Data Analysis ##
+
+```{r, echo=FALSE}
+co2 <- read.csv("E:/co2.csv", header = TRUE)
+co2$YYYYMM <- as.Date(paste0(co2$YYYYMM, "01"), format="%Y%m%d")
+```
+
+This dataset looks at Carbon Dioxide (CO2) emissions in the United States from 1973 to 2016. A large producer of CO2 is burning coal to generate electricity for the country. We would like to explore how the CO2 levels have changed over time, given its impact on the environment. Namely, CO2 absorbs heat from our planet and traps it within our atmosphere, effectively raising the global temperature. As the US and other countries have emmitted coal in increasing quantities over the years, it has had negative affects on the environment. Only more recently have organizations pushed to decrease CO2 emissions.
+
+There are no missing values in our data.
+
+```{r, echo=FALSE}
+co2ts <- ts(co2[,2], start = c(1973, 1), frequency = 12)
+plot(co2$YYYYMM, co2$Value, type = "l", xlab = "Date", ylab = "CO2 Emissoins in US",
+     main = "CO2 Emissions in US Over Time")
+```
+
+It appears as if there are two major trends over time: an increase in CO2 emissions from 1973 until approximately 2006-2008, and then a decrease in emissions after this point until 2016. It is also possible that there is annual seasonality in the CO2 emissions, which is something that we will explore.
+
+Firstly, we need to run an ADF test to check whether the data is stationary. From the result we can see, p-value of the ADF test is 0.9627 which is much bigger than 0.05. It means that we can not reject the null hypothesis: the series is not stationary. So next we need to differentiate the data.
+
+```{r, echo=FALSE}
+adf.test(co2[,2],alternative = "stationary")
+```
+
+Exploring $CO^2$ emissions summary:
+
+```{r, echo=FALSE}
+summary(co2$Value)
+```
+
+The differenced data is now stationary:
+```{r, echo=FALSE}
+y2=diff(co2[,2])
+adf.test(y2,alternative = "stationary")
+diffts=ts(y2, start = c(1973, 1), frequency = 12)
+```
+
+```{r, echo=FALSE}
+tsdisplay(co2ts)
+```
+
+It appears that there are high levels of autocorrelation with lags going as far back as 35. It also appears that the autocorrelation fluctuates approximately every 6 lags, indicating the possibility of seasonality.
+
+In the PACF, it appears that only the first 13 lags are significant, indicating that an annual seasonal model might be useful.
+
+```{r, echo=FALSE}
+dc<-decompose(co2ts)
+plot(dc)
+```
+
+We can take a closer look at the decomposition of carbon dioxide emissions. The increasing then decreasing trend is very clear, and there is a very strong seasonal component.
+
+```{r, echo=FALSE}
+
+```
+
+## Frequency Analysis ##
+
+Unsmoothed periodogram
+
+```{r, echo=FALSE}
+raw_spec = mvspec(co2$Value, plot = FALSE)
+co2_spec = tibble(freq = raw_spec$freq, spec = raw_spec$spec)
+max_omega = co2_spec$freq[which.max(co2_spec$spec)]
+
+co2_spec %>%
+  ggplot(aes(x = freq, y = spec)) +
+  geom_line(colour = "darkblue") +
+  scale_x_continuous(name = "Frequency") +
+  scale_y_continuous(name = "Spectrum",
+                     trans = "log10") +
+  ggtitle("Unsmoothed periodogram") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18))
+```
+
+Smoothed Periodogram
+
+```{r, echo=FALSE}
+smoothed_spec = mvspec(co2$Value, spans = c(5, 5), plot = FALSE)
+co2_smoothed_spec = tibble(freq = smoothed_spec$freq, spec = smoothed_spec$spec)
+max_omega_smoothed = co2_smoothed_spec$freq[which.max(co2_smoothed_spec$spec)]
+
+co2_smoothed_spec %>%
+  ggplot(aes(x = freq, y = spec)) +
+  geom_line(colour = "darkblue") +
+  scale_x_continuous(name = "Frequency") +
+  scale_y_continuous(name = "Spectrum",
+                     trans = "log10") +
+  ggtitle("Smoothed periodogram") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18))
+```
+
+Both unsmoothed and smoothed periodograms result in dominant frequencies($\omega$) of 0.17 and 0.09
+
+This dominant frequencies corresponds to a time period T where,
+
+$$ T= \frac{1}{\omega} = \frac{1}{0.17} = 5.88$$
+
+$$ T= \frac{1}{\omega} = \frac{1}{0.09} = 1.11$$
+
+
+The primary frequencies are associated with periods of approximately 6 months, and 1 month. This means there is a significant seasonal pattern in the CO2 emissions data that repeats approximately every 6 months, and 1 month.
+
+Smoothed Periodogram via AR model:
+
+```{r, echo=FALSE}
+spec_ar = spectrum(co2$Value,method = "ar",plot = FALSE)
+co2_AR = tibble(freq = spec_ar$freq, spec = spec_ar$spec)
+max_ar = co2_AR$freq[which.max(co2_AR$spec)]
+
+co2_AR %>%
+  ggplot(aes(x = freq, y = spec)) +
+  geom_line(colour = "darkblue") +
+  scale_x_continuous(name = "Frequency") +
+  scale_y_continuous(name = "Spectrum",
+                     trans = "log10") +
+  ggtitle("Smoothed periodogram via AR model") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18))
+```
+
+The smoothed periodogram via AR model reveals similar results to the previously smoothed periodogram, reinforcing our belief that there are cycles of periods of 6 months and 1 month in the $CO^2$ data.
+
+Now, the chosen ARIMA modeling approach, which incorporates these identified seasonal components, will likely yield accurate forecasts for CO2 emissions. The analysis suggests that our model will be able to project future emissions levels while considering the cyclical nature of CO2 output over time.
+
+## Modeling ##
+
+Due to the seasonal nature of our data, we have elected to use a SARIMA model, which is of the form:
+
+$\phi(B)\Phi(B_{12})(Y_n - \mu) = \psi(B)\Psi(B_{12})\epsilon_n,$
+
+$\text{where the error terms are a white noise process and}$
+
+$\mu = E(Y_n)$
+
+$\phi(x)= 1 - \phi_1x - \ldots - \phi_px^p,$
+
+$\psi(x)= 1 + \psi_1x - \ldots + \psi_qx^q,$
+
+$\Phi(x)= 1 - \Phi_1x - \ldots - \Phi_px^p,$
+
+$\Psi(x)= 1 + \Psi_1x - \ldots + \Psi_qx^q.$
+
+Then we need to decide where to start in terms of values of p and q.
+To choose the appropriate p, d and q, we use auto. arima function, which uses AIC as the criterion to select the most appropriate model. This analysis is conducted below:
+
+### Model 1 ###
+
+```{r, echo=FALSE}
+fitarima=auto.arima(co2ts,trace=T)
+```
+
+```{r, echo=FALSE}
+model=fitarima
+summary(model)
+```
+
+We get the best model to be a Seasonal ARIMA(1,1,1)(0,1,1)[12] model, where the ARIMA part of the model has an AR(1) and MA(1) component and differenced once, and the seasonal component has an MA(1) component and differenced once. The seasonal lag is 12 months.
+
+Below, we can forecast with this model on the final year of our data:
+
+```{r, echo=FALSE}
+co2forecast=forecast(model,h=60,level=0.95)
+plot(co2forecast)
+```
+
+```{r, echo=FALSE}
+ggplot(co2, aes(x = YYYYMM, y = Value, col = "Original data"))+
+  geom_line(lwd = 1)+
+  geom_line(aes(y = fitted(model), col = "Fitted value"), lwd = 0.6)+
+  scale_color_manual(name = "Series",
+                     values = c("Original data" = "black", "Fitted value" = "red"))+
+  labs(x = "Date",
+       y="CO2 Emissions",
+       title="SARIMA Fitted Model")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+It appears that the model forecasts the CO2 emissions fairly well. The 95% confidence interval around the forecast is relatively small and it appears that the original data and fited values are similar.
+
+### Model 2 ###
+
+Given that there appear to be two trend components to our model, before and after ~2003, we can attempt to create a model just for before and after this date separately:
+
+```{r, echo=FALSE}
+co2ts3=ts(co2[361:523,2],start=c(2003,1),end=c(2016,7), frequency = 12)
+acf(co2ts3, main = "ACF Plot Post-2003")
+pacf(co2ts3, main = "PACF Plot Post-2003")
+```
+
+In the above ACF and PACF plots for data after 2003, when CO2 emissions started trending down, we can still see significant lags and significant seasonality.
+
+```{r, echo=FALSE}
+plot.ts(co2[361:523,2])
+adf.test(co2[361:523,2])
+```
+
+We ran an ADF test to test for stationary, and found that the p-value was 0.01 < 0.05, meaning that we can reject the null hypothesis and the data is in fact stationary.
+
+```{r, echo=FALSE}
+model3=auto.arima(co2ts3,trace=T)
+summary(model3)
+```
+
+We select an ARIMA(0,1,2)(0,1,1)[12] to model data after 2003, based on AIC
+
+```{r, echo=FALSE}
+co2forecast3=forecast(model3,h=60,level=0.95)
+plot(co2forecast3)
+```
+
+The 95% confidence interval on these predictions are much larger than with our previous model. This could be due to the fact that the model was trained using much less data.
+
+```{r, echo=FALSE}
+ggplot(co2[361:523,], aes(x = YYYYMM, y = Value, col = "Original data"))+
+  geom_line(lwd = 1)+
+  geom_line(aes(y = fitted(model3), col = "Fitted value"), lwd = 0.6)+
+  scale_color_manual(name = "Series",
+                     values = c("Original data" = "black", "Fitted value" = "red"))+
+  labs(x = "Date",
+       y="CO2 Emissions",
+       title="SARIMA Fitted Model")+
+  theme_classic()+
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+The fitted values and original data appear very similar in general.
+
+```{r, echo=FALSE}
+residuals <- residuals(model)
+plot(residuals, main = "Residuals of SARIMA Model", xlab = "Time", ylab = "Residuals")
+
+qqnorm(residuals)
+qqline(residuals)
+acf(residuals, main = "ACF of Residuals")
+pacf(residuals, main = "PACF of Residuals")
+```
+
+In the model with the full dataset used, it appears that there may be some hints of heteroskedasticity, with greater variance as time goes on, as well as a light tailed normal distribution of residuals. Given that larger lags in the ACF and PACF plots are significant, it implies that the model has not fully captured the underlying structure of the data.
+
+```{r, echo=FALSE}
+residuals <- residuals(model3)
+plot(residuals, main = "Residuals of SARIMA Model", xlab = "Time", ylab = "Residuals")
+
+qqnorm(residuals)
+qqline(residuals)
+acf(residuals, main = "ACF of Residuals")
+pacf(residuals, main = "PACF of Residuals")
+
+```
+
+In the model with the dataset of only recent years, it appears that there may also be some hints of heteroskedasticity as time goes on and a light tailed distribution of residuals, similar to the first model. There are fewer significant lags in the ACF and PACF plots, but still some underlying structure that our model did not capture.
+
+## Conclusion ##
+
+We built two models for our data: one using the full dataset, and another using data after 2003 based on the drastic change in trend after this point. This change in trend may be due to people realizing the importance of protecting the environment, coupled with the support of environmental organizations.
+
+From the result of auto.arima and model diagnostics, **we choose ARIMA(1,1,1)(0,1,1)[12] using the full dataset as our final model**. Although the diagnostics of this model and the model using only recent data were similar, the confidence intervals on the forecast of the first model were much smaller. We used this model to predict the co2 emission for the next 5 years. We can clearly see that carbon dioxide emissions will show a clear downward trend in the next five years, and emissions in summer and winter will still be higher than in spring and autumn, per the seasonal trend.
+
+Our exploration of the data shows that U.S. carbon dioxide emissions have been trending downward seasonally since 2003. And according to our forecast results, starting from 2020, the carbon dioxide emissions in the United States can be basically controlled to less than 100, and the emissions in the spring and autumn seasons can be less than 90. This shows that we attach great importance to environmental protection and Effective control of carbon dioxide emissions.
+
+## References ##
+
+1. Hyperparameters Configuring: R. Shumway and D. Stoffer Time Series Analysis and its Applications, 4th edition, 2017  
+
+2. Slides Chapter 6: Extending the ARMA model: Seasonality, integration and trend.
+
+3. Slides Chapter 7: Introduction to time series analysis in the frequency domain.
+
+4.  ARIMA modelling in R https://otexts.com/fpp2/arima-r.html.
+
+5. A Guide to Time Series Forecasting in R You Should Know https://www.simplilearn.com/tutorials/data-science-tutorial/time-series-forecasting-in-r
+
+6. Previous project: Analysis on CO2 Emission from Natural Gas Electric Power Generation in United States
+
+
+
+
+

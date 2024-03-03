@@ -1,0 +1,1271 @@
+---
+title: "531 Midtern project: Time-series Analysis for Power Consumption Data"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+bibliography: references.bib
+csl: https://www.zotero.org/styles/ieee-signal-processing-letters
+---
+
+## About the Project {-}
+
+### Research Content
+
+Shortage of electricity resources is always a challenge to human's life and production. To ensure a better electricity supply, it's crucial to study the patterns of electricity consumption. Analyzing electricity consumption data allows us to predict peak demand periods, enabling us to prepare for electricity supply in advance. Moreover, understanding consumption patterns helps optimize the distribution of electricity resources and reduce waste. 
+
+In this project, we are going to study the time series from [Electric Power Consumption](https://www.kaggle.com/datasets/fedesoriano/electric-power-consumption/data) [@KaggleDataset]. We will use the time series models and methods to find a good fit for the power consumption data. All our efforts are aimed at solving the following problem:
+
+**Could we find a model to fit power consumption based on past electricity consumption data?**
+
+### Data Description
+
+The dataset [Electric Power Consumption](https://www.kaggle.com/datasets/fedesoriano/electric-power-consumption/data) consists of 52,416 observations of energy consumption recorded in Tetouan, a city in the north of Morocco, during 2017. The data is recorded in a 10-minute window with 9 features. Here we mainly focus on the feature "Zone 1 Power Consumption".
+
+## Model and Methods {-}
+
+In this project, we fitted our dataset with $ARIMA$ and $SARIMA$ model. What's $ARIMA$ model and $SARIMA$ model? How to determine which model fits the data better? Here is the introduction about the models and determining methods we used in this project.[@Ionides2024] (Note: ARIMA is from chapter 6 slide 9; SARIMA is from chapter 6 slide 15; AIC is from chapter 5 slide 21; Fisher information is from chapter 5 slide 10.)
+
+### ARIMA and SARIMA Model {-}
+
+#### ARIMA model {-}
+
+Given time series data $\{X_t\}_{t=1}^N$, an $\displaystyle {\text{ARMA}}(p,q)$ model is given by:
+
+$$\phi (B)(X_t-\mu) = \psi (B) \varepsilon_t$$
+
+Where:
+
+- $\mu = E[X_t]$.
+- $\phi (B) = 1 - \sum_{i=1}^{p} \phi_i B^i$ is the autoregressive part of the model.
+- $\psi(B) = 1 + \sum_{i=1}^{q} \psi_i B^i$ is the moving average part of the model.
+- $B$ is the lag operator. $BY_n = Y_{n-1}$.
+- $\varepsilon_t$ is the error term at time $t$, and normally we assume $\varepsilon_t$ $iid \sim  \mathcal{N} (0,1)$.
+
+When time series data is non-stationary, it's hard to model it with $\displaystyle {\text{ARMA}}(p,q)$. Then the difference operator $(1 - B)^d$ is introduced to detrend and make the data stationary, that's the $\displaystyle {\text{ARIMA}}(p,d,q)$ model:
+
+$$\phi (B) ((1 - B)^d X_t-\mu) = \psi (B) \varepsilon_t$$
+
+Here $d$ is the order of difference. When $d = 1$, $(1 - B) X_t = X_t - X_{t-1}$, each time series observation is subtracted from its previous observation. By doing this calculation, linear trend in the original series will be removed.
+
+
+
+#### SARIMA Model {-}
+
+The $SARIMA$ model is an extension of the $ARIMA$ model that captures both non-seasonal and seasonal patterns in time series data (S stands for Seasonal). The $\displaystyle {\text{SARIMA}}(p,d,q)\times(P,D,Q)_s$ model equation is given by:
+
+$$\phi (B)\Phi (B^s) [(1 - B)^d (1 - B^s)^D  X_t-\mu] = \psi (B) \Psi (B^s) \varepsilon_t$$
+
+Where:
+
+- $s$ is the length of the seasonal period.
+- $\Phi (B^s) = 1 - \sum_{i=1}^{P} \Phi_i B^{is}$ the seasonal autoregressive (SAR) part.
+- $\Psi(B^s) = 1 + \sum_{i=1}^{Q} \Psi_i B^{is}$ the seasonal moving average (SMA) part.
+
+
+### Model Selection Criterion {-}
+
+Model Selection Criterion is the method to find the best fit.
+
+* **AIC**
+
+  The goal of AIC is to measure the goodness of fit of the model while penalizing the number of parameters in the model to avoid overfitting. The formula for calculating a model's AIC is as follows:
+  
+  $$AIC=2k−2ln(L)$$
+  where:
+  
+  - $k$ is the number of parameters in the model. In $ARIMA$ model, k including the total number of autoregressive, differencing, and moving average terms. In $SARIMA$ model, the seasonal parameters are also included.
+    
+  - $L$ is the maximum likelihood estimate of the model.
+    
+  When using $ARIMA$ models for time series analysis, we typically calculate the AIC values for multiple models and choose the model with the smallest AIC value. A smaller AIC value means that the model provides a better fit to the data while keeping the number of parameters as low as possible.
+  
+
+* **Minimum Root**
+
+  The minimum root (or minimal characteristic root) is used to assess model stability. For $ARIMA$ and $SARIMA$ models, if the roots lies on the unit circle, the fit may be unstable. To check the stability of the model, we observe it's minimum root. The minimum root much larger than 1 making sure that the long-term forecasts of the time series do not diverge or become unbounded.
+
+* **Fisher Confidence Interval and Bootstrap Confidence Interval**
+
+  Confidence interval provide a range of uncertainty for an estimate of a parameter. When we give a $1-\alpha$ CI, that means there is a 95% probability that the true value of the parameter is contained in this CI. In this report, we give a boolean variable about "whether the CI contains 0", this is used to determine whether the parameter is significant. If the answer is True, we can drop the parameter.
+  
+  We tested two kinds of CI. Fisher CI is conducted based on Fisher Information, and Bootstrap CI are conducted based on the resampling technique. 
+  
+* **The Number of Lags outside ACF CI**
+  
+  The confidence interval of the ACF is used to determine if autocorrelation coefficients are significantly non-zero. The "number of lags outside ACF CI" refers to how many lag periods in the ACF plot have autocorrelation coefficients that fall outside the confidence interval. These lag periods, whose autocorrelation coefficients are statistically significant, indicate that there is notable autocorrelation at those specific lags.
+  
+* **Residuals' Normality**
+  
+  If the residuals are found to be normally distributed, it supports the validity of statistical inferences made from the model. Here, we use Shapiro-Wilk test to determine whether could we reject normality assumption, and introduced QQ-plot to diagnose residuals' normality.
+  
+
+```{r model_select_module, echo=FALSE, warning=FALSE}
+
+rm(list = ls())
+
+set.seed(218)
+
+library(ggplot2)
+library(envalysis)
+library(knitr)
+library(astsa)
+library(patchwork)
+library(mFilter)
+
+build_and_diagnose_model <- function(data, model_name, 
+                                     arima_order, 
+                                     seasonal = FALSE, 
+                                     seasonal_order = c(0, 0, 0), period = NULL,
+                                     xreg = NULL,
+                                     without_summary = FALSE,
+                                     without_plot = FALSE) {
+  if (seasonal) {
+    pc_model <- arima(data, order = arima_order, 
+                           seasonal = list(order = seasonal_order, period = period),
+                      xreg = xreg)
+  } else {
+    pc_model <- arima(data, order = arima_order, xreg = xreg)
+  }
+  
+  if (!without_summary) {
+    print(pc_model)
+  }
+  
+  p <- arima_order[1]
+  d <- arima_order[2]
+  q <- arima_order[3]
+  P <- seasonal_order[1]
+  D <- seasonal_order[2]
+  Q <- seasonal_order[3]
+  
+  if (p > 0) {
+    pc_model_ar_roots <- polyroot(c(1, -coef(pc_model)[paste0("ar", 1:p)]))
+    cat("AR roots:", round(pc_model_ar_roots, 4), "\n")
+    cat("Mod of AR roots:", round(Mod(pc_model_ar_roots), 4), "\n")
+  }
+  
+  if (q > 0) {
+    pc_model_ma_roots <- polyroot(c(1, coef(pc_model)[paste0("ma", 1:q)]))
+    cat("MA roots:", round(pc_model_ma_roots, 4), "\n")
+    cat("Mod of MA roots:", round(Mod(pc_model_ma_roots), 4), "\n")
+  }
+  
+  if (P > 0) {
+    pc_model_sar_roots <- polyroot(c(1, -coef(pc_model)[paste0("sar", 1:P)]))
+    cat("SAR roots:", round(pc_model_sar_roots, 4), "\n")
+    cat("Mod of SAR roots:", round(Mod(pc_model_sar_roots), 4), "\n")
+  }
+  
+  if (Q > 0) {
+    pc_model_sma_roots <- polyroot(c(1, coef(pc_model)[paste0("sma", 1:Q)]))
+    cat("SMA roots:", round(pc_model_sma_roots, 4), "\n")
+    cat("Mod of SMA roots:", round(Mod(pc_model_sma_roots), 4), "\n")
+  }
+  
+  if (!without_plot) {
+     par(mfrow = c(2, 2))
+     plot(pc_model$residuals, ylab = "Residuals", main = "Residual Plot")
+     qqnorm(pc_model$residuals, ylab = "Residuals", main = "QQ Plot")
+     qqline(pc_model$residuals)
+     acf(pc_model$residuals, type = "correlation",
+          lag.max = 40, main = "Autocorrelation Function")
+  }
+ 
+
+  # qqnorm(pc_model$residuals, ylab = "Residuals", main = paste("QQ Plot of", model_name))
+  # qqline(pc_model$residuals)
+  # acf(pc_model$residuals, type = "correlation",
+  #     lag.max = 40, main = paste("Autocorrelation Function of", model_name))
+  
+  return(invisible(pc_model))
+}
+
+simulation_arima <- function(pc_model, model_order, 
+                             has_intercept, simulation_times, data_length) {
+   ori_params <- coef(pc_model)
+   ar_params <- ori_params[grep("^ar", names(ori_params))]
+   ma_params <- ori_params[grep("^ma", names(ori_params))]
+   if (has_intercept) {
+     intercept <- ori_params["intercept"]
+   }
+   sigma <- sqrt(pc_model$sigma2)
+   theta <- matrix(NA, nrow = simulation_times, ncol = length(ori_params),
+                  dimnames = list(NULL, names(ori_params)))
+  
+   for (i in 1:simulation_times) {
+       temp_results <- try({
+         simulated_data <- arima.sim(list(ar = ar_params, ma = ma_params, 
+                                          order = model_order),
+                                      n = data_length,
+                                      sd = sigma) + 
+           ifelse(has_intercept, intercept, 0)
+         coef(arima(simulated_data, order = model_order))
+        }, silent = TRUE)
+      
+      if (!inherits(temp_results, "try-error")) {
+        theta[i, ] <- temp_results
+      }
+   }
+  
+  simulated_ci <- sapply(data.frame(theta), function(x) {
+    return(quantile(x, c(0.025, 0.975), na.rm = TRUE))
+  })
+  
+  return(simulated_ci)
+}
+
+simulation_sarima <- function(pc_model, arima_order, seasonal_order, period,
+                             has_intercept, simulation_times, data_length) {
+   ori_params <- coef(pc_model)
+   if (length(grep("^ar", names(ori_params))) > 0) {
+     ar_params <- ori_params[grep("^ar", names(ori_params))]
+   } else {
+     ar_params <- NULL
+   }
+  
+   if (length(grep("^ma", names(ori_params))) > 0) {
+     ma_params <- ori_params[grep("^ma", names(ori_params))]
+   } else {
+     ma_params <- NULL
+   }
+    
+   if (length(grep("^sar", names(ori_params))) > 0) {
+     sar_params <- ori_params[grep("^sar", names(ori_params))]
+   } else {
+     sar_params <- NULL
+   }
+   
+   if (length(grep("^sma", names(ori_params))) > 0) {
+     sma_params <- ori_params[grep("^sma", names(ori_params))]
+   } else {
+     sma_params <- NULL
+   }
+
+   
+   if (has_intercept) {
+     intercept <- ori_params["intercept"]
+   }
+   sigma <- sqrt(pc_model$sigma2)
+   theta <- matrix(NA, nrow = simulation_times, ncol = length(ori_params),
+                  dimnames = list(NULL, names(ori_params)))
+  
+   for (i in 1:simulation_times) {
+     temp_results <- try({
+       simulated_data <- sarima.sim(ar = ar_params, d = arima_order[2], ma = ma_params,
+                                    sar = sar_params, D = seasonal_order[2], sma = sma_params,
+                                    S = period,
+                                    n = data_length,
+                                    sd = sigma) + 
+         ifelse(has_intercept, intercept, 0)
+       coef(arima(simulated_data, order = arima_order, 
+                  seasonal = list(order = seasonal_order, period = period)))
+      }, silent = TRUE)
+    
+    if (!inherits(temp_results, "try-error")) {
+      theta[i, ] <- temp_results
+    }
+  }
+  
+  simulated_ci <- sapply(data.frame(theta), function(x) {
+    return(quantile(x, c(0.025, 0.975), na.rm = TRUE))
+  })
+  
+  return(simulated_ci)
+}
+
+model_selection_table <- function(data, 
+                                  max_p, d, max_q, 
+                                  P = 0, D = 0, Q = 0, period = 0,
+                                  simulation_times = 100) {
+  aic_table <- matrix(NA, max_p + 1, max_q + 1)
+  smallest_root_table <- matrix(NA, max_p + 1, max_q + 1)
+  fisher_ci_cover_0_table <- matrix(NA, max_p + 1, max_q + 1)
+  simulated_ci_cover_0_table <- matrix(NA, max_p + 1, max_q + 1)
+  residual_normal_test_table <- matrix(NA, max_p + 1, max_q + 1)
+  residual_acf_outlier_table <- matrix(NA, max_p + 1, max_q + 1)
+  
+  dimnames(aic_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(smallest_root_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(fisher_ci_cover_0_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(simulated_ci_cover_0_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(residual_normal_test_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(residual_acf_outlier_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  
+  is_sarima_model <- any(c(P, D, Q) != 0)
+  has_intercept <- (d == 0) && (D == 0)
+  for (p in 0:max_p) {
+    for (q in 0:max_q) {
+      has_at_least_one_param <- ((p + q + P + Q) > 0)
+       
+      if (is_sarima_model) {
+        pc_model <- try(arima(data, order = c(p, d, q),
+                           seasonal = list(order = c(P, D, Q), period = period)),
+                        silent = TRUE)
+      } else {
+        pc_model <- try(arima(data, order = c(p, d, q)),
+                        silent = TRUE)
+      }
+      
+      if (inherits(pc_model, "try-error")) {
+          next
+      }
+      
+      # aic
+      aic_table[p + 1, q + 1] <- pc_model$aic
+      
+      # smallest root
+      if (p != 0) {
+        pc_model_ar_root <- polyroot(c(1, -coef(pc_model)[paste0("ar", 1:p)]))
+        pc_model_ar_root_mod <- Mod(pc_model_ar_root)
+      } else {
+        pc_model_ar_root <- NA
+        pc_model_ar_root_mod <- NA
+      }
+      
+      if (q != 0) {
+        pc_model_ma_root <- polyroot(c(1, coef(pc_model)[paste0("ma", 1:q)]))
+        pc_model_ma_root_mod <- Mod(pc_model_ma_root)
+      } else {
+        pc_model_ma_root <- NA
+        pc_model_ma_root_mod <- NA
+      }
+      
+      if (P != 0) {
+        pc_model_sar_root <- polyroot(c(1, -coef(pc_model)[paste0("sar", 1:P)]))
+        pc_model_sar_root_mod <- Mod(pc_model_sar_root)
+      } else {
+        pc_model_sar_root <- NA
+        pc_model_sar_root_mod <- NA
+      }
+      
+      if (Q != 0) {
+        pc_model_sma_root <- polyroot(c(1, coef(pc_model)[paste0("sma", 1:Q)]))
+        pc_model_sma_root_mod <- Mod(pc_model_sma_root)
+      } else {
+        pc_model_sma_root <- NA
+        pc_model_sma_root_mod <- NA
+      }
+      
+      if (any(c(p, q, P, Q) != 0)) {
+        smallest_root_table[p + 1, q + 1] <- min(c(pc_model_ar_root_mod,
+                                                 pc_model_ma_root_mod,
+                                                 pc_model_sar_root_mod,
+                                                 pc_model_sma_root_mod), na.rm = TRUE)
+      }
+      
+      # fisher ci
+      if (any(c(p, q, P, Q) != 0)) {
+        fisher_ci_low <- pc_model$coef - 1.96 * diag(pc_model$var.coef)
+        fisher_ci_high <- pc_model$coef + 1.96 * diag(pc_model$var.coef)
+        
+        if (has_intercept) {
+          fisher_ci_low <- fisher_ci_low[1:(length(fisher_ci_low) - 1)]
+          fisher_ci_high <- fisher_ci_high[1:(length(fisher_ci_high) - 1)]
+        }
+        
+        if (any(fisher_ci_low <= 0 & fisher_ci_high >= 0)) {
+          fisher_ci_cover_0_table[p + 1, q + 1] <- TRUE
+        } else {
+          fisher_ci_cover_0_table[p + 1, q + 1] <- FALSE
+        }
+      }
+      
+      # simulated ci
+      if (has_at_least_one_param && (simulation_times > 0)) {
+        if (!is_sarima_model) {
+          simulated_ci <- simulation_arima(pc_model, c(p, d, q), 
+                                           has_intercept, simulation_times, length(data))
+        } else {
+          simulated_ci <- simulation_sarima(pc_model, c(p, d, q), c(P, D, Q), period,
+                                            has_intercept, simulation_times, length(data))
+        }
+        
+        if (!any(is.na(simulated_ci))) {
+          simulated_ci_low <- simulated_ci[1, ]
+          simulated_ci_high <- simulated_ci[2, ]
+          if (has_intercept) {
+            simulated_ci_low <- simulated_ci_low[1:(length(simulated_ci_low) - 1)]
+            simulated_ci_high <- simulated_ci_high[1:(length(simulated_ci_high) - 1)]
+          }
+          
+          if (any(simulated_ci_low <= 0 & simulated_ci_high >= 0)) {
+            simulated_ci_cover_0_table[p + 1, q + 1] <- TRUE
+          } else {
+            simulated_ci_cover_0_table[p + 1, q + 1] <- FALSE
+          }
+        }
+      }
+     
+      # residual normal test
+      shapiro_test_result <- shapiro.test(pc_model$residuals)
+      if (shapiro_test_result$p.value < 0.05) {
+        residual_normal_test_table[p + 1, q + 1] <- FALSE
+      } else {
+        residual_normal_test_table[p + 1, q + 1] <- TRUE
+      }
+      
+      # residual acf test
+      residual_acf <- acf(pc_model$residuals, plot = FALSE, lag.max = 30)
+      acf_ci_high <- qnorm((1 + 0.95) / 2) / sqrt(residual_acf$n.used)
+      acf_ci_low <- -acf_ci_high
+      residual_acf_outlier_table[p + 1, q + 1] <- sum((residual_acf$acf < acf_ci_low) |
+                                                  (residual_acf$acf > acf_ci_high)) - 1
+    }
+  }
+  
+  result_table_list <- list(aic_table = aic_table, 
+                            smllest_root_table = smallest_root_table,
+                            fisher_ci_cover_0_table = fisher_ci_cover_0_table, 
+                            simulated_ci_cover_0_table = simulated_ci_cover_0_table,
+                            residual_normal_test_table = residual_normal_test_table, 
+                            residual_acf_outlier_table = residual_acf_outlier_table)
+  
+  return(result_table_list)
+}
+
+```
+ 
+## Building Model {-}
+
+### Data Pre-processing {-}
+
+Our dataset contains data related to power consumption from January 9th to December 30th, 2017, with a ten-minute window for each data point. To better study the consumption patterns of power resources, we conducted model fitting on two temporal dimensions. Initially, focusing on a daily basis, we selected 13,103 data points from April, May, and June, accounting for the electricity usage over these 91 days, serving as the first dataset for modeling. Additionally, on an hourly basis, we selected the power usage data from 2,184 hours within April, May, and June as the second dataset for modeling.
+
+
+```{r load_data, echo=FALSE, results='hide'}
+
+data_file_path <- "powerconsumption.csv"
+
+pc_data_daily <- read.table(file = data_file_path, sep = ",", header = TRUE)
+pc_data_daily$Datetime <- sapply(strsplit(pc_data_daily$Datetime, "\\s+"), 
+                                 function(x) { 
+                                   return(x[1]) 
+                                 })
+pc_data_daily$Datetime <- as.Date(pc_data_daily$Datetime, format = "%m/%d/%Y")
+
+quarter_length <- length(pc_data_daily$Datetime) %/% 4
+pc_data_daily <- pc_data_daily[quarter_length:(2 * quarter_length), c(1:4, 7:9)]
+pc_data_daily <- pc_data_daily[-c(1, length(pc_data_daily$Datetime)), ]
+
+names(pc_data_daily) <- c("date", "temperature", 
+                          "humidity", "windspeed", "pc_1", "pc_2", "pc_3")
+pc_data_daily$pc_1 <- sqrt(pc_data_daily$pc_1)
+pc_data_daily$pc_2 <- sqrt(pc_data_daily$pc_2)
+pc_data_daily$pc_3 <- sqrt(pc_data_daily$pc_3)
+
+pc_data_daily <- merge(
+  aggregate(x = list(temperature_daily = pc_data_daily$temperature,
+                      humidity_daily = pc_data_daily$humidity,
+                      windspeed_daily = pc_data_daily$windspeed),
+                           by = list(date = pc_data_daily$date),
+                           FUN = mean),
+  aggregate(x = list(pc_1_daily = pc_data_daily$pc_1,
+                     pc_2_daily = pc_data_daily$pc_2,
+                     pc_3_daily = pc_data_daily$pc_3),
+            by = list(date = pc_data_daily$date),
+            FUN = sum),
+  by = "date", all = TRUE)
+
+p1 <- ggplot(pc_data_daily, aes(x = date, y = pc_1_daily)) +
+  geom_line(color = "#6495ED", linewidth = 1.5) +
+  scale_y_continuous(name = "Power Consumption") +
+  ggtitle("Daily") + 
+  theme_publish(base_size = 12, base_linewidth = 1)+
+  theme_minimal()
+
+pc_data <- read.table(file = data_file_path, sep = ",", header = TRUE)
+pc_data$Datetime <- (1:length(pc_data$Datetime))
+
+quarter_length <- length(pc_data$Datetime) %/% 4
+pc_data <- pc_data[quarter_length:(2 * quarter_length), c(1:4, 7:9)]
+pc_data <- pc_data[-c(1, length(pc_data$Datetime)), ]
+
+names(pc_data) <- c("time", "temperature", 
+                    "humidity", "windspeed", "pc_1", "pc_2", "pc_3")
+pc_data$pc_1 <- sqrt(pc_data$pc_1)
+pc_data$pc_2 <- sqrt(pc_data$pc_2)
+pc_data$pc_3 <- sqrt(pc_data$pc_3)
+
+pc_data$time <- pc_data$time %/% 6
+pc_data <- merge(
+  aggregate(x = list(temperature_hourly = pc_data$temperature,
+                      humidity_hourly = pc_data$humidity,
+                      windspeed_hourly = pc_data$windspeed),
+                     by = list(time = pc_data$time),
+                     FUN = mean),
+  aggregate(x = list(pc_1_hourly = pc_data$pc_1,
+                     pc_2_hourly = pc_data$pc_2,
+                     pc_3_hourly = pc_data$pc_3),
+            by = list(time = pc_data$time),
+            FUN = sum),
+  by = "time", all = TRUE)
+
+p2<- ggplot(pc_data, aes(x = time, y = pc_1_hourly)) +
+  geom_line(color = "#6495ED", linewidth = 0.25) +
+  scale_y_continuous(name = "Power Consumption") +
+  scale_x_continuous(name = "Hours") +
+  ggtitle("Hourly") + 
+  theme_publish(base_size = 12, base_linewidth = 1)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme_minimal()
+                  
+plot_layout <- (p1 | p2) & 
+  plot_annotation(title = "Power Consumption v.s. Time", 
+                  caption = expression(bold("Figure:") ~ "Power Consumption by hour and day, from April to June.") ) &
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.caption = element_text(hjust = 0.5,size = 12)
+  )
+
+plot_layout <- plot_layout + 
+  plot_layout(widths = c(1, 1.5), heights = c(1, 1))
+```
+
+
+```{r fig.width=13, fig.height=6,echo=FALSE}
+plot_layout
+```
+
+
+### Explore Trends {-}
+
+The daily series plot of power consumption shows clear evidence of positive trends. We estimate trends of daily and hourly data using *Loess smoothing* with span 0.5. *Loess model* could extract low-frequency trends of power consumption which could be considered as trend, and extract high-frequency noise components of power consumption which could be considered as noise. Trends could be fitted with some specific functions so it will be eliminated at modeling.
+
+```{r trends, echo=FALSE}
+pc_low <- ts(loess(pc_1_hourly ~ time, span = 0.5, data = pc_data)$fitted,
+            start = pc_data$time[1], frequency = 1)
+pc_hi <- ts(pc_data$pc_1_hourly - loess(pc_1_hourly ~ time, 
+                                        span = 0.01, data = pc_data)$fitted,
+            start = pc_data$time[1], frequency = 1)
+pc_cycles <- pc_data$pc_1_hourly - pc_hi - pc_low
+plot(ts.union(raw = pc_data$pc_1_hourly, trend = pc_low, 
+              noise = pc_hi, cycles = pc_cycles),
+     xlab = "Hours",
+     main = "Decomposition of Power Consumption as trend + noise + cycles (Hourly)")
+
+mtext(text = expression(bold("Figure:") ~ "Decomposition of Power Consumption by hour."), 
+      side = 1, line = 4, cex = 0.75, adj = 0.5)
+
+
+pc_data_daily$date <- as.numeric(pc_data_daily$date) - 
+  min(as.numeric(pc_data_daily$date))
+
+pc_daily_low <- ts(loess(pc_1_daily ~ date, span = 0.5, data = pc_data_daily)$fitted,
+            start = pc_data_daily$date[1], frequency = 1)
+pc_daily_hi <- ts(pc_data_daily$pc_1_daily - loess(pc_1_daily ~ date, 
+                                            span = 0.1, data = pc_data_daily)$fitted,
+            start = pc_data_daily$date[1], frequency = 1)
+pc_daily_cycles <- pc_data_daily$pc_1_daily - pc_daily_hi - pc_daily_low
+plot(ts.union(raw = pc_data_daily$pc_1_daily, trend = pc_daily_low, 
+              noise = pc_daily_hi, cycles = pc_daily_cycles),
+     xlab = "Days",
+     main = "Decomposition of Power Consumption as trend + noise + cycles (Daily)")
+
+mtext(text = expression(bold("Figure:") ~ "Decomposition of Power Consumption by date."), 
+      side = 1, line = 4, cex = 0.75, adj = 0.5)
+
+```
+
+Trends in hourly and daily plots looks similar as we expected, because they are concluded from the same dataset.
+
+
+### Explore periods {-}
+
+```{r decompose, echo=FALSE}
+par(mar=c(6, 4, 4, 2))
+pc_spectrum_smooth <- spectrum(pc_data$pc_1_hourly, spans = c(30, 40, 30), 
+                       main = "Smoothed periodogram (Hourly)")
+
+mtext(text = expression(bold("Figure:") ~ "Hourly Power Consumption Spectrum with max density frequency point."), side = 1, line = 5,cex = 0.75,  adj = 0.5)
+
+max_density_freq = round(pc_spectrum_smooth$freq[which.max(pc_spectrum_smooth$spec)], 3)
+
+abline(v = max_density_freq, lty = "dashed", col = "red", lwd = 2)
+
+text(x = 0.09, y = 5e+1, labels = sprintf("Max: %.3f", max_density_freq), col = "red")
+
+```
+
+The plot shows a clear periodicity and spectra have the peak at the frequency $\omega = 0.042$, as we denoted on the plot. This indicates the dominant frequency corresponds to a period $T=\frac{1}{\omega} \approx 23.8$. So predominant period is roughly 1 cycle per 24 hours, that's 1 cycle per day. And harmonic introduced some other peaks in spectra plot.
+
+```{r decompose_1, echo=FALSE}
+# Ref: from Lecture code for ch8, slide19
+par(mar=c(5, 4, 4, 2))
+pc_spec <- spectrum(ts.union(pc_data$pc_1_hourly, pc_cycles), 
+                    spans = c(30, 50, 30), plot = FALSE)
+pc_freq_response <- pc_spec$spec[, 2] / pc_spec$spec[, 1]
+plot(pc_spec$freq, pc_freq_response, type = "l", log = "y",  ylab = "spectrum ratio",
+     xlab = "frequency (1 / hour)", 
+     xlim = c(0, 0.45), ylim = c(1e-4, 1.2), 
+     main = "frequency response")
+     abline(h = 1, lty = "dashed", col = "red")
+ 
+cut_fraction <- 0.5
+hi <- pc_freq_response > cut_fraction
+hi_range <- range(seq_along(hi)[hi])
+l_frac <- ifelse(hi_range[1] - 1 > 0, 
+                 (pc_freq_response[hi_range[1]] - cut_fraction) / 
+  (pc_freq_response[hi_range[1]] - pc_freq_response[hi_range[1] - 1]), 
+  0)
+r_frac <- (pc_freq_response[hi_range[2]] - 
+             cut_fraction) / 
+  (pc_freq_response[hi_range[2]] - pc_freq_response[hi_range[2] + 1])
+l_interp <- pc_spec$freq[hi_range[1]] * (1 - l_frac) +  
+  ifelse(hi_range[1] - 1 > 0, pc_spec$freq[hi_range[1] - 1], pc_spec$freq[1]) * l_frac
+r_interp <- pc_spec$freq[hi_range[2]] * r_frac +  
+  pc_spec$freq[hi_range[2] + 1] * (1 - r_frac)
+
+abline(h = 1, lty = "dashed", col = "blue")
+abline(v = c(l_interp, r_interp), lty = "dashed", col = "blue") 
+abline(h = cut_fraction, lty = "dashed", col = "blue")
+
+text(x = l_interp, y = 1e-3, labels = sprintf("%.3f", l_interp), pos = 4, col = "blue")
+text(x = r_interp, y = 1e-3, labels = sprintf("%.3f", r_interp), pos = 4, col = "blue")
+
+text(x = 0.05, y = cut_fraction, labels = sprintf("cut: %.2f", cut_fraction), pos = 4, col = "blue")
+mtext(text = expression(bold("Figure:") ~ "Spectrum response ratio with upper and lower boundaries."), side = 1, line = 4,cex = 0.75,  adj = 0.5)
+```
+
+We set the cutoff value at 0.5. And the lower boundary is $\frac{1}{0.064}= 15.625$ and there are no upper boundary. So cycle length larger than 15.625 could be interpreted as frequencies that related to power consumption cycle. The predominant period we got before, 24, is contained in this interval, and one day is also a reasonable cycle considering scenes of real life.
+
+Then we move to periodicity on our daily data.
+ 
+```{r decompose_daily, echo=FALSE}
+par(mar=c(6, 4, 4, 2) + 0.1)
+pc_daily_spectrum_smooth <- spectrum(pc_data_daily$pc_1_daily, spans = c(3, 5, 3), 
+                       main = "Smoothed periodogram (Daily)")
+mtext(text = expression(bold("Figure:") ~ "Spectrum response ratio of daily data."), side = 1, line = 5,cex = 0.75,  adj = 0.5)
+```
+
+The "Smoothed periodogram" plot hasn't shown a typical seasonal pattern. As there are only 91 pieces of data in our daily consumption dataset, we can not say there is no periodicity on daily power consumption. But in this report we can conclude a significant cycle for daily power consumption.
+
+
+### Explore residuals {-}
+
+In this report, we used two different methods to remove trend and seasonality from the original data.
+
+Firstly, we use the difference method. 
+
+```{r difference, echo=FALSE}
+pc_1_hourly_lag_1 <- pc_data$pc_1_hourly[2:length(pc_data$pc_1_hourly)] -
+  pc_data$pc_1_hourly[1:(length(pc_data$pc_1_hourly) - 1)]
+p1 <- ggplot(data.frame(time = 1:length(pc_1_hourly_lag_1), 
+                  pc_1_hourly_lag_1 = pc_1_hourly_lag_1), 
+       aes(x = time, y = pc_1_hourly_lag_1)) +
+  geom_line( color = "#6495ED", linewidth = 0.25) +
+  scale_y_continuous(name = "First difference") +
+  scale_x_continuous(name = "Hours") +
+  ggtitle("Hourly Data after First Difference") + 
+  theme_publish(base_size = 12, base_linewidth = 1)+
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))+
+  theme_minimal()
+```
+
+
+The Second approach we used to remove trend and seasonality was LOESS smoothing. The LOESS extracted the trend component of the data, here we cut down the trend part from the original data. The rest component can be seen as volatility, and that's the data we will fit using ARMA models.
+
+```{r detrended_data,fig.width=9.5, fig.height=6, echo=FALSE}
+library(ggtext)
+pc_loess <- loess(pc_1_hourly ~ time, span = 0.5, data = pc_data)
+pc_data["pc_1_loess_hourly"] <- pc_loess$fitted
+pc_data["pc_1_detrended_hourly"] <- pc_data$pc_1_hourly - pc_data$pc_1_loess
+
+pc_daily_loess <- loess(pc_1_daily ~ date, span = 0.5, data = pc_data_daily)
+pc_data_daily["pc_1_loess_daily"] <- pc_daily_loess$fitted
+pc_data_daily["pc_1_detrended_daily"] <- pc_data_daily$pc_1_daily - pc_data_daily$pc_1_loess_daily
+
+pc_1_hourly_lag_1 <- pc_data$pc_1_hourly[2:length(pc_data$pc_1_hourly)] -
+  pc_data$pc_1_hourly[1:(length(pc_data$pc_1_hourly) - 1)]
+
+p2 <- ggplot(pc_data, aes(x = time, y = pc_1_hourly)) +
+  geom_line(aes(color = "Raw Data"), linewidth = 0.25) +  
+  geom_line(aes(y = pc_1_loess_hourly, color = "Trend"), linewidth = 1) + 
+  scale_color_manual(values = c("Raw Data" = "#6495ED", "Trend" = "purple"),name = "") + 
+  scale_y_continuous(name = "Power Consumption") +
+  scale_x_continuous(name = "Hours") +
+  ggtitle("Power Consumption v.s. Time") + 
+  theme_publish(base_size = 12, base_linewidth = 1) 
+
+p3<-ggplot(pc_data, mapping = aes(x = time, y = pc_1_detrended_hourly)) +
+  geom_line(color = "#6495ED", linewidth = 0.25) +
+  scale_y_continuous(name = "Residuals") +
+  scale_x_continuous(name = "Hours") +
+  ggtitle("Hourly data after Loess Detrended") + 
+  theme_publish(base_size = 12, base_linewidth = 1)
+
+p4<-ggplot(pc_data_daily, mapping = aes(x = date, y = pc_1_detrended_daily)) +
+  geom_line(color = "#6495ED", linewidth = 0.25) +
+  scale_y_continuous(name = "Residuals") +
+  scale_x_continuous(name = "Days") +
+  ggtitle("Daily Data after Loess Detrended") + 
+  theme_publish(base_size = 12, base_linewidth = 1)
+
+plot_layout <- p1 + p2 + p3 + p4 + 
+  plot_layout(ncol = 2, nrow = 2)
+
+
+plot_layout <- plot_layout & 
+  plot_annotation(caption = expression(bold("Figure:") ~ "Two different methods we used to make data stationary.")) & 
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.caption = element_text(size = 10, hjust = 0.5, vjust = 0), 
+  )
+
+plot_layout
+```
+
+
+
+### Model Selection {-}
+
+The observation of seasonality in hourly data encourages us to fit SARMA or SARIMA models. But the considerable data amount of our data set prevents us from directly searching SARMA or SARIMA models, due to the time-consuming model convergence process of SARMA and SARIMA. To address this issue, we learn from [@2021/proj_16] (Note: The idea of fitting ARMA models on data of different scales comes from [@2021/proj_16].) and try to fit ARMA models separately on hourly and daily data to search for candidate $(p, q)$ and $(P, Q)$ values. By constraining our search space to these candidate $(p, q)$ and $(P, Q)$ pairs, the workload of SARMA or SARIMA search is greatly relieved.
+
+#### Find SARIMA Models {-}
+
+In this section, we find suitable ARIMA models for hourly data and daily data, and then combine them to form the SARIMA model. 
+
+
+We first search a suitable ARIMA model for hourly data based on AIC values. As can be seen in the AIC table, the lowest AIC value is achieved at AR = 5 and MA = 5, but we consider this as the result of overfitting. We support our conjecture by viewing the smallest root table. In this table, we record the smallest magnitude root of the ARMA model. When AR = 5 and MA = 5, the smallest root becomes 1.0004, which indicates a possible problem of no invertibility or no causality. Similar problems also occur when there are many AR and MA parameters. By jointly considering invertibility, causality and model complexity, we restrict our search range to ARIMA(0, 1, 0), ARIMA(1, 1, 1), ARIMA(1, 1, 0), ARIMA(2, 1, 0), ARIMA(0, 1, 1), ARIMA(0, 1, 2) and ARIMA(1, 1, 2). Among these models, we choose the model with the smallest AIC value, which is ARIMA(2, 1, 0). In the following part, we will test this model.
+
+<!-- First we use $\displaystyle {\text{ARIMA}}(p,1,q)$ model to fit the original data(with trend), explore the validity of model through $p,q=0,1,2,3,4,5.$ -->
+
+```{r select_arima_hourly_using_module, echo=FALSE,results='hide',warning=FALSE}
+select_arima_hourly <- model_selection_table(pc_data$pc_1_hourly,
+                                           max_p = 5, d = 1, max_q = 5,
+                                           P = 0, D = 0, Q = 0, period = 0,
+                                           simulation_times = 0)
+```
+
+
+
+```{r,echo=FALSE,warning=FALSE}
+kable(select_arima_hourly$aic_table, digits = 3, caption = "AIC of some ARIMA models (Hourly)")
+kable(select_arima_hourly$smllest_root_table, digits = 4, caption = "Smallest roots of ARIMA models (Hourly)")
+```
+
+We diagnose the ARIMA(2, 1, 0) model by analyzing its roots and residuals. As reported below, the roots of two AR parameters in ARIMA(2, 1, 0) model are $1.4212 + 1.2089i$ and $1.4212-1.2089i$ respectively. They are both outside the unit circle, and indicate the causality and invertibility. As for its residuals, we find the residuals may be not white noise due to the violation of normal assumption and uncorrelated assumption. In the QQ plot, a heavy-tailed distribution is obvious and this shows that the residual doesn't obey normal distribution. In the ACF plot, a significant large ACF value is observable at lag = 24, which may imply the seasonality. There are more than 5% ACF values exceed the boundary of confidence interval, and therefore, we can conclude that the residual is not uncorrelated. The diagnosis conducted here suggests that a simple ARIMA model can't fit the hourly data very well, and necessitate the usage of SARIMA model.
+
+<!-- We chosen $\displaystyle{\text{ARIMA}}(2,1,0)$ model combining the performance of both AIC and roots. -->
+
+```{r fig.width=10, fig.height=5, echo=FALSE}
+# choose ARIMA(2, 1, 0)
+build_and_diagnose_model(pc_data$pc_1_hourly, 
+                         model_name = "ARIMA(2, 1, 0) (Hourly)",
+                         arima_order = c(2, 1, 0),
+                         without_summary = TRUE)
+```
+
+
+
+Now we attempt to find an ARIMA model on daily data, and this model may provide hint about how to choose the P and Q values in SARIMA model. We first select the model based on AIC values. The AIC table below shows that most AIC values are similar. The difference between the largest AIC value and the lowest AIC value is merely $1405.787 - 1384.096 \approx 22$, which is relatively low. This may be an indicator that the AIC is not suitable for model selection in this case. The key factor for our model selection is Bootstrap confidence interval. We perform bootstrap for each ARIMA model 100 times and get the Bootstrap confidence intervals reported in the second table below. As shown in this table, there are only two models (i.e., ARIMA(1, 1, 0) and ARIMA(0, 1, 1)) has coefficients that are significantly different from 0. Therefore, we will only choose ARIMA(1, 1, 0) or ARIMA(0, 1, 1). The ARIMA model with only MA parameters can only model autocorrelation within small and finite range. Due to this fact, we will choose ARIMA(1, 1, 0). The diagnosis of this model is performed below.
+
+```{r select_arima_daily_using_modul, echo=FALSE, warning=FALSE}
+select_arima_daily <- model_selection_table(pc_data_daily$pc_1_daily,
+                                           max_p = 5, d = 1, max_q = 5,
+                                           P = 0, D = 0, Q = 0, period = 0,
+                                           simulation_times = 100)
+
+kable(select_arima_daily$aic_table, digits = 3, caption = "AIC of some ARIMA models (Daily)")
+kable(select_arima_daily$simulated_ci_cover_0_table, caption = "Does Bootstrap CI covers 0? (Daily)")
+```
+
+
+As shown in the following report, the model is causal and invertible, but it's residuals are not white noise. The reported root of this model are all outside the unit circle, which ensures the causality and invertibility. The residuals are not white noise, because the QQ plot shows cauchy distribution and there are 8 lags has ACF values outside the confidence interval.
+
+
+```{r, echo=FALSE}
+# choose ARIMA(1, 1, 0)
+build_and_diagnose_model(pc_data_daily$pc_1_daily, 
+                         model_name = "ARIMA(1, 1, 0) (Daily)",
+                         arima_order = c(1, 1, 0),
+                         without_summary = TRUE)
+```
+
+
+<!-- Now we continue with $SARIMA$ models with $period = 24$ and set $P = 1$. And because $q$ was concluded as $0$, which presents there is little influence brought by past variance, we set $Q=0$ . -->
+
+<!-- We compared all $\displaystyle {\text{SARMA}}(p,d,q)\times(1,D,0)_{24}$ in $p,q=0,1,2,3$ and $d,D = 0,1$, and took AIC and roots into consideration, we set $\displaystyle {\text{SARMA}}(2,0,0)\times(1,1,0)_{24}$ as our final model. -->
+
+
+We now combine the models we get in previous part to form the following SARIMA model. It has order $(2, 0, 0)(1, 1, 0)$ and period 24. The model diagnosis shows that it is invertible and causal with residuals being nearly white noise. All of its roots are significantly outside the unit circle, and the causality and invertibility are without question. The residuals displayed in the residual plot seem to be like white noise with mean 0. The further testing such as ACF plot show that residuals are uncorrelated since most ACF values fall within the confidence interval. The QQ plot illustrates that the residuals may be not normal due to their heavy-tailed distribution. Further experiments may be conducted to find a model with better residuals. 
+
+
+```{r fig.width=10, fig.height=5, echo=FALSE}
+# we should use SARIMA(2, 0, 0)(1, 1, 0)[24]
+sarima_model_diff <- build_and_diagnose_model(pc_data$pc_1_hourly,
+                         model_name = "SARIMA(2, 0, 0)(1, 1, 0)[24] (Hourly)",
+                         arima_order = c(2, 0, 0),
+                         seasonal = TRUE,
+                         seasonal_order = c(1, 1, 0),
+                         period = 24)
+```
+
+
+#### Find SARMA Models {-}
+
+Similar to what we conduct in previous part, we also fit two ARMA models for hourly data and daily data separately, but we utilize LOESS to detrend the data rather than relying on the difference operation in the ARIMA models. 
+
+
+We first conduct experiment on hourly data. As shown in the following AIC table, the smallest AIC value is attained when p = 4 and q = 3, but this may be the consequence of overfitting. Like the practice in previous section, we look at the smallest roots table for some insights. The smallest roots table shows that we can only keep the invertibility and causality of model when $p + q$ is relatively low. The ARMA(2, 1) may be a good choice in this case. When increasing the p to be more than 2 and q to be more than 1, we can't gain much AIC decrease, and this shows that ARMA(2, 1) is a reasonable choice in terms of AIC and model complexity.
+
+```{r select_arma_hourly_using_module, echo=FALSE,warning=FALSE}
+# use detrended data
+select_arma_hourly <- model_selection_table(pc_data$pc_1_detrended_hourly,
+                                           max_p = 5, d = 0, max_q = 5,
+                                           P = 0, D = 0, Q = 0, period = 0,
+                                           simulation_times = 0)
+```
+
+```{r,echo=FALSE,warning=FALSE}
+kable(select_arma_hourly$aic_table, digits = 3, caption = "AIC of some ARMA models (Hourly)")
+kable(select_arma_hourly$smllest_root_table, digits = 4, caption = "Smallest root of ARMA models (Hourly)")
+```
+
+We diagnose the ARMA(2, 1) model. This model is causal and invertible, because its roots are outside the unit circle and can't cancel with each other. The residuals of it seem to be problematic. QQ plot indicates the heavy-tail phenomenon and ACF plot reject the uncorrelated residual hypothesis.
+
+```{r, echo=FALSE}
+# choose ARMA(2, 1)
+build_and_diagnose_model(pc_data$pc_1_detrended_hourly,
+                      model_name = "ARMA(2, 0, 1) (Detrended Hourly)",
+                       arima_order = c(2, 0, 1),
+                      without_summary = TRUE)
+```
+
+Similar to what we find in previous section, the variance of AIC values for ARMA models fitted on daily data is very low, and we need to select models according to other criterion, like using the smallest root table. In the smallest root table, there are only few models which are not near the boundary of no invertibility or no causality. Among the invertible and causal models, we prefer models contain both AR and MA parameters, since we find the absence of AR or MA parameters will cause the final SARMA model to have more ACF outliers. Therefore, we limit our choice to ARMA(1, 1) or ARMA(1, 2). Considering the model complexity, we finally choose ARMA(1, 1).
+
+```{r select_arma_daily_using_module, echo=FALSE,warning=FALSE}
+# use detrended daily data
+select_arma_daily <- model_selection_table(pc_data_daily$pc_1_detrended_daily,
+                                           max_p = 5, d = 0, max_q = 5,
+                                           P = 0, D = 0, Q = 0, period = 0,
+                                           simulation_times = 0)
+
+kable(select_arma_daily$aic_table, digits = 3, caption = "AIC of some ARMA models (Daily)")
+kable(select_arma_daily$smllest_root_table, digits = 4, caption = "Smallest root of ARMA models (Daily)")
+# kable(select_arma_daily$fisher_ci_cover_0_table, caption = "Does Fisher CI covers 0? (Daily)")
+# kable(select_arma_daily$simulated_ci_cover_0_table, caption = "Does Bootstrap CI covers 0? (Daily)")
+# kable(select_arma_daily$residual_normal_test_table, caption = "Does residuals follow normal distribution? (Daily)")
+# kable(select_arma_daily$residual_acf_outlier_table, caption = "The number of lags outside ACF CI (Daily)")
+
+```
+
+The diagnosis of ARMA(1, 1) shows that the model possesses both invertibilty and causality, due to roots outside unit circle, but its residuals may not be white noise. The contradiction of white noise assumption comes from the QQ plot and ACF plot. In QQ plot, there are many residuals deviated from the QQ line when quantile is less than -1. In ACF plot, about 7 lags have ACF values outside the boundary, showing the correlation of residuals.
+
+
+```{r, echo=FALSE}
+# choose ARMA(1, 1)
+build_and_diagnose_model(pc_data_daily$pc_1_detrended_daily, 
+                         model_name = "ARMA(1, 0, 1) (Detrended Daily)",
+                         arima_order = c(1, 0, 1),
+                         without_summary = TRUE)
+```
+
+
+The direct combination of the two models got from previous parts will lead to convergence problem, so we select a similar model SARMA(1, 0, 1)(1, 0, 1) in the end. We show its diagnosis as follows. The model is both invertible and causal when we inspect its roots. The residuals of it follow the mean 0 assumption and uncorrelated residual assumption but violate normal assumption. The residuals fluctuate around 0 in the residual plot, which supports the mean 0 assumption. ACF plot further checks the uncorrelated residual assumption without finding more than 5% ACF values outside confidence interval. Nevertheless, the residuals don't follow normal assumption due to heavy-tailed distribution.
+
+
+```{r select_sarma_result, echo=FALSE, results='hide'}
+# we should use SARMA(1, 0, 1)(1, 0, 1)[24]
+build_and_diagnose_model(pc_data$pc_1_detrended_hourly,
+                        model_name = "SARIMA(1, 0, 1)(1, 0, 1)[24] (Detrended Hourly)",
+                       arima_order = c(1, 0, 1),
+                        seasonal = TRUE,
+                       seasonal_order = c(1, 0, 1),
+                         period = 24)
+```
+
+
+
+<!-- ## Residual diagnosis {-} -->
+
+<!-- In this report, we used two different approaches got two $SARIMA$ model: $\displaystyle {\text{SARMA}}(2,0,0)\times(1,1,0)_{24}$ and $\displaystyle {\text{SARMA}}(1,0,1)\times(1,0,1)_{24}$. The residual diagnosis results of these two model are similar, so here we just show the detail of diagnosis on $\displaystyle {\text{SARMA}}(2,0,0)\times(1,1,0)_{24}$. -->
+ 
+## Fitted Value {-}
+
+We plot the fitted value and original value in the same time series plot (selected 400 data point to show clearly). It seems we get a pleasant model.
+
+```{r fig.width=7, fig.height=4, echo=FALSE,warning=FALSE,message=FALSE}
+suppressPackageStartupMessages(library(forecast))
+suppressPackageStartupMessages(library(quantmod))
+
+ts_data <- ts(pc_data$pc_1_hourly[1:500])
+sarima_model <- Arima(ts_data, order=c(2,0,0), seasonal=c(1,1,0))
+fitted_values <- fitted(sarima_model)
+
+data_to_plot <- data.frame(Time = time(ts_data),
+                           Original = as.numeric(ts_data),
+                           Fitted = as.numeric(fitted_values))
+
+ggplot(data_to_plot, aes(x = Time)) +
+  geom_line(aes(y = Original, colour = "Original Data")) +
+  geom_line(aes(y = Fitted, colour = "Fitted Values")) +
+  labs(y = "Value", title = "Original Data and Fitted SARIMA Model Values",
+       caption =expression(bold("Figure:") ~ "Fitted value(Red) and Original time series(Black).") ) +
+  scale_colour_manual("", 
+                      breaks = c("Original Data", "Fitted Values"),
+                      values = c("Original Data" = "black", "Fitted Values" = "red"))+
+  theme_minimal()+
+  theme(legend.title = element_text(face = "bold"),  
+        legend.text = element_text(size = 8),  
+        plot.title = element_text(hjust = 0.5),
+        plot.caption = element_text(size = 8, hjust = 0.5, face = "bold") )
+
+```
+
+
+<!-- ### Residual Assumption {-} -->
+
+<!-- Residual is a estimate of $\epsilon_t$. Based on our assumption, the residuals should be Gaussian white noise series, which indicate uncorrelation, normality and mean zero. -->
+
+<!-- ```{r, echo=FALSE,results='hide',fig.show='hide'} -->
+<!-- fit1<-build_and_diagnose_model(pc_data$pc_1_hourly,  -->
+<!--                          model_name = "SARIMA(2, 1, 0)(1, 1, 0)[24]", -->
+<!--                          arima_order = c(2, 1, 0), -->
+<!--                          seasonal = TRUE, -->
+<!--                          seasonal_order = c(1, 1, 0), -->
+<!--                          period = 24) -->
+<!-- mean(fit1$residuals) -->
+<!-- sd(fit1$residuals) -->
+<!-- ``` -->
+
+<!-- **Mean zore:** The mean value of fitted residual is -0.087 and the standard deviation is 14.25. So it's valid to say the redidual is mean zero. -->
+
+<!-- **Uncorrelation** -->
+
+<!-- ```{r ,echo=FALSE} -->
+<!-- acf(fit1$residuals, type = "correlation", -->
+<!--     lag.max = 40, main = "Residuals Autocorrelation") -->
+<!-- mtext(text = expression(bold("Figure 10:") ~ "Acf plot of residuals of model SARIMA(2, 0, 0)(1, 1, 0)[24]"), side = 1, line = 4,cex = 0.8,  adj = 0.5) -->
+<!-- ``` -->
+
+<!-- All the lags are fallen into the the dashed lines, so under the 5% level, we can NOT reject the hypothesis $H_0$: All residuals are uncorrelated. -->
+
+<!-- **Normality:** -->
+
+<!-- ```{r ,echo=FALSE} -->
+<!-- qqnorm(fit1$residuals, main = "QQ Plot of residual") -->
+<!-- qqline(fit1$residuals) -->
+<!-- mtext(text = expression(bold("Figure 11:") ~ "QQ Plot of residual of SARIMA(2, 1, 0)(1,1,0)[24]"), side = 1, line = 4,cex = 0.8,  adj = 0.5) -->
+<!-- ``` -->
+
+<!-- The QQ-plot fits good at the middle, but shows heavy tail on both ends. -->
+
+## Association between Power Consumption Zones {-}
+
+In previous section, we mainly develop and build the SARMA / SARIMA models based on the power consumption data collected from only one zone of Tetouan city (i.e., the Quads zone), while the the discrepancy and association between different zones' power consumption deserves more attention and study. In the following parts, we will first detrend and deseasonal the power consumption data of three zones (i.e., Quads, Smir and Boussafu zones) to remove the negative effect of trend and seasonality on cross-correlation function (CCF) analysis. Then, we report and discuss the CCF, coherence and phase plots, in an attempt to provide a detailed analysis of three zones' association. Finally, some linear regression models with ARMA errors are fitted and tested. These models further underpin our findings in CCF, coherence and phase plots. (We design the experiments of this part according to previous year's project [@2021/proj_07] (Note: We have some innovations like comparing the difference between HP filter and LOESS, and plotting the detrended data together to view the association.))
+
+### Detrend and Deseasonal Data {-}
+
+Following the practice of [@2024/lec09] (Note: slide 9), we leverage smoother to detect and remove the trend within data, but unlike [@2024/lec09], we use LOESS smoother since it's not significantly different from HP filter in terms of detrending effect. As can be seen in the following figure, the HP filter and LOESS smother generate nearly same detrending results and may be interchangeable. Besides, we keep using LOESS smoother to make our experiment data consistent. Our previous experiments detrend data with LOESS smoother, and in this section, we will also keep this practice. 
+
+```{r detrend_all_data, echo=FALSE}
+
+pc_data_daily["pc_3_hp_detrended_daily"] <- hpfilter(pc_data_daily$pc_3_daily,
+                                                freq = 100, type = "lambda",
+                                                drift = FALSE)$cycle
+
+pc_data_daily["pc_1_loess_detrended_daily"] <- pc_data_daily$pc_1_daily -
+  loess(pc_1_daily ~ date, span = 0.5, data = pc_data_daily)$fitted
+pc_data_daily["pc_2_loess_detrended_daily"] <- pc_data_daily$pc_2_daily -
+  loess(pc_2_daily ~ date, span = 0.5, data = pc_data_daily)$fitted
+pc_data_daily["pc_3_loess_detrended_daily"] <- pc_data_daily$pc_3_daily -
+  loess(pc_3_daily ~ date, span = 0.5, data = pc_data_daily)$fitted
+
+ggplot(data.frame(date = pc_data_daily$date,
+                  quads_pc_hp = pc_data_daily$pc_3_hp_detrended_daily,
+                  quads_pc_loess = pc_data_daily$pc_3_loess_detrended_daily),
+       aes(x = date)) +
+  geom_line(aes(y = quads_pc_hp, colour = "Power Consumption (HP Detrended)")) +
+  geom_line(aes(y = quads_pc_loess, colour = "Power Consumption (LOESS Detrended)")) +
+  labs(y = "Power Consumption", title = "Comparison of Different Detrend Methods",
+       caption =expression(bold("Figure:") ~ "Comparison of Different Detrend Methods. ")) +
+  scale_x_continuous(name = "Days") +
+  scale_colour_manual("", 
+                      breaks = c("Power Consumption (HP Detrended)", 
+                                 "Power Consumption (LOESS Detrended)"),
+                      values = c("Power Consumption (HP Detrended)" = "green", 
+                                 "Power Consumption (LOESS Detrended)" = "purple"))+
+  theme_minimal()+
+  theme(plot.caption = element_text(size = 8, hjust = 0.5, face = "bold") )
+```
+
+As for deseasonal, we learn from [@2021/proj_16] (Note: In their project, they deseasonl data through taking average.) and eliminate seasonality of data through aggregating data point. More specifically, we aggregate the hourly data to craft daily data. One noticeable thing is that we actually sum up the hourly data according to 24 hours' period rather than taking the mean of hourly data. This is because the power consumption is cumulative, unlike temperature, humidity or other data whose averages are meaningful. The comments of [@2021/proj_16] raises the concern about whether aggregating data point will make the delay signal unrecognizable. We argue that this is not problematic, at least for our data. As can be seen in next section's CCF, coherence and phase plots, we can still identify the delay signal. 
+
+
+We plot the power consumption of three zones together to render a straightforward view of their association, and we will also test and report their sample correlations for a more accurate understanding. In the following figure, we can see that the power consumption of Quads and Smir cycles together, but the association between these two zones and Boussafou is hard to recognize just through eyeballing the figure. Therefore, we quantitatively measure their correlations through R's function. The results are reported in the below table. The power consumption of Quads and Smir possesses positive correlation, which matches our finding in the plot that they are nearly cycling together. The power consumption of Boussafou seems to be approximately independent from that of Quads, and its association with Smir is also relatively weak. This may suggest that it's not suitable to model the relationship using Boussafou's power consumption as predictors.
+
+
+```{r detrend_all_data_conti, echo=FALSE}
+ggplot(data.frame(date = pc_data_daily$date,
+                  quads_pc = pc_data_daily$pc_1_loess_detrended_daily,
+                           smir_pc = pc_data_daily$pc_2_loess_detrended_daily,
+                           boussafou_pc = pc_data_daily$pc_3_loess_detrended_daily),
+       aes(x = date)) +
+  geom_line(aes(y = quads_pc, colour = "Quads Power Consumption")) +
+  geom_line(aes(y = smir_pc, colour = "Smir Power Consumption")) +
+  geom_line(aes(y = boussafou_pc, colour = "Boussafou Power Consumption")) +
+  labs(y = "Power Consumption", title = "Three Zones' Power Consumption (Detrended)",
+       caption =expression(bold("Figure:") ~ "Comparison of Detrend Power Consumption in three zone.")) +
+  scale_colour_manual("", 
+                      breaks = c("Quads Power Consumption", 
+                                 "Smir Power Consumption", "Boussafou Power Consumption"),
+                      values = c("Quads Power Consumption" = "green", 
+                                 "Smir Power Consumption" = "purple", 
+                                 "Boussafou Power Consumption" = "black"))+
+  theme_minimal()+
+  theme(plot.caption = element_text(size = 8, hjust = 0.5, face = "bold") )
+
+cor_matrix_pc_1_2_3 <- cor(data.frame(Quads = pc_data_daily$pc_1_loess_detrended_daily,
+                           Smir = pc_data_daily$pc_2_loess_detrended_daily,
+                           Boussafou = pc_data_daily$pc_3_loess_detrended_daily))
+kable(cor_matrix_pc_1_2_3, digits = 5, caption = "Sample Correlation of Three Zones' Power Consumption")
+```
+
+
+### CCF, Coherence and Phase Plots {-}
+
+In this section, we demystify the lagged relationship among three zone's power consumption through CCF, coherence and phase plots. The theory of these plots is reviewed at the beginning. We subsequently showcase and interpret the analysis result of our data.
+
+
+CCF, the abbreviation of sample cross-correlation function, is widely-used for identifying the lagged relationship between two time series. It's formulated as:
+
+$$
+\begin{align}
+\hat{\rho}_{xy}(h) = \frac{\sum_{n=1}^{N-h} (x_{n+h} - \bar{x})(y_n - \bar{y})}{\sqrt{\sum_{n=1}^{N} (x_{n} - \bar{x})^2\sum_{n=1}^{N} (y_{n} - \bar{y})^2}}
+\end{align}
+$$
+, where $x_n$ and $y_n$ comes from two time series $x_{1:N}$ and $y_{1:N}$.
+
+
+The coherence and phase plots are the Fourier transform outcomes of cross-covariance. The Fourier transform of cross-covariance produces the cross-spectrum $\lambda_{XY}(w) = \sum_{h = -\infty}^\infty e^{- 2 \pi i w h} Cov(X_{n+h}, Y_n)$. Via normalizing this spectrum (i.e., $\rho_{XY}(w) = \frac{\lambda_{XY}(w)}{\sqrt{\lambda_{XX}(w)\ \lambda_{YY}(w)}}$), we can further obtain a complex-valued correlation between frequency components of two time series at each frequency $w$. The magnitude of this correlation is coherence, measuring the degree of association between $x_{1:N}$ and $y_{1:N}$ at frequency $w$. The phase is the angle of this correlation in the complex plane. The deviation of phase from 0 is a sign of negatively correlated time series. (The formulas in this part take the [@2024/lec09] as reference.)
+
+
+From the CCF plots, we can see the lagged relationship among these three zones. In the comparison of Quarts and Smir zones, the positive local maximum around 0 demonstrates that there exists positive and nearly instantaneous relationship between Quarts and Smir zones' power consumption. However, we also notice that the distribution of other local maximums that exceed 95% confidence interval may follow a 7 days period. The seasonality indicated by this phenomenon may be the result of incomplete seasonality removal in previous parts. A further experiment may be needed to find a better deseasonal method. As for the CCF of Quarts v.s. Boussafou, the negative relationship with lag 1 between Quarts and Boussafou is identified by the fact that the minimum and most significant CCF value is got at Lag = 1. When it comes to Smir v.s. Boussafou, we can also observe a negative relationship with lag 1. These findings are consistent with our previous sample correlation calculation. Since the sample correlations of Quarts v.s. Boussafou and Smir v.s. Boussafou are small, we will only estimate the relationship between Quarts and Smir hereafter.
+
+
+```{r ccf_plots, echo=FALSE}
+par(mfrow = c(2, 2))
+ccf(pc_data_daily$pc_1_loess_detrended_daily, pc_data_daily$pc_2_loess_detrended_daily,
+    main = "Quarts v.s. Smir", ylab = "CCF", lag.max = 30)
+ccf(pc_data_daily$pc_1_loess_detrended_daily, pc_data_daily$pc_3_loess_detrended_daily,
+    main = "Quarts v.s. Boussafou", ylab = "CCF", lag.max = 30)
+ccf(pc_data_daily$pc_2_loess_detrended_daily, pc_data_daily$pc_3_loess_detrended_daily,
+    main = "Smir v.s. Boussafou", ylab = "CCF", lag.max = 30)
+```
+
+The plots of coherence and phase for Quarts v.s. Smir are displayed below. In coherence's plot, we select three strongest coherence at frequency $w_1 \approx 0.05208$, $w_2 \approx 0.14583$ and $w_3 \approx 0.28125$, which corresponds to 19.2 days / cycle, 6.8 days / cycle, and 3.5 days / cycle respectively (these three frequency are marked by orange lines in the below figure). The signals at these three frequency are most powerful in the cross-spectrum. Then, we identify their corresponding phases in the phase plot. As shown in the phase plot, the 95% confidence interval covers 0 or nearly approximates 0 for all these three frequency. This indicates that the peaks at frequency $w_1$, $w_2$ and $w_3$ occurs simultaneously for Quarts and Smir, and Quarts and Smir may cycle together.
+
+```{r coherence_and_phase_1, echo=FALSE}
+par(mfrow = c(1, 2))
+pc_1_2_spect <- spectrum(cbind(
+                    pc_data_daily$pc_1_loess_detrended_daily,
+                    pc_data_daily$pc_2_loess_detrended_daily), 
+              spans = c(2, 2), plot = FALSE)
+plot(pc_1_2_spect, plot.type = "coherency", 
+     main = "Coherence")
+
+abline(v = c(0.05208333, 0.14583333, 0.28125000), col = "orange",lty = 2)
+plot(pc_1_2_spect, plot.type = "phase", main = "Phase")
+abline(h = 0, col = "red", lty = 2)
+abline(v = c(0.05208333, 0.14583333, 0.28125000), col = "orange",lty = 2)
+```
+
+
+### Fit and Test Linear Regression Model with ARMA Errors {-}
+
+We try to verify the association between Quarts and Smir through constructing a linear regression model with detrended Quarts' data as response, detrended Smir's data as predictor, and errors following ARMA. The model selection is performed under criterion AIC.
+
+
+As reported in the AIC table below, the variation of AIC values for different AR and MA parameter combination is not significant, and there exist numeric errors. For instance, comparing the AIC values of ARMA(3, 1) (i.e., 1349.984) and ARMA(4, 1) (i.e., 1351.982) reveals the existence of numeric errors, because adding a new AR parameter to the model will lead to less than 2 increase in model's AIC, but $1351.982 - 1349.984 \approx 2$ approximates the boundary. Therefore, the AIC values may not be a valid model selection criterion in this case. However, for the sake of caution, we still test some ARMA models (like ARMA(3, 2) errors) with low AIC values.
+
+
+```{r select_pc_1_2_model, echo=FALSE, warning=FALSE}
+lr_with_arma_aic_table <- function(data, max_p, max_q, xreg = NULL) {
+  table <- matrix(NA, max_p + 1, max_q + 1)
+  for (p in 0:max_p) {
+    for (q in 0:max_q) {
+      temp_result <- try(arima(data, order = c(p, 0, q), xreg = xreg)$aic,
+                         silent = TRUE)
+      
+      if (!inherits(temp_result, "try-error")) {
+        table[p + 1, q + 1] <- temp_result
+      }
+    }
+  }
+  
+  dimnames(table) <- list(paste("AR", 0:max_p, sep = ""),
+                          paste("MA", 0:max_q, sep = ""))
+  return(table)
+}
+
+pc_1_2_aic_table <- lr_with_arma_aic_table(pc_data_daily$pc_1_loess_detrended_daily,
+                                           max_p = 5, max_q = 5, 
+                                           xreg = pc_data_daily$pc_2_loess_detrended_daily)
+kable(pc_1_2_aic_table, digits = 3)
+
+```
+
+
+We test the ARMA(3, 2) errors and find that even though its residuals are not problematic, it has a MA root at the boundary of invertibility. In the residual analysis plots, the residuals act just like white noise. By viewing the residual plot and QQ plot, we know it doesn't violate the mean 0 assumption and normal assumption, even though the residuals are likely to be of heteroskedasticity. The ACF plot suggests that residuals are not correlated. However, when we see the report of its MA roots, the MA root 1 makes model nearly not invertible. Therefore, ARMA(3, 2) errors is not a reasonable choice.
+
+
+```{r test_pc_1_2_model_0, echo=FALSE}
+build_and_diagnose_model(pc_data_daily$pc_1_loess_detrended_daily, 
+                         model_name = "",
+                         arima_order = c(3, 0, 2),
+                         xreg = pc_data_daily$pc_2_loess_detrended_daily,
+                         without_summary = TRUE)
+```
+
+We finally decide to use the ARMA(0, 0) errors (i.e., the linear regression model with Gaussian noise) due to reasons of two aspects.
+
+
+First, there is no significant difference between the residual diagnosis result of this model and that of linear regression model with ARMA errors. As shown in the following plots, the diagnosis shows results similar to previous model with ARMA errors, except for the lag 6 in ACF plot where the ACF value slightly exceeds the boundary.  
+
+
+```{r test_pc_1_2_model_1, echo=FALSE}
+
+likelihood_ratio_test <- function(model0, model1, 
+                                  model0_name, model1_name,
+                                  model0_degree, model1_degree,
+                                  alpha = 0.05) {
+  l_0 <- logLik(model0)
+  l_1 <- logLik(model1)
+  
+  lik_diff <- l_1 - l_0
+  degree_diff <- model1_degree - model0_degree
+  
+  threshold <- 0.5 * qchisq(1 - alpha, df = degree_diff)
+  
+  cat("Liklihood Ratio Test\n")
+  cat(model0_name, "log likelihood:", round(l_0, 4), "\n")
+  cat(model1_name, "log likelihood:", round(l_1, 4), "\n")
+  cat("log likelihood difference:", round(lik_diff, 4), "\n")
+  cat("degree of freedom difference:", degree_diff, "\n")
+  cat("chi-square cutoff:", round(threshold, 4), "\n")
+  cat("p-value:", 1 - pchisq(2 * lik_diff, degree_diff), "\n")
+  if (lik_diff > threshold) {
+    cat("Test result:
+        Reject null hypothesis, choose", model1_name,"\n\n")
+  } else {
+    cat("Test result: 
+        Can't reject null hypothesis, choose model", model0_name,"\n\n")
+  }
+}
+
+model_1 <- build_and_diagnose_model(pc_data_daily$pc_1_loess_detrended_daily, 
+                         model_name = "",
+                         arima_order = c(0, 0, 0),
+                         xreg = pc_data_daily$pc_2_loess_detrended_daily,
+                         without_summary = TRUE)
+
+```
+
+
+Second, the likelihood ratio test (LRT) shows that this model outperforms the null hypothesis model. We display these two models and then discuss the LRT results. The Linear Regression (LR) model with ARMA(0, 0) noise can be expressed as:
+
+$$
+  Y_n^{Detrended} = 16.7093 + 0.4331 X_n^{Detrended} + \epsilon_n
+$$
+, where $Y_n^{Detrended}$ is the detrended power consumption in Quarts zone, $X_n^{Detrended}$ is the detrended power consumption in Smir zone, and $\epsilon_n$ is the Gaussian noise.
+
+
+The model of null hypothesis is:
+
+$$
+  Y_n^{Detrended} = 19.9995 + \epsilon_n
+$$
+, where $Y_n^{Detrended}$ is the detrended power consumption in Quarts zone, and $\epsilon_n$ is the Gaussian noise.
+
+
+We review the definition of LRT for completeness. According to [@2024/lec05], the test statistic of LRT is:
+
+$$
+  l^{<1>} - l^{<0>} \approx (1 / 2) \mathcal{X}_{D^{<1>} - D^{<0>}}^2
+$$
+, where $\mathcal{X}_d^2$ is the chi-squared random variable on $d$ degrees of freedom. $D^{<1>}$ and $D^{<0>}$ are the number of parameters in models. $l^{<1>}$ and $l^{<0>}$ are the maximized log likelihood. When the test statistic exceeds the cutoff value of chi-squared distribution, we can reject the null hypothesis. (The 95% cutoff value of $\mathcal{X}_1^2$ is about 1.92).
+
+
+In LRT, the log likelihood difference of these two model reaches 19.7182, exceeding the chi-square distribution cutoff value 1.92. This gives us enough power to reject the null hypothesis. By the way, the z-statistic of $0.4331 / 0.0616 \approx 7.03$ for the coefficient of detrended Smir zone power consumption demonstrates that our coefficient differs from 0 significantly.
+
+```{r test_pc_1_2_model_2, echo=FALSE}
+
+model_2 <- build_and_diagnose_model(pc_data_daily$pc_1_loess_detrended_daily,
+                         model_name = "",
+                         arima_order = c(0, 0, 0),
+                         without_summary = TRUE,
+                         without_plot = TRUE)
+
+likelihood_ratio_test(model1 = model_1,
+                      model0 = model_2,
+                      model1_name = "LR with ARMA(0, 0) Errors",
+                      model0_name = "Pure Noise with Intercept",
+                      model1_degree = 2, model0_degree = 1)
+
+```
+
+Our fitted model support our previous finding that the correlation between the power consumption of Quarts zone and Smir zone is positive, because the slope parameter in model is $0.4331 > 0$. One possible reason for this positive correlation is that these two zones share many similar residential/commercial activities and infrastructure due to geographical proximity [@2024/three_zones].
+
+## Conclusion {-}
+
+In this project, we analysed the data of power consumption in Tetouan during 2017. We extracted the data from April to June and aggregated it into the electricity consumption per hour and per day. We mainly fitted the hourly dataset and it has some key patterns. It has seasonality at 24 hours that was confirmed by our spectrum investigation in the frequency domain. It also has a non-linear trend so we transformed and detrended the data. Based on minimum AIC criteria and minimum root criteria, we conducted two diffferent $SARIMA$ model through two different approach:
+
+Model 1 - $\displaystyle {\text{SARIMA}}(2,0,0)\times(1,1,0)_{24}$:
+
+$$(1 - \phi_1 B - \phi_2 B^2)(1-\Phi_1 B^{24}) [(1 - B^{24})  X_t-\mu] =  \varepsilon_t$$
+
+Model 2 - $\displaystyle {\text{SARMA}}(1,1)\times(1,1)_{24}$.
+
+$$(1 - \phi_1 B )(1-\Phi_1 B^{24})  [X_t-\mu] = (1-\psi_1 B) (1-\Psi_1 B^{24}) \varepsilon_t$$
+
+The residual analysis gives satisfactory results on both model, both models fit hourly data well in general. But there are still some limitations in our report:
+
+- The fitting results of models with different parameters are not significantly different; there is no outstanding model. This may be due to the trend component of the original data not being well identified, and the data used for fitting is not stationary enough.
+
+- The dataset contains other variables such as humidity and temperature, which we have not fully utilized. Otherwise, we could have gained a better understanding of electricity consumption and obtained a more optimal model.
+
+
+## References {-}
+
+
+<div id="refs"></div>
+
+
+
+<!-- ## Appendix {-} -->
+
+<!-- The daily power consumption doesn't have a cycle, so we simply use $ARIMA$ model to fit it. -->
+
+<!-- ```{r select_arima_daily_using_module, echo=FALSE,results='hide',warning=FALSE} -->
+<!-- select_arima_daily <- model_selection_table(pc_data_daily$pc_1_daily, -->
+<!--                                            max_p = 5, d = 1, max_q = 5, -->
+<!--                                            P = 0, D = 0, Q = 0, period = 0, -->
+<!--                                            simulation_times = 10) -->
+<!-- ``` -->
+<!-- ```{r,echo=FALSE,warning=FALSE} -->
+<!-- kable(select_arima_daily$aic_table, digits = 3, caption = "AIC of some ARIMA models (Daily)") -->
+<!-- kable(select_arima_daily$smllest_root_table, digits = 4, caption = "Smallest roots of ARIMA models (Daily)") -->
+<!-- #kable(select_arima_daily$fisher_ci_cover_0_table, caption = "Does Fisher CI covers 0? (Daily)") -->
+<!-- #kable(select_arima_daily$simulated_ci_cover_0_table, caption = "Does Bootstrap CI covers 0? (Daily)") -->
+<!-- #kable(select_arima_daily$residual_normal_test_table, caption = "Does residuals follow normal distribution? (Daily)") -->
+<!-- #kable(select_arima_daily$residual_acf_outlier_table, caption = "The number of lags outside ACF CI (Daily)") -->
+<!-- ``` -->
+
+<!-- We chosen $\displaystyle {\text{ARMA}}(1,1,0)$ model.  -->
+
+<!-- ```{r} -->
+<!-- # choose ARIMA(1, 1, 0) -->
+<!-- build_and_diagnose_model(pc_data_daily$pc_1_daily,  -->
+<!--                          model_name = "ARIMA(1, 1, 0) (Daily)", -->
+<!--                          arima_order = c(1, 1, 0)) -->
+<!-- mtext(text = expression(bold("Figure 17:") ~ "Performance of ARIMA(1,1,0) on daily data."), side = 1, line = 4,cex = 0.8,  adj = 1) -->
+<!-- ``` -->
+

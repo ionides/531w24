@@ -1,0 +1,440 @@
+---
+title: "Midterm Project"
+output: html_document
+
+date: "2024-02-23"
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_knit$set()
+```
+
+```{r, include=FALSE}
+library(tseries)
+library(zoo)
+library(dplyr)
+library("ggplot2")
+library(forecast)
+library(gridExtra)
+```
+
+# Introduction
+
+As international students, our foremost concern has always been securing employment. In recent years, global economic challenges stemming from events such as COVID-19 pandemic, and Ukraine-Russia conflict which have exacerbated the United States' unemployment rate, reaching its highest level in a century. Recent reports [1] from financial institutions pointed out that the central bank will probably reduce Federal Funds Rate in the second quarter of 2024 which has historically been viewed as an effective strategy for managing unemployment [2], consequently alleviating pressures within the job market.
+
+This study will aim to utilize time series theory to analyze the relationship between the U.S. unemployment rate and Federal Funds Rate, determining whether lower Federal Funds Rate could mitigate the dilemma of job market. Our content is primarily divided into three parts. First of all, we will analyze the characteristics of the unemployment rate using statistical methodologies and determine the best-fitting ARIMA model. Secondly, we will repeat this process for the Federal Funds Rate analysis. Last but not the least, we will examine the correlation between the two series using CCF and a regression with SARIMA error model, drawing conclusions for our study.
+
+# Data overview
+
+-   In this project, our analysis focuses on examining the monthly Federal Funds Rate [3] alongside the Unemployment Rate in the United States, covering an identical time span. To mitigate the influence of outliers resulting from recent global economic events, we focus our analysis on the subset of data spanning from January 1955 to January 2020. Furthermore, scholars hold varying opinions regarding the duration of the business cycle, with estimations ranging from as brief as 3 years to as lengthy as 30 years [4]. To adequately capture the underlying periodicity within the sequence, a dataset spanning up to 65 years should be considered sufficient for observation.
+
+-   The historical dataset for the Federal Funds Rate has been sourced from the Federal Reserve Economic Data (FRED) at <https://fred.stlouisfed.org/series/FEDFUNDS>. Similarly, the historical records for the Unemployment Rate are obtained from <https://fred.stlouisfed.org/series/UNRATE>.
+
+-   Both datasets are expressed in percentages. For our analysis, we utilize seasonally adjusted data on unemployment rates to explore the long-term correlations between datasets, aiming to isolate and understand the underlying trends without the distortion of seasonal fluctuations.
+
+```{r, echo=FALSE}
+my_data_ff <- read.csv("FEDFUNDS.csv",header = TRUE)
+my_data_ur <- read.csv("UNRATE.csv",header = TRUE)
+
+my_data_overall <- merge(my_data_ff, my_data_ur, by = "DATE")
+my_data_overall$DATE = as.Date(my_data_overall$DATE)
+Date = my_data_overall$DATE
+Fedfund = my_data_overall$FEDFUNDS
+Unrate = my_data_overall$UNRATE
+
+par(mar=c(5, 4, 4, 5))
+plot(Date, Fedfund, col = "red", xlim = c(as.Date("1955-01-01"), as.Date("2024-01-01")),main = "Time Series of Federal Fund Rates and Unemployment Rates ", xlab = "", ylab = "Fedfunds", col.lab = "red", type = 'l')
+par(new = TRUE)
+plot(Date, Unrate, col = "blue", xlim = c(as.Date("1955-01-01"), as.Date("2024-01-01")), axes = FALSE, xlab="Time", ylab = "", type = 'l')
+axis(side=4)
+mtext("UnRate", col = "blue", side = 4, line = 4)
+Date= Date[7:787]
+Fedfund = Fedfund[7:787]
+```
+
+# Unemployment rate analysis
+
+We first try to analyze if the unemployment rate data is stationary. The plot below shows the first order difference of the unemployment rate series. Compared to the raw data plotted above, the first order difference shows no obvious trend and seems to have a constant mean. The variance has a little fluctuation but seems to be not severe. Thus, we further investigate the data to determine if it is stationary.
+
+```{r, echo=FALSE}
+unemployment = my_data_ur
+plot(strptime(unemployment$DATE[85:864],format = "%Y-%m-%d"), diff(unemployment$UNRATE[85:865]),type="l", col="blue", xlab = "time",ylab = "1st order difference of unemployment rate")
+
+```
+
+## ACF analysis
+
+The following two plots show the ACF of unemployment rate (Left) and the first order difference ACF. Since the length of the series is relatively long (over 800 observations), we plot the ACF up to a lag of 100. On the left hand side, the ACF value goes to zero slowly and immediately starts to decrease. This means the data is highly dependent on time. However, the ACF of the first order difference goes to zero rapidly and stays relatively stable. There is no obvious burst. This result further motivates us to use a first order difference.
+
+```{r, echo=FALSE, fig.width=10}
+par(mfrow = c(1, 2))
+ue_data = unemployment$UNRATE
+acf(ue_data,lag.max = 100, main = "ACF plot of unemployment rate")
+acf(diff(ue_data), lag.max = 100, main = "First order difference ACF plot of unemployment rate")
+```
+
+## KPSS test
+
+The result from ACF analysis is also supported by a KPSS test [5]. This is a stationary test in which the null hypothesis is "the statistic is stationary". The test statistic is calculated as: $$
+\text{KPSS} = \frac{\sum_{t=1}^{T} S_t^2}{T^2 \hat{\sigma}^2}
+$$ where:
+
+\-$T$ is the length of the time series, -$S_t$ is the partial sum process, $S_t = \sum_{i=1}^{t} (X_i - \bar{X})$, with $X_i$ being the $i$-th observation and $\bar{X}$ the sample mean, -$\hat{\sigma}^2$ is an estimate of the long-run variance of the time series.
+
+We conduct a KPSS test on both the original data and the first order difference, and we observe a p-value of less than 0.01 and larger than 0.1 respectively. Therefore, the KPSS test cannot reject the null hypothesis for the original data but not for the first order difference. We can conclude that the first order difference is a much more stationary series.
+
+```{r, echo=FALSE, warning=FALSE}
+print(kpss.test(unemployment$UNRATE))
+print(kpss.test(diff(unemployment$UNRATE)))
+```
+
+## Model fitting and selection
+
+Since the first order difference is stationary and thus no seasonal trend is presented, we begin to select an ARMA model on the first order difference data. We generate an AIC table from ARMA(0,1,0) to ARMA(4,1,4). Based on the AIC table below, we can see ARMA(4,2) has good AIC compared to the others. We also consider ARMA(1,1) because it is a less complex model with reasonable AIC. In the following analysis, we will see how these two models are performed.
+
+```{r, echo=FALSE}
+ue_data = unemployment$UNRATE[85:865]
+aic_table_ue <- function(x,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- round(arima(x, order=c(p,1,q))$aic, digit = 2)
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+                          paste("MA",0:Q, sep=""))
+  table
+}
+aic_table_ue(ue_data,4,4)
+```
+
+We find and plot the inverse auto regression and moving average roots. Although all inverse roots of both models sit in the unit circle, the MA roots for ARMA42 is very close to the margin.
+
+```{r, echo=FALSE, fig.width=10}
+par(mfrow = c(1, 2))
+arma11 = arima(ue_data, order=c(1,1,1))
+arma42 = arima(ue_data, order=c(4,1,2))
+p1 = autoplot(arma11)
+p2 = autoplot(arma42)
+grid.arrange(p1, p2, ncol=2)
+```
+
+The Q-Q plots of both models suggest minor departures from normality. The slightly-off but symmetric tails indicate that there may be some outliers in our time series but the data does not suffer from skewness.
+
+```{r,echo=FALSE, fig.width=10}
+par(mfrow = c(1, 2))
+qqnorm(residuals(arma11), main = "QQ plot of ARMA 22")
+qqline(residuals(arma11))
+qqnorm(residuals(arma42), main = "QQ plot of ARMA 42")
+qqline(residuals(arma42))
+```
+
+The ACF plots of the residuals also cannot tell much difference since both of them converge to zero rapidly. The simpler ARMA(1,1,1) model has some little variations and some large values at, for example, lag = 12 and lag = 24. However, a similar trend can be observed in ARMA(4,1,2).
+
+```{r, echo=FALSE}
+par(mfrow = c(1, 2))
+acf(arma11$residuals)
+acf(arma42$residuals)
+```
+
+Thus, we perform a simulation of the ARMA(4,1,2) model so that we can see the density of its coefficients. We also plot the 95% Fisher confidence intervals for ar1 and ma1 coefficients from the model report. The four plots below show the simulation result for AR1,MA1,AR2,MA2 respectively. All four curves contain two peaks which does not agree with the assumption of a normal distribution of the coefficients. The CI of the AR2 coefficient corresponds to lower peak on the curve. The rest of the coefficients do not agree with their CI. Specifically, AR1 and MA2 simulation results and their CIs do not even overlap. Thus, we choose not to use the more complicated ARIMA(4,1,2) model and declare ARIMA(1,1,1) as our model.
+
+```{r}
+print(summary(arma11))
+print(summary(arma42))
+```
+
+```{r, echo=FALSE,fig.width=10,fig.height=3}
+par(mfrow = c(1, 4))
+fitted_model =  arima(ue_data, order=c(4,1,2))
+ar_coeffs <- coef(fitted_model)[grepl("ar", names(coef(fitted_model)))]
+ma_coeffs <- coef(fitted_model)[grepl("ma", names(coef(fitted_model)))]
+sigma <- sd(residuals(fitted_model))
+
+n <- length(fitted_model$residuals) 
+
+n_simulations <- 200
+
+ar1_estimates <- numeric(n_simulations)
+ar2_estimates <- numeric(n_simulations)
+ma1_estimates <- numeric(n_simulations)
+ma2_estimates <- numeric(n_simulations)
+
+set.seed(123)
+for(i in 1:n_simulations) {
+  sim_data <- arima.sim(model = list(ar = ar_coeffs, ma = ma_coeffs), n = n, sd = sigma)
+  sim_model <- Arima(sim_data, order = c(4,1,2))
+
+  ests <- coef(sim_model)
+  ar1_estimates[i] <- ests['ar1']
+  ar2_estimates[i] <- ests['ar2']
+  ma1_estimates[i] <- ests['ma1']
+  ma2_estimates[i] <- ests['ma2']
+}
+
+density_ar1 <- density(ar1_estimates)
+density_ma1 <- density(ma1_estimates)
+plot(density_ar1, main = "Density of AR(1) Coefficient Estimates", xlab = "AR(1) Estimate",xlim=c(-2.0,2))
+abline(v = 1.71+2*0.0375, col = "red")
+abline(v = 1.71-2*0.0375, col = "red")
+plot(density_ma1, main = "Density of MA(1) Coefficient Estimates", xlab = "MA(1) Estimate")
+abline(v = -1.71+2*0.0125, col = "red")
+abline(v = -1.71-2*0.0125, col = "red")
+plot(density_ar1, main = "Density of AR(2) Coefficient Estimates", xlab = "AR(2) Estimate",xlim=c(-2.0,2))
+abline(v = -0.7798+2*0.0715, col = "red")
+abline(v = -0.7798-2*0.0715, col = "red")
+plot(density_ma1, main = "Density of MA(2) Coefficient Estimates", xlab = "MA(2) Estimate")
+abline(v =  0.9631+2*0.0136, col = "red")
+abline(v =  0.9631-2*0.0136, col = "red")
+```
+
+# Analysis on Federal fund rate
+
+## EDA and detrending
+
+Upon examining the plotted monthly Federal Funds Rate (indicated by the red line above), we observe the presence of both a long-term trend and oscillatory behavior within the time series. Notably, the Federal Funds Rate reaches a peak circa 1980 before declining towards a near-zero level around 2008. This pattern leads us to intuitively conclude that the data exhibits non-stationarity, characterized by a discernible trend.
+
+Within our statistical analysis, we employ the Augmented Dickey-Fuller Test to assess the stationarity of the time series.
+
+```{r,echo=FALSE}
+adf.test(Fedfund)
+```
+
+The fact the p-value \> 0.05 shows that we are not confident to reject the null hypothesis that the time series are non-stationary. It correspond to our observation and we find it neccesary to eliminate the trend first. Here, we would use Loess Smoothing [6] to extract the trend and cycle component.
+
+-   The low-frequency component is regarded as the trend. This trend component may be influenced by long-term economic and financial conditions, which may not be readily modeled. Therefore, we focus on extracting the trend for analysis
+-   In our subsequent analyses, we will concentrate solely on the high-frequency component, which encapsulates the cyclical behavior and perturbations within our dataset.
+
+```{r,echo = FALSE}
+Date_adj <- Date[-1]
+Year=as.numeric(format(Date,format="%Y"))
+Month=as.numeric(format(Date,format="%m"))
+time=Year+(Month-1)/12
+fed_low=ts(loess(Fedfund~time,span=0.5)$fitted,start=time[1],frequency=12)
+Fedfunds = Fedfund - fed_low
+ts.fed=ts.union(Fedfund,Fedfunds,fed_low)
+#plot(Date,Fedfunds,type="l",main = 'Detrended Federal fund rate')
+colnames(ts.fed)=c("raw sereis","main","trend")
+plot(ts.fed,main="Decomposition of Federal fund rate")
+```
+
+Now we can still observe that the main part still show some non-stationary feature. Now we difference the series and plot the ACF for the two sereis.
+
+```{r,echo=FALSE}
+par(mfrow = c(2, 1))
+plot(Date,Fedfunds,type="l",main = 'Federal fund rate')
+plot(Date_adj,diff(Fedfunds),type="l",main = 'First difference on Federal fund rate')
+```
+
+```{r, echo=FALSE}
+par(mfrow = c(1, 2))
+acf(Fedfunds,lag.max = 100, main = "ACF plot")
+acf(diff(Fedfunds), lag.max = 100, main = "ACF plot of the first difference")
+```
+
+Observing the ACF for the federal fund rate reveals a significant correlation at the first lag, suggesting persistence in the series. The initial differencing of the data exhibits characteristics of stationarity, indicating an improvement in the time series' behavior. Consequently, we plan to proceed by employing the differenced federal fund rate data to develop our model.
+
+Upon examining the spectral density of both the original and differenced federal fund rate data below, it becomes evident that the frequency domains of the plots are excessively broad, suggesting a lack of inherent periodicity within the dataset. Consequently, this analysis steers us towards experimenting with an ARIMA(p,1,q) model.
+
+```{r,echo=FALSE}
+par(mfrow = c(2, 1))
+spec_fed = spectrum(Fedfunds,spans=c(20,20),main="Spectral density of Federal fund rate")
+spec_diff_fed = spectrum(diff(Fedfunds),spans=c(20,20),main="Spectral density of first difference")
+```
+
+```{r,echo=FALSE}
+aic_table <- function(data,P,d,Q,xreg=NULL){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- Arima(data,order=c(p,d,q),xreg=xreg)$aic
+    }
+  }
+  dimnames(table) <- list(paste("<b> AR",0:P, "</b>", sep=""),paste("MA",0:Q,sep=""))
+  table
+}
+
+aic_table_season <- function(data,P,d,Q,s,xreg=NULL){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data,order=c(p,d,q),xreg=xreg,seasonal = list(order = c(1, 0, 0), period = s))$aic
+    }
+  }
+  dimnames(table) <- list(paste("<b> AR",0:P, "</b>", sep=""),paste("MA",0:Q,sep=""))
+  table
+}
+```
+
+## Model selection
+
+We would use AIC Table to choose a suitable ARMA Model for the errors.
+
+```{r,echo=FALSE}
+fed_aic_table_2 <- aic_table(Fedfunds,4,1,4) 
+kable(fed_aic_table_2,digits=2)
+```
+
+From the AIC Table, we could know that ARMA(2,4) (with lower aic), ARMA(2,0) (with simple form) are worth further discussion. To assess their suitability, we plotted the inverse auto-regression and moving average roots for both models. These plots demonstrate that all roots for both models reside within the unit circle, affirming their causality and invertibility.
+
+```{r,echo=FALSE}
+model1_fed = Arima(Fedfunds, order=c(2,1,4))
+model2_fed = Arima(Fedfunds, order=c(2,1,0))
+p1_fed = autoplot(model1_fed)
+p2_fed = autoplot(model2_fed)
+grid.arrange(p1_fed, p2_fed, ncol=1)
+```
+
+It is observed that both ARMA(2,4) and ARMA(2,0) models exhibit similar effectiveness in fitting the data. However, the ARIMA(2,1,4) model demonstrates a slight edge in performance as it has lower AIC and BIC.
+
+```{r,echo=FALSE}
+print(summary(model1_fed))
+```
+
+```{r}
+print(summary(model2_fed))
+```
+
+In the final analysis, a Likelihood Ratio Test (LRT) was conducted to compare the two models, ARMA(2,0) and ARMA(2,4). The test yielded a relatively small p-value, which strengthens our confidence to reject the null hypothesis (the simpler ARMA(2,0) model) in favor of the more complex ARMA(2,4) model.
+
+```{r,echo=FALSE}
+LLR_statistic_fed <- -2 * (logLik(model2_fed) - logLik(model1_fed))
+
+df_fed <- length(coef(model1_fed)) - length(coef(model2_fed))
+
+p_value_fed <- pchisq(LLR_statistic_fed, df_fed, lower.tail = FALSE)
+
+cat("LLR Statistic:", LLR_statistic_fed, "Degrees of Freedom:", df_fed, "P-value:", p_value_fed, "\n")
+
+```
+
+## Result analysis
+
+After adopting the ARIMA(2,1,4) model and analyzing the residuals, it's clear that, aside from a notable period around 1980, the residuals largely fluctuated around zero. This suggests a strong model fit for most of the timeframe. The exceptional volatility observed around 1980 hints at external influences or events not captured by the ARIMA model, indicating that additional factors beyond the model's scope may have contributed to the observed fluctuations during that period.
+
+```{r,echo=FALSE}
+model_fed <- model1_fed
+checkresiduals(model_fed)
+```
+
+We would use QQ plot to check the normality of the residuals.
+
+```{r,echo=FALSE}
+residuals_fed = residuals(model_fed)
+qqnorm(residuals_fed,main = "Normal QQ plot of ARMA(2,1,4) ")
+qqline(residuals_fed,probs = c(0.25,0.75))
+```
+
+According to the QQ plot above, we would know that the residuals are almost normal distribution with slightly heavy right tail, indicating that Gaussian White Noise assumption should not be rejected.
+
+After reintegrating the trend component back into our ARIMA(2,1,4) model's forecasts, we compared these adjusted predictions with the original observed data. This comparison revealed that our model performs commendably, closely mirroring the actual federal fund rates.
+
+```{r,echo=FALSE}
+fitted_values <- fitted(model_fed) + fed_low
+plot(Date, Fedfund, type = 'l', col = 'blue', xlab = 'Date', ylab = 'Fed Funds Rate', main = 'Fed Funds Rate: Observed vs. Fitted')
+lines(Date, fitted_values, col = 'red')
+legend('topright', legend = c('Observed', 'Fitted'), col = c('blue', 'red'), lty = 1)
+```
+
+# Regression with ARIMA errors
+
+In this section, we will build a regression model to examine the correlation between the unemployment rate and the Federal Funds Rate. Based on prior analysis, we can infer that the first difference of the Federal Funds Rate and the undifferenced unemployment are stationary series. Moreover, frequency analysis reveals no discernible seasonal trends in either series. Consequently, we opt for an ARIMA error model with no seasonal parameters. The regression model can be formulated as follows [7]: $$y_t=\beta_0+\beta_1 t+\beta_2x_t+\epsilon_t$$ where $y_t$ is unemployment rate, $x_t$ is differenced Federal Funds Rate, t is the time variable to see if trend our our model is significant, and $\epsilon_t$ is an error follow Guassian SARIMA process $SARIMA$. Now, let's construct an AIC table to select the best model. [8]
+
+```{r, echo=FALSE}
+interest = my_data_ff
+interest_t = strptime(interest$DATE,format = "%Y-%m-%d")[7:787]
+interest_val = interest$FEDFUNDS[7:787]
+unemployment_t = strptime(unemployment$DATE,format = "%Y-%m-%d")[85:865]
+unemployment_val = unemployment$UNRATE[85:865]
+diff_unemployment = c(0,diff(unemployment_val))
+diff_interest = c(0,diff(interest_val))
+
+aic_table <- function(y,x,P,Q){
+  trend <- time(y)
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- round(arima(x = y, order=c(p,1,q), xreg = cbind(trend,x))$aic, digit = 2)
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+                          paste("MA",0:Q, sep=""))
+  table
+}
+
+aic_table(unemployment_val, interest_val, 4, 4)
+```
+
+It seems that ARIMA(2,1,2) is an ideal option with pretty small AIC. ARIMA(4,1,2) has least AIC but it's a more complicated model. We can draw inverse root plot to compare the models:
+
+```{r, echo=FALSE}
+trend <- time(unemployment_val)
+model1 = arima(x = unemployment_val, order=c(2,1,2), xreg = cbind(trend,interest_val))
+model2 = arima(x = unemployment_val, order=c(4,1,2), xreg = cbind(trend,interest_val))
+p1_fed = autoplot(model1)
+p2_fed = autoplot(model2)
+grid.arrange(p1_fed,p2_fed,ncol=1)
+```
+
+Both model's inversed roots are in unit circles, indicating that the fitted models are both causal and invertible. For simplicity consideration, we select ARIMA(2,1,2) for our regression model.
+
+```{r, echo=FALSE}
+summary(model1)
+```
+
+In this table, we observe that the coefficient of the trend is extremely close to 0, indicating that we have effectively removed the trend from our series. Similarly, the intercept term is statistically insignificant (z-statistic = $0.0121/0.0183=0.6612$), suggesting a process with a mean of 0. Furthermore, the z-statistic of the Federal Funds Rate is $-0.0548/0.089 = -6.157$, indicating its significance in relation to the unemployment rate, demonstrating a negative correlation between the Federal Funds Rate and unemployment rate.
+
+It is evidently illogical to claim that reducing the Federal Funds Rate would lead to higher unemployment rates. Instead, we can infer that the unemployment rate serves as a crucial signal for the Federal Reserve's decisions regarding adjusting the Federal Funds Rate. Specifically, when the unemployment rate is high, the Federal Reserve is more inclined to decrease the Federal Funds Rate. Nevertheless, the coefficient of Federal Funds Rate is merely -0.0548, considerably smaller than the coefficients of other terms in the ARIMA(2,1,2) model. This suggests that the impact of the Federal Funds Rate is substantially less pronounced compared to the inherent fluctuations in unemployment rates themselves.
+
+We will now generate a residual plot to assess the consistency of the residuals with the assumptions of our model.
+
+```{r, echo=FALSE}
+checkresiduals(model1)
+```
+
+We note that the mean of the residuals adheres to a Gaussian distribution with an approximately zero mean, and the variance remains relatively stable over the specified time frame, consistent with the assumptions of our model. Additionally, the autocorrelation function (ACF) reveals a distinct lag at 2, corresponding to the MA(2) process in our model. Subsequently, we proceed to construct the cross-correlation function to explore whether the correlation between the two variables is affected by varying lag periods.
+
+```{r, echo=FALSE}
+ccf(diff_unemployment,diff_interest,ylab='CCF',lag = 20)
+```
+
+We observe the most notable negative correlation when the lag is -1, suggesting that the change of Federal Funds Rate may represent a short-term effect to employment. Across other lag periods, negative correlations are also evident, albeit with fewer positive correlations. This reinforces the inference drawn from the preceding regression analysis.
+
+# Conclusion
+During the development of models for the unemployment rate and the federal fund rate, we observed that the detrended series could be effectively fitted using ARMA models, demonstrating a strong fit across the dataset. Although the models struggled to capture the significant fluctuations around the years 1980, 2008, and 2020, this likely stems from unexpected factors.
+
+In the correlation model part, we learned that there is a significant negative correlation between the unemployment rate and the Federal Funds Rate by constructing a Regression with SARIMA error model. We hypothesize that the observed phenomenon stems from the central bank's interventions in response to extreme levels of unemployment. When unemployment rates deviate significantly from equilibrium, the central bank typically implements Federal Funds Rate adjustments to stabilize the market, resulting in a pronounced negative correlation between the two variables. Moreover, our cross-correlation function (CCF) chart reveals a short-term negative correlation, indicating rapid interactive changes between unemployment and Federal Funds Rate. This aligns with the central bank's strategy of continuously adapting Federal Funds Rate based on unemployment dynamics.
+
+Furthermore, economic indicators are influenced by a multitude of factors, rendering them complex and multifaceted. Our regression model underscores this complexity by demonstrating that the ARMA coefficients dominate the explainable variation, suggesting that a single variable alone cannot fully elucidate economic fluctuations. Despite the significant negative correlation observed between unemployment and Federal Funds Rate, the influence of Federal Funds Rate on unemployment pales in comparison to the inherent volatility of unemployment rates themselves.
+
+# Contribution:
+Member 1 - Modeling & Analysis of Unemployment Rate
+
+Member 2 - Modeling & Analysis of Federal Fund Rate
+
+Member 3 - Correlation & Causality Analysis
+
+# Reference
+
+[1] Bloomberg Report: <https://www.bloomberg.com/news/articles/2024-02-07/federal-reserve-officials-temper-expectations-for-rate-cuts-soon>
+This report summarizes the possible policy directions of the Fed's policy-setting committee in 2024. And pointed out that interest rate cuts may only begin after the second quarter.
+
+[2] Rational Expectations, the Real Rate of Interest, and the Natural Rate of Unemployment <https://www.jstor.org/stable/2534097>
+This article explains the correlation between the unemployment rate and the real interest rate through rigorous mathematical derivation and empirical research.
+
+[3] Federal Reserve Bank of St. Louis: Data Source of the study<https://fred.stlouisfed.org/series/UNRATE> <https://fred.stlouisfed.org/series/FEDFUNDS>
+
+[4] Has the Business Cycle Changed and Why? <https://www.journals.uchicago.edu/doi/abs/10.1086/ma.17.3585284>
+The paper investigates the significant decrease in the variability of real GDP growth in the United States from 1960 to 1983 to 1984 to 2001. It aims to understand this "great moderation" by analyzing various economic time series and proposes that improved policy, favorable economic shocks, and unidentified factors contribute to different business cycles.
+Frontiers of Business Cycle Research <https://www.degruyter.com/document/doi/10.1515/9780691218052/html>
+This empirical economics document uses data to analyze various factors that affect the business cycle, such as technological innovation, climate change, etc.
+
+[5] KPSS test <https://en.wikipedia.org/wiki/KPSS_test>
+
+[6] Loess smoothing method in R package <https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/loess>
+
+[7] PSU: Regression with SARIMA <https://online.stat.psu.edu/stat510/book/export/html/669>
+This guideline demonstrates the standard process of Regression with SARIMA. I referred to the model in section 8.1 of the article. Based on this foundation and the analysis of the previous two time series models, we constructed our own Regression with SARIMA model.
+
+[8] Part of the codes in this part is from Slides ch5 p29.

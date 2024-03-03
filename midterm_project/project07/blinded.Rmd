@@ -1,0 +1,456 @@
+---
+title: "An investigation into Detroit precipitation pattern since 1970"
+author: "Group7"
+date: "2024-02-23"
+output: html_document
+---
+
+
+# Introduction
+
+Since 1850, the average temperature of the Earth has increased by approximately 2°F, about 0.11°F per decade. However, from 1982, the global warming rate has accelerated to 0.36°F per decade. The year 2023 set a record as the hottest year since 1850, 2.12°F higher than the 20th-century average and 2.43°F higher than the pre-industrial average [1]. Current climate models indicate that rising temperatures will intensify water cycle of the Earth [2], and increased evaporation will result in more frequent and intense storms. In this report, we want to study whether the precipitations in Detroit are affected by global warming, and if so, what is the magnitude of the impact.
+
+According to the government report of Detroit [3], Detroit regularly faces the hazards of flooding, often caused by rainstorms. The frequency and intensity of severe storms have increased, and this trend will likely continue as the effects of climate change becomes more pronounced. Rainstorms and floods can lead to significant economic and societal disruptions, including flooding, infrastructure damage, and soil erosion. As such, monitoring daily precipitation levels, particularly extreme values, detecting periodic patterns and predicting the likelihood of heavy rainfall in the future are crucial. We collect daily precipitation data from January 1st, 1970, February 14th, 2024, observed at Detroit Metro Airport, Michigan, US [4] and use some time series techniques to analyze the data. After analyzing the time series, we can have a basic understanding of what level of preparedness and preventive actions to take.
+
+# Date Exploration and Processing
+
+First we read the data from National Centers for Environmental Information [4] and check the time series plot. We select the precipitation in Detroit, MI from January 1st 1970 to February 15th 2024, drop the missing values and convert it to millimeters. It is obvious from the plot that there is a periodic pattern of the peaks and we cannot deny that the time series is stationary. We will use the ACF plot to get a more conclusive answer later.
+
+```{r include=FALSE}
+library(readr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(stringr)
+library(dplyr)
+library(forecast)
+library(knitr)
+```
+
+```{r setup1, include = FALSE}
+knitr::opts_chunk$set(warning=FALSE)
+```
+
+```{r, echo = FALSE}
+data = read.csv('https://www.ncei.noaa.gov/data/daily-summaries/access/USW00094847.csv', header=TRUE)
+data = data %>% select(DATE, PRCP) %>% drop_na
+data$DATE = as.Date(data$DATE)
+data = data[data$DATE > as.Date("1969-12-31"), ]
+date = data$DATE
+prcp = data$PRCP / 10
+#data$order <- match(data$DATE, unique(sort(data$DATE)))
+#order = data$order
+plot(date, prcp, type='l', 
+     xlab = 'Date',
+     ylab = 'Precipitation',
+     main='Time Series Plot of Precipitation in Detroit from 1970 to 2024')
+```
+
+The maximum of daily precipitation over the past 54 years is:
+
+```{r, echo = FALSE}
+print(max(prcp))
+```
+
+back in 2014, marginally exceeded 100mm daily and can scarcely be categorized into violent shower according to [5], which will have catastrophic effects.
+
+
+# ARMA Modeling
+
+We want to fit an ARMA model for our time series data to examine the autoregressive, moving average patterns and forecast the future precipitation. The model can be defined as: \begin{align*}
+&\phi(B)(Y_n-\mu)=\psi(B)\mu_n, \\
+&\mu=\mathbb E[Y_n], \\
+&\phi(x) = 1-\phi_1x-\cdots-\phi_px^p, \\
+&\psi(x) = 1+\psi_1x+\cdots+\psi_qx^q, \\
+&\epsilon_n\sim\text{i.i.d.}\ \text{N}(0,\sigma^2)
+\end{align*} where $B$ is the backshift operator, i.e. $BY_n=Y_{n-1}$ from [6].
+
+## Model Selection
+
+To find the optimal model, we will experiment a set of models with different $p$ and $q$, then select the one with the least AIC value, which is defined as:
+
+```{=tex}
+\begin{equation}
+\text{AIC}=-2\times\ell(\theta^*)+2D,
+\end{equation}
+```
+where $\ell(\theta^*)$ is the maximized log likelihood and $D$ is the number of parameters according to [7]. The code below to tabulate the AIC values of models with different $p$ and $q$ is from [7]:
+
+```{r setup, warning=FALSE, echo = FALSE}
+aic_table <- function(data,P,Q){ 
+  table <- matrix(NA,(P+1),(Q+1)) 
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data,order=c(p,0,q), method="ML")$aic
+    } 
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+jan_low_table <- aic_table(prcp,5,5)
+kable(jan_low_table,digits=2)
+```
+
+The best model is AR(2), and the coefficients are:
+
+```{r, echo = FALSE}
+arma <- arima(prcp, order=c(2,0,0))
+arma
+```
+
+Thus our AR(2) model is: \begin{align*}
+Y_n=2.347+0.0955Y_{n-1}-0.0194Y_{n-2}+ \epsilon_n
+\end{align*} We also want to check the AR roots of our AR(2) model based on the methods from [6]. The modulus of both roots are greater than 1, indicating that they are both outside the complex unit circle. Hence our model is causal.
+
+```{r, echo = FALSE}
+AR_roots = polyroot(c(1, -0.0955, 0.0194))
+Mod(AR_roots)
+```
+
+## Residual Analysis
+
+For the AR(2) model we fit in the previous section, we want to examine if the residuals of the model have zero means, if they are uncorrelated and if they are normal. To check whether the residuals have zero means, we can plot the local average. We use the LOESS smoothing to do the local regression in the following code based on [8]. The local average plot is nearly a straight line with constant value 0, therefore the residuals exhibit good adherence to the zero-mean assumption.
+
+```{r, echo = FALSE}
+resids = residuals(arma)
+plot(resids, type='l', main='Residuals Time Plot of AR(2) with Local Averages', ylab='Residuals')
+loess_fit <- loess(resids ~ time(resids))
+smoothed_resids <- predict(loess_fit)
+lines(smoothed_resids, col = "red", lwd = 2)
+```
+
+Next we want to check the uncorrelation using two methods. The first method is the Ljung-Box tests in R to test the hypotheses [9]: \begin{equation}
+H_0:\text{The residuals are uncorrelated}\ \text{v.s.}\ H_1:\text{The residuals are not uncorrelated}
+\end{equation}
+
+```{r, echo = FALSE}
+Box.test(resids, type = "Ljung-Box")
+```
+
+The p value is 0.9876, much larger than the common significance level 0.05. Hence we fail to reject $H_0$, meaning that the residuals are uncorrelated. We can also plot the ACF of residuals [10]. We find that the ACF values for almost all the lags fall inside the blue bands, which indicates that the model has independent error terms.
+
+```{r, echo = FALSE}
+acf(resids, main='ACF of Residuals in AR(2)')
+```
+
+At last we use QQ-plot to test the normaility of residuals [11]. The QQ-plot we obtained is not a straight line, so the residuals do not satisfy the normality assumption.
+
+```{r, echo = FALSE}
+qqnorm(resids, main = "QQ-Plot of Residuals of AR(2)")
+```
+
+# Spectrum Analysis
+
+It is not difficult to see from the time series plot of precipitation that this
+time series data shows certain kind of periodicity. In order to look
+into its periodic behavior. We can use spectral analysis to discover underlying periodicities. 
+
+To perform spectral analysis, we must first transform data from time domain
+to frequency domain. The following is the spectral density which is the
+squared correlation between our time series and sine/cosine waves at the
+different frequencies spanned by the series [12]. We use periodogram to show the spectral densities.
+
+As for the method we use, Suppose $X_t$ is a linear process, so it can
+be written as $$ X_t = \sum_{i=0}^{\infty} \psi_i W_{t-i} = \psi(B) W_t. $$
+Consider the autocovariance sequence,
+$$ \gamma_h = \text{Cov}(X_t, X_{t+h}) $$
+$$ = \mathbb{E} \left[ \sum_{i=0}^{\infty} \psi_i W_{t-i} \sum_{j=0}^{\infty} \psi_j W_{t+h-j} \right] $$
+$$ = \sigma_w^2 \sum_{i=0}^{\infty} \psi_i \psi_{i+h}. $$
+
+Define the autocovariance generating function as
+$$ \gamma(B) = \sum_{h=-\infty}^{\infty} \gamma_h B^h. $$ Then,
+$$ \gamma(B) = \sigma_w^2 \sum_{h=-\infty}^{\infty} \sum_{i=0}^{\infty} \psi_i \psi_{i+h} B^h $$
+$$ = \sigma_w^2 \sum_{i=0}^{\infty} \sum_{j=0}^{\infty} \psi_i \psi_j B^{j-i} $$
+$$ = \sigma_w^2 \sum_{i=0}^{\infty} \psi_i B^{-i} \sum_{j=0}^{\infty} \psi_j B^j $$
+$$ = \sigma_w^2 \psi(B^{-1}) \psi(B). $$
+
+Note that $$ \gamma(B) = \sum_{h=-\infty}^{\infty} \gamma_h B^h. $$
+$$ f(\nu) = \sum_{h=-\infty}^{\infty} \gamma_h e^{-2\pi i \nu h} $$
+$$ = \gamma(e^{-2\pi i \nu}) $$
+$$ = \sigma_w^2 \psi(e^{-2\pi i \nu}) \psi(e^{2\pi i \nu}) $$
+
+For an AR(p) model, we have $\psi(B) = \frac{1}{\phi(B)}$, so
+$$ f(\nu) = \frac{\sigma_w^2}{\phi(e^{-2\pi i \nu}) \phi(e^{2\pi i \nu})} $$
+$$ = \frac{\sigma_w^2}{|\phi(e^{-2\pi i \nu})|^2}. $$
+$$ = \sigma_w^2 |\psi(e^{2\pi i \nu})|^2. $$
+
+## Unsmoothed Periodgram
+```{r,echo=FALSE}
+unsmooth = spectrum(prcp, main = "Unsmoothed Periodgram",xlab="frequency",sub="", plot=TRUE)
+```
+
+As we can see from the raw periodogram, it is really hard to define a dominant
+frequency since we cannot observe an obvious peak in the plot. Though we can
+compare the raw periodogram with using repeated rectangular smoothing
+windows to obtain a non-parametrically smoothed periodogram and the
+spectrum estimation via AR model picked by AIC [13].
+
+## Smoothing
+
+```{r,echo=FALSE}
+smooth_np = spectrum(prcp, spans = c(30,30), plot=FALSE)
+plot(smooth_np$freq, smooth_np$spec, type='l',
+     xlab='Frequency', ylab='Spectrum',
+     main='Non-parametric estimation')
+ar_fitted = spectrum(prcp, method="ar", main="Spectrum estimated via AR model picked by AIC", plot=TRUE)
+```
+
+## Frequency and Period
+
+From the smoothed estimation, we can observe a remarkable peak that is very close to 0, and the estimation via AR model displays downward trend. In the smoothed case, we can get the magnitude of the dominant frequency and the period of our precipitation data. The calculation results go as follows.
+
+```{r, echo=FALSE}
+cat("Dominant frequency for unsmoothed method is ", round(unsmooth$freq[which.max(unsmooth$spec)], 4))
+cat("Dominant frequency for smoothing method is ", round(smooth_np$freq[which.max(smooth_np$spec)], 4))
+cat("Dominant frequency for AR method is ", round(ar_fitted$freq[which.max(ar_fitted$spec)], 4))
+```
+
+After we get the dominant frequency, we can calculate the dominant
+period for each method.
+
+```{r, echo=FALSE}
+cat("Dominant period for unsmoothed method is ", round(1/unsmooth$freq[which.max(unsmooth$spec)], 3))
+cat("Dominant period for smoothing method is ", round(1/smooth_np$freq[which.max(smooth_np$spec)], 3))
+cat("Dominant period for AR method is ", round(1/ar_fitted$freq[which.max(ar_fitted$spec)], 3))
+```
+
+From the calculation, we can see that the dominant frequency obtained using unsmoothed method is almost the same as the smoothed one, while the dominant period obtained using AR method is exactly 0. This indicates that under AR method, the data set does not display any periodicity. So we are going to focus on the other two method. 
+
+After we calculate the dominant period using each method, the result is quite interesting. The period is very close to 370 days, which is a bit more than a year.
+
+# SARMA Modeling
+
+## Prepare Monthly Data and Check for Seasonality
+
+It is common for precipitation to be affected by months and seasons. In order to check whether there is seasonality pattern in this precipitation data, here we derive a monthly dataset that represents the average precipitation for each month from year 1970 to year 2023. We plot it out to observe potential patterns.
+
+```{r monthly_avg, echo = FALSE}
+dt <- read.csv('https://www.ncei.noaa.gov/data/daily-summaries/access/USW00094847.csv', header = TRUE)
+dt1 <- cbind(dt$DATE, dt$PRCP)
+dt1 <- as.data.frame(dt1)
+colnames(dt1) <- c("date", "prcp")
+dt1$date <- as.Date(dt1$date)
+dt1$prcp <- as.numeric(dt1$prcp)
+dt1$prcp <- dt1$prcp / 10
+
+dt1 <- subset(dt1, !is.na(prcp))
+dt2 <- subset(dt1, date >= as.Date("1970-01-01"))
+
+monthly_dt <- mutate(dt2, year = lubridate::year(date), month = lubridate::month(date))
+monthly_dt <- subset(monthly_dt, date < as.Date('2024-01-01'))
+#monthly_dt <- as.data.frame(cbind(monthly_dt$year, monthly_dt$month, monthly_dt$prcp))
+#colnames(monthly_dt) <- c('year','month','prcp')
+#monthly_avg_prcp <- aggregate(prcp ~ year + month, data = monthly_dt, FUN = mean)
+monthly_avg_prcp <- monthly_dt %>%
+  group_by(year, month) %>%
+  summarise(avg_prcp = mean(prcp))
+monthly_avg_prcp$avg_prcp <- round(monthly_avg_prcp$avg_prcp, 1)
+
+library(tidyr)
+monthly_avg_prcp_pivot <- pivot_wider(data = monthly_avg_prcp, 
+                                       names_from = month,
+                                       values_from = avg_prcp)
+colnames(monthly_avg_prcp_pivot)[-1] <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                                          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+#print(monthly_avg_prcp_pivot)
+prcp_dt <- as.vector(t(monthly_avg_prcp_pivot[,2:13]))
+time <- rep(monthly_avg_prcp_pivot$year, each = 12) + rep(0:11, nrow(monthly_avg_prcp_pivot))/12
+plot(prcp_dt ~ time, type = 'l', xlab = 'Time', ylab = 'Precipitation',
+     main = 'Precipitation in each month')
+```
+
+As illustrated in the plot, the monthly precipitation seems to have both stationary mean and stationary variance. Additionally, frequent oscillations may indicate that there tend to be higher precipitation in certain months and lower in others.
+
+We then use a autocorrelation plot to further investigate the seasonality pattern.
+
+```{r seasonal_acf, echo = FALSE}
+acf(prcp_dt, main = 'ACF plot of monthly precipitation')
+```
+
+Although the autocorrelation coefficients are mostly around the boundary of significance, we may still observe a possible period of 12 months. This indicates that fitting a seasonal autoregressive moving average model may be appropriate.
+
+## Seasonal Autoregressive Moving Average (SARMA) Model
+
+A $SARMA(p,q) \times (P,Q)_k$ model [14] for a certain period $k$ refers to 
+
+$$
+\phi(B) \Phi(B^k)(Y_n - \mu) = \psi(B) \Psi(B^k) \epsilon_n,
+$$
+
+where $B$ is the backshift operator, $\{\epsilon_n\}$ is a white noise process and
+
+$$
+\begin{aligned}
+&& \mu & = \mathbb{E} [Y_n] \\
+&& \phi(x) & = 1 - \phi_1 x - \cdots - \phi_p x^p \\
+&& \psi(x) & = 1 + \psi_1 x + \cdots + \psi_q x^q \\
+&& \Phi(x) & = 1 - \Phi_1 x - \cdots - \Phi_P x^P \\
+&& \Psi(x) & = 1 + \Psi_1 x + \cdots + \Psi_Q x^Q.
+\end{aligned}
+$$
+
+According to what is observed in the ACF plot, it is appropriate to choose the period in our SARMA model to be 12 months.
+
+## Fitting ARMA Model for Monthly Precipitation Data
+
+We start with determining the value of $p$ and $q$ by comparing the AIC result of fitting different $ARMA(p,q)$ model ($p, q = 0,1,2,3,4$) on monthly precipitation data.
+
+```{r arma_monthly, echo = FALSE}
+aic_table <- function(data,P,Q){
+  table <- matrix(NA, (P+1), (Q+1))
+    for(p in 0:P){
+      for(q in 0:Q){
+        table[p+1, q+1] <- arima(data, order = c(p,0,q))$aic
+      }
+    }
+    dimnames(table) <- list(paste('AR', 0:P, sep = ''),
+                            paste('MA', 0:Q, sep = ''))
+    table
+}
+prcp_aic_table <- aic_table(prcp_dt, 4,4)
+require(knitr)
+kable(prcp_aic_table, digits = 2)
+```
+
+Based on the AIC criteria, ARMA(3,3), ARMA(3,4) and ARMA(4,2) may be candidate models for fitting monthly precipitation data. We will then check their AR roots and MA roots.
+
+```{r roots, echo = FALSE}
+arma33 <- arima(prcp_dt, order = c(3,0,3))
+ar33_roots <- polyroot(c(1,-coef(arma33)[c('ar1','ar2','ar3')]))
+ma33_roots <- polyroot(c(1,coef(arma33)[c('ma1','ma2','ma3')]))
+
+arma34 <- arima(prcp_dt, order = c(3,0,4))
+ar34_roots <- polyroot(c(1,-coef(arma34)[c('ar1','ar2','ar3')]))
+ma34_roots <- polyroot(c(1,coef(arma34)[c('ma1','ma2','ma3','ma4')]))
+
+arma42 <- arima(prcp_dt, order = c(4,0,2))
+ar42_roots <- polyroot(c(1,-coef(arma42)[c('ar1','ar2','ar3', 'ar4')]))
+ma42_roots <- polyroot(c(1,coef(arma42)[c('ma1','ma2')]))
+```
+
+```{r print_roots, echo = FALSE}
+print('AR roots for ARMA(3,3)')
+print(ar33_roots)
+print('MA roots for ARMA(3,3)')
+print(ma33_roots)
+print('AR roots for ARMA(3,4)')
+print(ar34_roots)
+print('MA roots for ARMA(3,4)')
+print(ma34_roots)
+print('AR roots for ARMA(4,2)')
+print(ar42_roots)
+print('MA roots for ARMA(4,2)')
+print(ma42_roots)
+```
+
+We can see that the AR roots and MA roots of ARMA(3,3) model fall outside the unit circle, and this model has relatively simpler structure than the other two. Therefore, we will choose $p = 3$ and $q = 3$, and further build SARMA model based on this result.
+
+## Choosing Q for SARMA Model
+
+Now that we get the best ARMA model for monthly precipitation data, we can also use AIC criteria to choose $P$ and $Q$ in our SARMA model. However, since the parameter estimation during model fitting fails to converge when $P > 1$, we can only choose $P = 1$. By fitting several SARMA models based on ARMA(3,3) for $P=1$ and a range of different values of $Q$ (from 0 to 2), we can choose the one that corresponds to the lowest AIC as the best SARMA model for our data.
+
+```{r sarma_fitting, echo = FALSE}
+sarma303100 <- arima(prcp_dt, order = c(3,0,3), seasonal = list(order = c(1,0,0), period = 12))
+sarma303101 <- arima(prcp_dt, order = c(3,0,3), seasonal = list(order = c(1,0,1), period = 12))
+sarma303102 <- arima(prcp_dt, order = c(3,0,3), seasonal = list(order = c(1,0,2), period = 12))
+```
+
+```{r sarma_aic1, echo = TRUE}
+sarma303100$aic
+```
+
+```{r sarma_aic2, echo = TRUE}
+sarma303101$aic
+```
+
+```{r sarma_aic3, echo = TRUE}
+sarma303102$aic
+```
+
+Based on the AIC results of SARMA models above, $SARMA(3,0,3) \times (1,0,0)_{12}$ has the lowest AIC, thus can be our optimal SARMA model. The estimated coefficients of this model are shown as follows.
+
+```{r sarma303100, echo = FALSE}
+sarma303100
+```
+
+## Diagnostic Analysis of SARMA Model
+
+Next we need to perform some diagnostic analyses of this SARMA model. First, we check the correlation coefficients between model residuals to see whether they are uncorrelated.
+
+```{r sarma_res_acf, echo = FALSE}
+acf(sarma303100$residuals, main = 'ACF plot of SARMA model residuals')
+```
+
+As illustrated in the ACF plot, autocovariance coefficients of the residuals are all insignificant and do not show notable periodic patterns. We can draw the conclusion that residuals are almost uncorrelated.
+
+Then we use QQ-plot to check whether the residuals follow normal distribution.
+
+```{r sarma_qqplot, echo = FALSE}
+qqplot(qnorm(ppoints(length(sarma303100$residuals))), sarma303100$residuals,
+       xlab = 'Theoretical Quantiles',
+       ylab = 'Empirical Quantiles',
+       main = 'QQ-plot of SARMA residuals')
+qqline(sarma303100$residuals)
+```
+
+The QQ-plot shows that the distribution of the residuals has slightly lighter left and right tails than normal distribution. However, since most of the points fall on the qqline, we conclude that residuals are nearly normally distributed.
+
+# Conclusion
+
+In this project, we intend to assess the potential shifts in Detroit's precipitation patterns after 1970, within the context of escalating global warming and the rise in extreme weather events in the Great Lake region. Using publicly available precipitation datasets, we conducted a comprehensive analysis of both daily and monthly time series data related to Detroit's precipitation to uncover notable patterns.
+
+Our analysis yields several findings. Firstly, the precipitation in Detroit after 1970 exhibits mean stationarity and variance stationarity. This pattern appears to be independent of the increasing precipitation and storm events observed in the Great Lake regions. With this feature, we suppose that an Autoregressive Moving Average (ARMA) model is suitable for modeling the daily precipitation data. After parameter selection based on AIC criteria, we identify ARMA(2,0) model as optimal. Using the results from [15], we conclude that the precipitation in Detroit appears to have a pseudo-cyclic behavior with a cycle of $1/f_0$, where \begin{equation}
+f_0=\dfrac{1}{2\pi}\cos^{-1}\left(\dfrac{\phi_1}{2\sqrt{-\phi_2}}\right)=0.1943,
+\end{equation} and the autocorrelations oscillate in a sinusoidal envelope with a frequency of $f_0$. In a nutshell, the data indicates a consistent level of precipitation throughout all observed years, also suggesting a continuation of this pattern in the future.
+
+Furthermore, our spectrum analysis shows that the dominant frequency for unsmoothed method is 370.28 days per cycle and 378.78 days per cycle for smoothing method, both a little more than a year. The cycle that represents precipitation is one year, which is not exactly the same as what we expected. This is out of expectation because with global warming and climate change, heavy rainfall in Detroit will become more frequent and the cycle is expected to be shortened. This annual pattern is consistent with seasonal changes and reflects the climate characteristics of the region, including the combined effects of factors such as seasonal temperature changes, humidity, and atmospheric circulation patterns [16].
+
+This spectrum investigation paves a way for fitting a seasonal model based on monthly averaged precipitation data. Using AIC criteria once again, we find the ARMA(3,3) model as the most suitable for monthly precipitation data. Additionally, incorporating seasonality, the best SARMA model appears to be SARIMA$(3,0,3)\times(1,0,0)_{12}$, which is both causal and invertible while ensuring the validity of residual assumptions. The good performance of the SARMA model fitting suggests that there does not exist notable shifts in precipitation patterns in Detroit since 1970.
+
+In conclusion, our analysis indicates that the precipitation dynamics in Detroit remain stable despite the escalating global warming and increasing regional weather events.
+
+Our study has some limitations:
+
+1. The residuals of our AR(2) model picked by AIC criterion are not normally distributed, and the cycle of our AR(2) model is much shorter than the result obtained from spectrum analysis. There will be some limitations when we want to forecast extreme weathers in the future.
+
+2.  In the spectrum analysis, we divided the data into two parts with the year 2000 as the dividing line. After obtaining their dominant period and dominant frequency by performing spectral analysis on the two periods respectively. However, the results are not good as we expected, and there is no obvious peak in the periodogram. Therefore, there is a lack of comparison in the description of frequency and period, which makes it less convincing. 
+
+3. In the SARMA modeling part, we use averaging to obtain monthly data. However, there may be more appropriate methods to process the data for analyzing precipitation pattern change and extreme weathers.
+
+
+# References
+
+[1] <https://www.climate.gov/news-features/understanding-climate/climate-change-global-temperature>
+
+[2] <https://gpm.nasa.gov/resources/faq/how-does-climate-change-affect-precipitation>
+
+[3] <https://detroitmi.gov/departments/homeland-security-emergency-management-detroit/severe-weather-warnings-safety-tips-and-resources/severe-weather-hazards-safety-tips/floods>
+
+[4] <https://www.ncei.noaa.gov/data/daily-summaries/access>
+
+[5] <https://water.usgs.gov/edu/activity-howmuchrain-metric.html>(https://water.usgs.gov/edu/activity-howmuchrain-metric.html#){.uri}#:\~:text=Slight%20rain%3A%20Less%20than%200.5,than%208%20mm%20per%20hour.
+
+[6] <https://ionides.github.io/531w24/04/notes.pdf>
+
+[7] <https://ionides.github.io/531w24/05/notes.pdf>
+
+[8] <http://r-statistics.co/Loess-Regression-With-R.html>
+
+[9] <https://stat.ethz.ch/R-manual/R-devel/library/stats/html/box.test.html>
+
+[10] <https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/acf>
+
+[11] <https://www.rdocumentation.org/packages/EnvStats/versions/2.3.1/topics/qqPlot>
+
+[12] Venables, W.N. and Ripley, B.D. (2002) Modern Applied Statistics with S. Springer, New York, 271-300. <https://doi.org/10.1007/978-0-387-21706-2>
+
+[13] <https://ionides.github.io/531w24/07/notes.pdf>
+
+[14] Lecture slides chapter 6. <https://ionides.github.io/531w24/06/slides.pdf>
+
+[15] <https://sjmiller8182.github.io/LearningTS/build/autoregressive_models.html>
+
+[16] Mallakpour, I., Villarini, G. Analysis of changes in the magnitude, frequency, and seasonality of heavy precipitation over the contiguous USA. Theor Appl Climatol 130, 345–363 (2017). <https://doi.org/10.1007/s00704-016-1881-z>
+
+

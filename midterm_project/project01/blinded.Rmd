@@ -1,0 +1,308 @@
+---
+title: "STATS531 W24 Midterm Project\nTime Series Analysis on Traffic Accident Record in NYC"
+output: 
+  rmdformats::robobook:
+    highlight: kate
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: false  
+    code_folding: "hide"
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+if (!requireNamespace("rmdformats", quietly = TRUE)) {
+  install.packages("rmdformats")
+}
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+if (!requireNamespace("knitr", quietly = TRUE)) {
+  install.packages("knitr")
+}
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+if (!requireNamespace("TTR", quietly = TRUE)) {
+  install.packages("TTR")
+}
+if (!requireNamespace("tseries", quietly = TRUE)) {
+  install.packages("tseries")
+}
+if (!requireNamespace("ggrepel", quietly = TRUE)) {
+  install.packages("ggrepel")
+}
+if (!requireNamespace("forecast", quietly = TRUE)) {
+  install.packages("forecast")
+}
+if (!requireNamespace("lubridate", quietly = TRUE)) {
+  install.packages("lubridate")
+}
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(TTR)
+library(tseries)
+library(ggrepel)
+library(forecast)
+library(lubridate)
+```
+
+## Introduction
+
+Every year, several people are injured on the streets due to various reasons such as speeding, alcohol, and distracted driving [1]. To reduce the number of people injured and killed on the streets, both short-term and long-term solutions, especially addressing the root causes, are needed. Understanding the root cause by analyzing historical data and detecting patterns and insights is crucial for developing a well-structured plan.
+
+In this study, we will investigate motor vehicle collision data to determine whether the number of people injured exhibits seasonal variation and is thus predictable by the SARIMA model. This could help in planning and implementing more effective safety measures.
+
+## Data Exploration
+
+We use motor vehicle collision data from New York City from NYC OpenData [2]. We processed this data to finalize the monthly total number of people injured by vehicles from 2013 to 2023.
+
+```{r message=FALSE, fig.align = "center"}
+Collision_data <- read.csv("Motor_Vehicle_Collisions_-_Crashes_20240220.csv")
+Collision_data$date <- as.Date(Collision_data$date, format="%m/%d/%Y")
+Collision_data <- Collision_data %>% filter(date >= as.Date("2013-01-01")) %>% filter(date < as.Date("2024-01-01"))
+
+monthly_data <- Collision_data %>%
+  group_by(year = year(date), month = month(date)) %>%
+  summarise(person_injured = sum(person_injured)) %>%
+  ungroup() %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-"))) %>%
+  select(date, person_injured)
+
+ggplot(monthly_data, aes(x = date, y = person_injured)) +
+  geom_line() +
+  labs(title = "Data Overview", x = "Year", y = "Number of People Injured") +
+  theme_minimal() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+From the figure above, we can see that there is likely a seasonal trend in the number of people injured. We attempt to differentiate between the seasonal and trend components using the decompose function [3]. Identifying these components can help in understanding the underlying factors contributing to the injuries.
+
+```{r fig.align = "center"}
+person_injured_ts <- ts(monthly_data$person_injured, frequency = 12, start=c(2013, 1, 1))
+person_injured_comp <- decompose(person_injured_ts)
+plot(person_injured_comp)
+```
+
+
+The figure above shows the decomposition of the data into trend and seasonal components. The trend levelled off before and after the COVID time, while the largest dip occurred concurrently with COVID-19 hitting the city [4]. Closer examination of the seasonal trend reveals a consistent pattern with a period of exactly one year, with the highest and lowest peaks occurring in June and February, respectively. This behavior correlates with the volume of pedestrians, which is directly affected by the weather within a year [4].
+
+
+The figure above shows the decomposition of the data into trend seasonal components. The trend was leveled during before and after covid time, while the biggest dip happened at the same time that Covid-19 hit the city [4]. If we look closer into the seasonal trend, we can the pattern has the period at exactly 1 year, where the highest peak and the lowest peak occur in June and February respectively. This behavior is correlated to the volume of pedestrian that directly affected by the weather within a year [5].
+
+## Model Selection
+
+In this section, we aim to find the appropriate model that fits the data on people injured.
+
+```{r fig.align = "center"}
+acf(monthly_data$person_injured, main="ACF of Number of People Injured")
+```
+
+The ACF plot shows non-stationarity in the data, which is undesirable. We explore using the first-order difference to detrend the data and potentially obtain a stationary pattern:
+
+$$z_n = \Delta y_n = y_n - y_{n-1}$$ 
+
+where $z_n$ is the first order difference of the data $y_n$
+
+```{r fig.align = "center"}
+ggplot(monthly_data, aes(x = date, y = c(0, diff(person_injured)))) +
+  geom_line() +
+  geom_smooth(method = 'lm',
+              formula = y ~ x) +
+  xlab("Year") +
+  ylab("Difference of Number of People Injured") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+```{r fig.align = "center"}
+acf(diff(monthly_data$person_injured))
+```
+
+The time series plot of the first-order difference shows fluctuations around zero value, indicative of stationarity. Also, the ACF plot suggests that a stationary model is suitable for describing the first difference of the data. At lag = 12, the first-order difference of the data shows a high value of autocorrelation, indicating a yearly seasonal component in the number of people injured.
+
+```{r warning=FALSE}
+adf.test(diff(person_injured_ts))
+```
+
+By using ADF test, the result help verify that the first order difference of the number of people injured from vehicle is stationary. Therefore, we will select appropriate model from ARIMA with $d = 1$ from the following AIC table [6].
+
+```{r warning=FALSE}
+create_aic_arima_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data,order=c(p,1,q))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+
+aic_arima_table <- create_aic_arima_table(person_injured_ts,4,4)
+kable(aic_arima_table,digits=2)
+```
+
+We observe from ARIMA$(p,1,2)$ model where $p = 0,1,2$ the AIC value consistently decreases as parameter $p$ increases before the AIC goes up again after ARIMA$(3,1,2)$ model. Also, in ARIMA$(3,1,q)$ where $q = 0,1$ as parameter $q$ increases, AIC consistently decrease until ARIMA$(3,1,2)$ before rising again. This consistent pattern happens with ARIMA$(4,1,3)$ as well, which makes it be another good candidate. Due to the close AIC values of ARIMA$(3,1,2)$ and ARIMA$(4,1,3)$ (1976.02 and 1968.68), we employ a likelihood ratio test for nested hypotheses to determine the statistical difference between them [7].
+
+$$H^{\langle0\rangle} : \theta \in \Theta^{\langle0\rangle}$$
+$$H^{\langle1\rangle} : \theta \in \Theta^{\langle1\rangle}$$
+
+where $\Theta^{\langle0\rangle}$ and $\Theta^{\langle1\rangle}$ are ARIMA$(3,1,2)$ and  ARIMA$(4,1,3)$ parameter spaces respectively.
+
+Then, we can use maximized log likelihood to test the hypothesis
+
+$$2(l^{\langle1\rangle} - l^{\langle0\rangle}) =2(sup_{\theta\in\Theta^{\langle1\rangle}}l(\theta)-sup_{\theta\in\Theta^{\langle0\rangle}}l(\theta))  \approx \chi^2_{D^{\langle1\rangle}-D^{\langle0\rangle}}$$
+
+where $\chi^2_d$ is a chi-squared random variable on $d$ degrees of freedom
+
+```{r}
+arima312_fit <- arima(person_injured_ts,order=c(3,1,2))
+arima413_fit <- arima(person_injured_ts,order=c(4,1,3))
+
+LR <- 2 * (arima413_fit$loglik - arima312_fit$loglik)
+
+df <- length(coef(arima413_fit)) - length(coef(arima312_fit))
+
+p_value <- pchisq(LR, df, lower.tail = FALSE)
+
+cat("Likelihood Ratio Test Statistic:", LR, "\n", 
+    "Degrees of Freedom:", df, "\n", 
+    "P-value:", p_value)
+```
+
+The result show P-value at $0.003$, meaning that there is a significant difference between ARIMA$(3,1,2)$ and ARIMA$(4,1,3)$. Therefore, we choose ARIMA$(4,1,3)$ for the preferred model to fit the people injured data.
+
+```{r fig.align = "center"}
+arima_fit <- arima(person_injured_ts, order = c(4, 1, 3))
+summary(arima_fit)
+```
+
+Then, since previously we notice about seasonal pattern at lag = 12, we explore another appropriate model using SARIMA model. As we choose ARIMA$(4,1,3)$ in the previous step, we will scope the SARIMA model choices by exploring AIC value of only SARIMA$(4,1,3)(P,0,Q)_{12}$ where $P$ and $Q$ are SAR and SMA parameters respectively.
+
+```{r warning=FALSE}
+create_aic_sarima_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data, order=c(4,1,3), seasonal=c(p,0,q))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+
+aic_sarima_table <- create_aic_sarima_table(person_injured_ts,3,3)
+kable(aic_sarima_table,digits=2)
+```
+
+With the same pattern of inspecting AIC table from ARIMA model, we can choose the approriate SARIMA model with parameter P = 1 and Q = 1 since its has the lowest AIC value. 
+
+```{r fig.align = "center"}
+sarima_fit <- arima(person_injured_ts, order=c(4,1,3), seasonal=c(1,0,1))
+summary(sarima_fit)
+```
+
+Currently we have ARIMA$(4,1,3)$ model at AIC equals 1968.68 and SARIMA$(4,1,3)(1,0,1)_{12}$ at AIC equals 1934.25. Unfortunately, we cannot compare the two models by purely using AIC as they are using the different amount of differencing. So we will reuse the likelihood ratio test for nested hypothesis to see if they are statistically different [7].
+
+```{r}
+LR <- 2 * (sarima_fit$loglik - arima_fit$loglik)
+
+df <- length(coef(sarima_fit)) - length(coef(arima_fit))
+
+p_value <- pchisq(LR, df, lower.tail = FALSE)
+
+cat("Likelihood Ratio Test Statistic:", LR, "\n", 
+    "Degrees of Freedom:", df, "\n", 
+    "P-value:", p_value)
+```
+
+The result show P-value very close to zero, meaning that SARIMA model is statistically different from ARIMA model. Therefore, we finalize the model selection with SARIMA$(4,1,3)(1,0,1)_{12}$ model.
+
+## Diagnostics
+
+```{r fig.align = "center"}
+fitted_values <- fitted(sarima_fit)
+
+plot_data <- data.frame(Date = monthly_data$date,
+                        Actual = as.numeric(monthly_data$person_injured),
+                        Fitted = as.numeric(fitted_values),
+                        Residual = as.numeric(sarima_fit$residuals))
+
+ggplot(plot_data, aes(x = Date, y = Residual)) +
+  geom_line() +
+  labs(title = "Residuals from SARIMA(4,1,3)(0,1,1)[12]", x = "Year", y = "The number of People Injured") +
+  theme_minimal() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+We compute the residuals from the SARIMA model and plot them over time to assess the behavior. Excluding outliers from early 2020 due to COVID-19, the residuals appear symmetric around zero, adhering to the zero-mean assumption.
+
+```{r fig.align = "center"}
+acf(plot_data$Residual, main="ACF of Residuals from SARIMA model")
+```
+```{r fig.align = "center"}
+qq_data <- plot_data %>%
+  mutate(Theoretical = qqnorm(Residual, plot.it = FALSE)$x,
+         Sample = qqnorm(Residual, plot.it = FALSE)$y) %>%
+  mutate(Label = ifelse(abs(scale(Residual)) > 2.5, as.character(Date), ''))
+
+ggplot(qq_data, aes(x = Theoretical, y = Sample)) +
+  geom_point() +
+  geom_text_repel(aes(label = Label), nudge_x = 0.5, nudge_y = 0.5, size = 3) +
+  geom_qq_line(aes(sample = Residual), color = "red") +
+  labs(title = "Q-Q Plot of Residuals", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+The ACF plot for residuals indicates that the model's error conforms to the white noise assumption, as all autocorrelation values fall within the confidence interval. Furthermore, the Q-Q plot of residuals demonstrates that, aside from two extreme outliers in March and April 2020, they align well with the normality assumption and the qqline.
+
+## Forecasting
+
+```{r fig.align = "center"}
+future_forecast <- forecast(sarima_fit, h = 24)
+
+autoplot(future_forecast) +
+  labs(title = "People Injured Forecasts from SARIMA(4,1,3)(1,0,1)[12]", x = "", y = "") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+Using the fitted SARIMA model on the people injured data, we predict future data for the next 24 months [8]. The dark and light blue colors in the figure represent the ranges of predicted values at 80% and 95% confidence levels, respectively. Despite the broad confidence intervals, a clear annual fluctuation pattern is discernible. This information enables public departments responsible for traffic infrastructure and rules to delve deeper into the causality behind these patterns and devise solutions to reduce traffic-related injuries.
+
+## Conclusion
+
+In conclusion, this study has successfully utilized historical motor vehicle collision data to explore and identify seasonal trends in the number of people injured in New York City. Through careful data exploration, model selection, and diagnostic processes, we have established that the SARIMA(4,1,3)(1,0,1)12 model best fits the seasonal patterns observed in the data. The findings highlight the importance of incorporating seasonal variations into traffic safety planning and intervention strategies. By predicting future trends, public safety departments can allocate resources more effectively and implement targeted measures at times when the risk of injury is highest. Ultimately, this research contributes to the ongoing efforts to enhance road safety and reduce the incidence of traffic-related injuries, highlighting the critical role of data-driven decision-making in public health and safety initiatives.
+
+## Sources
+
+[1] https://www.who.int/news-room/fact-sheets/detail/road-traffic-injuries
+
+[2] https://data.cityofnewyork.us/Public-Safety/Motor-Vehicle-Collisions-Crashes/h9gi-nx95/about_data
+
+[3] https://rpubs.com/davoodastaraky/TSA1
+
+[4] https://www.nyc.gov/site/doh/covid/covid-19-data-totals.page
+
+[5] https://www.sciencedirect.com/science/article/pii/S2352146516300473/pdf?md5=e18c35a7e46868caeb5344403a491bd6&pid=1-s2.0-S2352146516300473-main.pdf
+
+[6] https://ionides.github.io/531w21/midterm_project/project02/project.html
+
+[7] https://ionides.github.io/531w24/05/notes.pdf
+
+[8] https://ionides.github.io/531w22/midterm_project/project17/blinded.html
+
+_R Markdown formatting_
+
+- https://bookdown.org/yihui/rmarkdown/html-document.html#figure-options
+
+- https://github.com/juba/rmdformats?tab=readme-ov-file#robobook
+
+_Proofreading and debugging_
+
+- ChatGPT

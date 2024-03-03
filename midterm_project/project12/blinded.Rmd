@@ -1,0 +1,421 @@
+---
+title: "Investigating Trends in Household Electricity Consumption"
+date: "2024-02-20"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    number_sections: true
+  pdf_document:
+    toc: true
+  word_document:
+    toc: true
+---
+
+# Introduction
+Household electricity consumption stands as a pivotal economic metric, profoundly intertwined with both individuals’ living standards and societal progress. Delving into pertinent datasets enables us to gain insights into the consumption patterns and fluctuations across temporal scopes, thereby elucidating its influential determinants. Research in the field of household electricity consumption time series data serves as crucial reference for energy policy formulation and resource allocation, fostering societal sustainable development.
+
+## Objectives
+
+- To understand the underlying patterns in the Household Electric Power Consumption time series
+- To fit ARIMA models to these time series data, find the best fitting model and interpret the results.
+
+# Data Sources
+
+The data set utilized in our report originates from a public data repository managed by UCI Machine Learning and made accessible through Kaggle. It consists of a meticulously structured CSV file that can be obtained from the designated [Kaggle link](https://www.kaggle.com/datasets/uciml/electric-power-consumption-data-set/data). The dataset captures electric power consumption within a single household, with measurements recorded at a one-minute sampling rate spanning nearly four years. It contains various electrical metrics alongside sub-metering values. However, our primary focus centers on the total global household electric power daily consumption.
+
+In total, the dataset has 2,075,259 records collected from December 2006 to November 2010, covering a duration of 47 months.
+
+## Setup
+
+Before proceeding with the analysis, we need to ensure that all necessary packages are installed and loaded. Additionally, we will read the data from the specified URLs to make it accessible for our analysis.
+
+```{r setup, message=FALSE, warning=FALSE,echo=FALSE}
+# Install necessary packages if not already installed
+if (!require("forecast")) install.packages("forecast")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("readr")) install.packages("readr")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("knitr")) install.packages("knitr")
+if (!require("lubridate")) install.packages("lubridate")
+
+# Load the packages
+library(tidyverse)
+library(forecast)
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(knitr)
+library(lubridate)
+```
+
+## Data Preprocessing
+```{r Load data, echo=FALSE}
+houseCons = read.table("https://github.com/hanyilMilo/STATS-531-Midterm-DATA/raw/main/household_power_consumption.txt", header = TRUE, sep = ";", na.strings = "", stringsAsFactors = FALSE)
+```
+
+### Missing values
+
+Approximately 1% of the data is missing. Due to the dataset's one-minute sampling rate, simply dropping individual rows with missing data could potentially lead to significant fluctuations in daily power consumption. Given the substantial volume of data samples, we have opted to exclude all dates with any missing data
+
+```{r Handle missing values}
+isna = sum(rowSums(is.na(houseCons)) > 0)
+dates_with_na <- unique(houseCons$Date[apply(is.na(houseCons), 1, any)])
+houseCons_cleaned <- houseCons[!houseCons$Date %in% dates_with_na, ]
+```
+
+### Fix datatypes and aggregate the dataset appropriately
+
+All columns were initially represented as character data types. For later usage, we transformed them into daily time series. Note that when grouped by date, we are given the fluctuating power instead of energy. Meanwhile, the description indicates it's the household global minute-averaged active power (in kilowatts), so it still makes sense to aggregate the data numerically by summing it up.
+
+```{r Transformed into daily ts}
+housePower = houseCons_cleaned[, c("Date", "Global_active_power")]
+
+housePower$Date <- as.Date(housePower$Date, format = "%d/%m/%Y")
+housePower$Date <- as.POSIXct(housePower$Date)
+
+housePower$Global_active_power <- as.numeric(housePower$Global_active_power)
+
+housePower_daily <- housePower %>%
+  group_by(Date) %>%
+  summarize(Global_active_power = sum(Global_active_power, na.rm = TRUE))
+```
+
+### Detect the outliers
+
+Here is the summarise information of our data set:
+```{r data summarise}
+summary(housePower_daily$Global_active_power)
+```
+
+In analyzing the summary statistics of the dataset, it's evident that there is a notable variation in the range of values. The minimum value appears to be significantly lower than the median and mean, suggesting potential outliers at the lower end of the distribution. Meanwhile, the maximum value stands out considerably above the upper quartile, indicating possible outliers at the higher end. Given this observation, it becomes imperative to consider handling outliers to ensure the robustness and accuracy of subsequent analyses.
+
+Z-scores were computed by standardizing the global active power values. A threshold of 3 was chosen to identify extreme outliers. Dates with global active power values exceeding this threshold were considered outliers and subsequently removed from the dataset. 
+
+For the same reasons as when handling missing values, all dates associated with outliers were removed.
+
+```{r detect the outliers}
+z_scores <- scale(housePower_daily$Global_active_power)
+threshold <- 3
+outliers_index <- which(abs(z_scores) > threshold)
+
+#delete all the dates with outliers
+cleaned_housePower_daily <- housePower_daily[-outliers_index, ]
+
+summary(cleaned_housePower_daily$Global_active_power)
+
+```
+
+### Subsample the data
+
+Handling large amounts of data requires significant computational resources and time. Therefore, we subsampled the data by selecting every other day to reduce the number of samples to below 1000 records.
+
+```{r Subsample the data to less than 1k records, warning=FALSE}
+org_dim = dim(cleaned_housePower_daily)
+housePower_daily <- cleaned_housePower_daily[seq(1, nrow(cleaned_housePower_daily), by = 2), ]
+new_dim = dim(housePower_daily)
+```
+Now we have obtained a structured time series representing the total global household electric power daily consumption (in kilowatts).
+
+```{r, echo=FALSE, warning=FALSE}
+library(lubridate)
+housePower_daily$Date <- as.Date(housePower_daily$Date, "%Y-%m-%d %H:%M:%S")
+
+# aggregate by month
+power_mon <- housePower_daily %>%
+  mutate(Month = floor_date(Date, "month")) %>%
+  group_by(Month) %>%
+  summarise(Monthly_Consumption = sum(Global_active_power))
+```
+
+# EDA and Model Specification
+
+We first explore the distribution of the daily average of the global house data:
+
+```{r distribution of the housePower_daily ts}
+# line graph 
+plot(housePower_daily$Date, housePower_daily$Global_active_power, xlab = 'Date', ylab = 'Global Active Power (kilowatt per day)', type = 'l', col = 'aquamarine3')
+
+
+```
+
+From the line graph above, it is evident that the time series exhibits a highly non-stationary pattern in its mean, yet appears to be stationary in terms of variance. Therefore, we plan to difference the data in our subsequent analysis.
+
+There are indications of potential seasonality patterns present in its distribution, although the trend is not immediately apparent at this stage.
+
+We create box plots for the monthly and yearly Global_active_power：
+
+```{r boxplots}
+library(lubridate)
+housePower_daily <- housePower_daily %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date))
+
+# boxplot group by month
+housePower_daily %>%
+  ggplot(aes(x = factor(month), y = Global_active_power, group = month)) +
+  geom_boxplot(fill = "aquamarine3", color = "black") +
+  labs(x = "Month", y = "Global Active Power (kilowatt per day)", title = "Boxplot of Global Active Power by Month")
+
+# boxplot group by year
+housePower_daily %>%
+  ggplot(aes(x = factor(year), y = Global_active_power, group = year)) +
+  geom_boxplot(fill = "aquamarine3", color = "black") +
+  labs(x = "Year", y = "Global Active Power (kilowatt per day)", title = "Boxplot of Global Active Power by Year")
+
+```
+
+There are some interesting facts that the global active power reached its lowest point in August, gradually increasing in both directions thereafter. This also makes sense as the demand for electricity typically significantly increases during the winter season due to heating requirements.
+
+Meanwhile, the significant differences in the mean values across different months and years similarly indicate their seasonality.
+
+We now generate the autocorrelation function and partial autocorrelation function of out original time series:
+```{r explore ts correlation patterns}
+
+acf(housePower_daily$Global_active_power, main = "ACF Plot of Global Active Power")
+pacf(housePower_daily$Global_active_power, main = "PACF Plot of Global Active Power")
+```
+
+We can observe that ACF of the time series is slowly decaying, indicating the presence of significant autocorrelations between the data points.
+
+In terms of the partial autocorrelation function (PACF), it truncates after the third lag. Nonetheless, significant lag components persist beyond this point, suggesting the persistence of seasonal components in the data as well.
+
+Based on a preliminary analysis of the above graph, we might consider implementing a non-stationary SARIMA model after performing difference on the data.
+
+# Trend
+
+We can find trends in time series by day/month/year. To make the time series stationary and make it easier for later ARMA models, we should first estimate the trend and then try to remove it.
+
+Basically, we use polynomial regression to fit the data and estimate trend (To reduce complexity we limit the degree of polynomial to 5 or less). Let $t_n$ be time slots and $Y_n$ be the electricity consumption at time $t_n$, then the mean value form of the regression model is as follows:
+
+$$
+Y_n = \sum_{i=0}^{d} \beta_i t_n^i \quad d\in[1,2,3,4,5]
+$$
+
+Then we fit the models and use Akaike’s information criterion(AIC) to choose the best fit, where AIC is defined as follows:
+
+$$
+\text{AIC} = -2\ell(\theta^{*}) + 2p
+$$
+
+Where $\ell(\theta^{*})$ is the log-likelihood of the model estimators and $p$ is number of estimators.
+
+```{r}
+# convert the Date to numeric
+t <- seq(length(power_mon$Month))
+
+# do polynomial fitting
+aic_table1 <- function(data, P){
+table <- matrix(NA,P,1)
+for(p in 1:P) {
+table[p,1] <- AIC(lm(data$Monthly_Consumption ~ poly(t,p)))
+}
+dimnames(table) <- list(paste("degree",1:P, sep=""), c("AIC value"))
+return(table)
+}
+# dimnames(table) <- list(paste("degree",1:P, sep=""))
+lm_aic_table <- aic_table1(power_mon,5)
+kable(lm_aic_table,digits=2)
+```
+We find that degree = 1 or 2 have smaller AICs. Here we plot the fitting line and residual:
+
+```{r}
+ggplot(power_mon, aes(x = Month, y = Monthly_Consumption)) +
+  xlab("Time")+
+  ylab("Monthly Consumption")+
+  ggtitle("Polynomial Regression")+
+  geom_line(data = power_mon, linewidth = 1, col = "aquamarine3")+
+  geom_smooth(method = lm, formula = y ~ poly(x, 1), aes(colour = "linear fit"))+
+  geom_smooth(method = lm, formula = y ~ poly(x, 2), aes(colour = "quadratic fit"))+
+  scale_colour_manual(name="Legend", values=c("coral2","cornflowerblue"))
+```
+
+```{r}
+lm2 <- lm(power_mon$Monthly_Consumption ~ poly(t,2))
+ggplot(power_mon, aes(x = Month, y = Monthly_Consumption)) +
+  xlab("Time")+
+  ylab("Monthly Consumption")+
+  ggtitle("Residuals")+
+  geom_line(data = power_mon, col = "aquamarine3", linewidth = 1, aes(x = Month, y = resid(lm2)))
+```
+
+From the AIC tables we find that the AIC values are similar. Besides, the residuals do not seem to be very different from original data. Thus electricity consumption by month do not have a significant trend. Therefore, in later analysis we will not consider the trend of $Y_n$.
+
+# Spectrum Analysis
+
+```{r}
+cons <- power_mon$Monthly_Consumption
+# smoothed periodogram
+spectrum_s <- spectrum(cons, spans = c(4,6,4), main = "Smoothed periodogram")
+abline(v = spectrum_s$freq[which.max(spectrum_s$spec)], lty = "dotted")
+```
+
+From the smoothed periodgram we can see that the peek of the spectrum seem to be a little smaller than 0.1, which means that a significant pattern of period of the time series may be a little larger than 10. Since we use the monthly data, this implies a period by year and corresponds to our guess. Therefore, next we will do SARIMA to add seasonality to the data and explore it.
+
+# SARIMA
+
+By intuition, household electric power consumption will have seasonal trend. In the ACF plot, ACF values remain significantly positive for many lags before tapering off. This positive autocorrelation suggests that the time series may not be stationary and there is a pattern. Thus, for this dataset, we will do SARIMA (Seasonal AutoRegressive Integrated Moving Average), which is suitable for non-stationary data.
+
+## data analysis
+
+```{r}
+monthly_consumption_ts <- ts(power_mon$Monthly_Consumption, frequency = 12, start = c(year(min(power_mon$Month)), month(min(power_mon$Month))))
+
+acf(monthly_consumption_ts, main = "ACF of Monthly Consumption")
+pacf(monthly_consumption_ts, main = "PACF of Monthly Consumption")
+```
+
+In the PACF plot, spikes exceed the blue dashed lines may be regarded as significant correlations at those lags. In this PACF plot, it seems lags that are within the confidence intervals for the most part, indicating the data does not have strong partial autocorrelations. The ACF plot shows some significant correlations, indicating MA terms may be required.
+
+Then, we hope to decompose a time series into its constituent components, as they may reveal underlying patterns in the data.
+
+```{r}
+# Additive Decomposition
+additive_m <- stl(monthly_consumption_ts, s.window = "periodic", robust = TRUE)
+plot(additive_m, main = "Decomposition of electricity consumption")
+```
+
+The seasonal component shows a clear pattern that repeats annually, indicating there's a strong seasonal influence on the time series. Then, in the following, we conduct SARIMA model with previously selected components (p,d,q) from ARIMA and assume a seasonal period of 12.
+
+## model selection
+
+**model equation**
+
+- Define $Y_n$ as electricity consumption at time $n$.
+- Define $\epsilon_n$ as Gaussian white noise at time $n$, i.e. $\epsilon_n \overset{iid}{\sim}N(0. \sigma^2)$.
+- Define $\mu$ as the expectation value of $Y_t$.
+- Define $\varphi(x) = 1- \varphi_1x - \varphi_2 x^2 - \cdots - \varphi_px^p$.
+- Define $\Phi(x) = 1- \Phi_1x - \Phi_2 x^2 - \cdots - \Phi_px^p$.
+- Define $\psi(x) = 1+ \psi_1x + \psi_2 x^2 + \cdots + \psi_qx^q$.
+- Define $\Psi(x) = 1+ \Psi_1x + \Psi_2 x^2 + \cdots + \Psi_qx^q$.
+- Define $B$ as the backshift operater, $BY_n = Y_{n-1}$.
+
+$$
+\varphi(B)\Phi(B^{12})[(1-B^{12})Y_n - u] = \psi(B)\Psi(B^{12})\epsilon_{n}
+$$
+
+We start by choosing an appropriate SARMA$(p,q)\times(P,Q)_{12}$ model and use AIC as a comparison criterion. To keep the model relatively simple, we limit the seasonal AR and MA factors $(P,D,Q)$ to $\{(0,1,0),(1,1,0),(0,1,1),(1,1,1)\}$, and find that $(P,Q)=(1,1,1)$ has relatively lower AIC value than the other three pairs.
+
+```{r,warning = FALSE, message = FALSE}
+aic_table2 <- function(data,P,Q,sp,sq){
+table <- matrix(NA,(P+1),(Q+1))
+for(p in 0:P) {
+for(q in 0:Q) {
+table[p+1,q+1] <- tryCatch( {Arima(data, order=c(p,0,q), seasonal = list(order=c(sp,1,sq), period = 12),method = "ML")$aic}, 
+                            error = function(e){return(NA)})
+}
+}
+dimnames(table) <- list(paste("AR",0:P, sep=""),
+paste("MA",0:Q,sep=""))
+table
+}
+sarma_aic_table <- aic_table2(monthly_consumption_ts,5,5,1,1)
+kable(sarma_aic_table, caption = paste("AIC of SARIMA(p,0,q),(1,1,1),  0 <= p,q <=5"),digits=2)
+```
+
+Through the AIC table, we find that the SARMA$(0,0,4)\times(1,1,1)_{12}$ model has both simpler formula and relatively lower AIC. Thus we finally choose SARMA$(0,0,4)\times(1,1,1)_{12}$ model in the following analysis.
+
+## model analysis and diagnostics
+
+```{r}
+# Fit a SARIMA model
+sarima_model <- Arima(monthly_consumption_ts, order=c(0, 0, 4), seasonal=list(order=c(1, 1, 1), period=12))
+```
+
+### model analysis
+
+First, we show the summary of the fitted model:
+
+```{r}
+summary(sarima_model)
+```
+
+### causality and invertibility
+
+Then we examine the causality and invertibility of the SARMA$(0,0,4)\times(1,1,1)_{12}$ model by examining the roots of AR polynomial:
+
+$$
+\varphi(x)\Phi(x^{12}) = 1+0.4679x^{12}
+$$
+
+And MA polynomial:
+
+$$
+\psi(x)\Psi(x^{12}) = (1-0.1197x  -0.0849x^2  -0.0676x^3  +0.9651x^4)(1-0.3915x^{12})
+$$
+
+```{r}
+# examine the root
+AR_seasonal <- polyroot(c(1,-coef(sarima_model)["sar1"]))
+MA_nonseasonal <- polyroot(c(1,coef(sarima_model)[c("ma1","ma2","ma3","ma4")]))
+MA_seasonal <- polyroot(c(1,coef(sarima_model)["sma1"]))
+
+cat("ar_seasonal:", AR_seasonal, "\n")
+cat("ma_nonseasonal:", MA_nonseasonal, "\n")
+cat("ma_seasonal:", MA_seasonal, "\n")
+```
+
+The results suggest that all roots fall outside the unit circle, which means our model is both causal and invertible.
+
+### model diagnostics
+
+```{r}
+# Diagnostic plots for the SARIMA model
+tsdiag(sarima_model)
+```
+
+The standardized residual plot indicates that the residuals are scattered randomly around zero without any clear trends, which is what we expect. The ACF of residual plot does not show any spikes outside the blue dashed lines, so that the model is capturing the time series' autocorrelation adequately. The Ljung-Box test checks the null hypothesis that the residuals are independently distributed. Since most of the p-values seem above 0.05, we cannot reject the null hypothesis, which is good. Overall, the diagnostic plots reveal that the SARIMA fits the data well. 
+
+### fitted vs original
+
+We show a overall fitted value vs. original value plot:
+
+```{r}
+ggplot(power_mon, aes(x = Month, y = Monthly_Consumption)) +
+  xlab("Time")+
+  ylab("Monthly Consumption")+
+  ggtitle("fitted vs. original")+
+  geom_line(data = power_mon, linewidth = 1, aes(colour = "Original data"))+
+  geom_line(y = fitted(sarima_model), linewidth = 1, linetype = 2, aes(colour = "quadratic fit"))+
+  scale_colour_manual(name="Legend", values=c("aquamarine1","coral2"))
+```
+
+### forecast
+
+We use this selected SARIMA model for prediction and compare the results with the true values. 
+
+
+```{r}
+end_time <- end(monthly_consumption_ts)
+
+# Generate forecasts
+forecasts <- forecast(sarima_model, h=12)
+# Create the forecast time series with correct start and frequency
+forecast_ts <- ts(forecasts$mean, start=2011, frequency=12)
+date_vector <- seq(as.Date("2011-01-01"), by = "month", length.out = 12)
+forecast_month <- data.frame("Month" = date_vector, "Monthly_Consumption" = as.vector(forecast_ts))
+
+# Plot the actual data
+ggplot(power_mon,aes(x=Month, y=Monthly_Consumption)) +
+  xlab("Time")+
+  ylab("Monthly Consumption")+
+  ggtitle("Forecast")+
+  geom_line(data=power_mon,linewidth=1, aes(colour="original"))+
+  geom_line(data=forecast_month,linewidth=1,linetype=2,aes(colour = "forecast"))+
+  scale_colour_manual(name="Legend", values=c("aquamarine3","coral2"))
+```
+
+This plot shows that the predicted data captured the seasonality, as it goes up and down in a pattern similar to the historical data. Although there are some deviations, in general, this is a great model.
+
+# References
+- [Ionides, E. (2024). DATASCI/STATS 531 Course Materials. University of Michigan.](https://ionides.github.io/531w24/)
+- [R Markdown documentation](https://rmarkdown.rstudio.com)
+- [w22 project reports](https://ionides.github.io/531w22/midterm_project/)
+- [w21 project reports](https://ionides.github.io/531w21/midterm_project/)
+- Shumway, R.H., and Stoffer, D.S., 2017. Time series analysis and its applications (4th edition). New York: Springer.
+- [data source](https://www.kaggle.com/datasets/uciml/electric-power-consumption-data-set/data)
+
+
+

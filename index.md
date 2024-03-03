@@ -39,11 +39,11 @@ The course outline, course information and grading policies are described in the
 
 8. [Smoothing in the time and frequency domains](08/index.html)
 
-<!--
-
 9. [Case study: An association between unemployment and mortality?](09/index.html)
 
 10. [Introduction to partially observed Markov process models](10/index.html)
+
+<!--
 
 11. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](11/index.html)
 
@@ -85,18 +85,12 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 * [Participation 2](participation/participation2.html), due Tue Jan 30, 11:59pm.
 
 * [Homework 3](hw03/hw03.html), due Sun Feb 11, 11:59pm.
-
-<!--
 [Solution](hw03/sol03.html).
--->
 
 * [Participation 3](participation/participation3.html), due Sun Feb 11, 11:59pm.
 
 * [Homework 4](hw04/hw04.html), due Sun Feb 18, 11:59pm.
-
-<!--
 [Solution](hw04/sol04.html).
--->
 
 * [Participation 4](participation/participation4.html), due Sun Feb 18, 11:59pm.
 
@@ -134,9 +128,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 * [Midterm peer review report instructions](midterm_project/midterm_review.html)
 
-<!--
 * [2024 midterm projects](midterm_project/index.html)
--->
 
 * You are welcome to browse previous midterm projects. The [2022 midterm projects](http://ionides.github.io/531w22/midterm_project/) and  [2021 midterm projects](http://ionides.github.io/531w21/midterm_project/) have a posted summary of peer review comments. Earlier projects are also available, from [2016](http://ionides.github.io/531w16/midterm_project/), [2018](http://ionides.github.io/531w18/midterm_project/) and [2020](http://ionides.github.io/531w20/midterm_project/).
 

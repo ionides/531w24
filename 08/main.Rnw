@@ -328,7 +328,7 @@ abline(h=c(0.8,1.2),col="red")
 
 \bi
 
-\item Loess is a \myemph{Local linear regression} approach (perhaps an acronym for LOcal Estimation by Smoothing) also known as \myemph{Lowess} (perhaps LOcallyWEighted Sum of Squares). 
+\item Loess is a \myemph{Local linear regression} approach (perhaps an acronym for LOcal Estimation by Smoothing) also known as \myemph{Lowess} (perhaps LOcally WEighted Sum of Squares). 
 
 \item At each point in time, Loess computes a linear regression (a constant, linear or quadratic trend estimate) using only neighboring times. 
 

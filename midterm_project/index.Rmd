@@ -1,0 +1,54 @@
+---
+title: "STATS 531 Winter 2022 <br>Midterm projects"
+output:
+  html_document:
+      toc: yes
+---
+
+---------
+
+* Projects are posted anonymously below. Source code and data are available from [https://github.com/ionides/531w24/midterm_project](https://github.com/ionides/531w24/tree/master/midterm_project).
+
+* After the course is over and the class grades are assigned, you may choose to request to have your name attached to your project.
+
+----------
+
+| | 
+|:----|:----|
+| 1.  [NYC Traffic Accidents](project01/blinded.html)  | 
+| 2.  [Bitcoin and Dogecoin](project02/blinded.html)  | 
+| 3.  [Unemployment and Federal Interest Rate](project03/blinded.html)  | 
+| 4.  [CO2 emmision in the US](project04/blinded.html)  | 
+| 5.  [US Vehicle Sales](project05/blinded.html)  | 
+| 6.  [Power Consumption](project06/blinded.html)  | 
+| 7.  [Precipitation in Detroit](project07/blinded.html)  | 
+| 8.  [Solar Wind](project08/blinded.html)  | 
+| 9.  [Sunspots](project09/blinded.html)  | 
+| 10.  [Bitcoin](project10/blinded.html) | 
+| 11.  [Wind Power Production](project11/blinded.html) | 
+| 12.  [Household Electricity Consumption](project12/blinded.html) | 
+| 13.  [Political Regimes](project13/blinded.html) | 
+| 14.  [Apple Stock Price](project14/blinded.html) | 
+| 15.  [Nvidia Stock Price](project15/blinded.html) | 
+| 16.  [Sales of Electric Vehicles in the US](project16/blinded.html) | 
+
+<!-- | | | -->
+<!-- |:----|:----| -->
+<!-- | 1.  [NYC Traffic Accidents](project01/blinded.html)  | [Review comments](project01/comments.html) | -->
+<!-- | 2.  [Bitcoin and Dogecoin](project02/blinded.html)  | [Review comments](project02/comments.html) | -->
+<!-- | 3.  [Unemployment and Federal Interest Rate](project03/blinded.html)  | [Review comments](project03/comments.html) | -->
+<!-- | 4.  [CO2 emmision in the US](project04/blinded.html)  | [Review comments](project04/comments.html) | -->
+<!-- | 5.  [US Vehicle Sales](project05/blinded.html)  | [Review comments](project05/comments.html) | -->
+<!-- | 6.  [Power Consumption](project06/blinded.html)  | [Review comments](project06/comments.html) | -->
+<!-- | 7.  [Precipitation in Detroit](project07/blinded.html)  | [Review comments](project07/comments.html) | -->
+<!-- | 8.  [Solar Wind](project08/blinded.html)  | [Review comments](project08/comments.html) | -->
+<!-- | 9.  [Sunspots](project09/blinded.html)  | [Review comments](project09/comments.html) | -->
+<!-- | 10.  [Bitcoin](project10/blinded.html) | [Review comments](project10/comments.html) | -->
+<!-- | 11.  [Wind Power Production](project11/blinded.html) | [Review comments](project11/comments.html) | -->
+<!-- | 12.  [Household Electricity Consumption](project12/blinded.html) | [Review comments](project12/comments.html) | -->
+<!-- | 13.  [Political Regimes](project13/blinded.html) | [Review comments](project13/comments.html) | -->
+<!-- | 14.  [Apple Stock Price](project14/blinded.html) | [Review comments](project14/comments.html) | -->
+<!-- | 15.  [Nvidia Stock Price](project15/blinded.html) | [Review comments](project15/comments.html) | -->
+<!-- | 16.  [Sales of Electric Vehicles in the US](project16/blinded.html) | [Review comments](project16/comments.html) | -->
+
+----------

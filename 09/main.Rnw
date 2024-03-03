@@ -82,8 +82,6 @@ set.seed(2050320976)
 
     \item Evidence that there are other major factors involved in improving living conditions suggest that economic growth should be only one political consideration, among others.
 
-\item We aim to study the effect of the economy on mortality, not vice versa. Before the COVID-19 pandemic, the effect of mortality fluctuations on the economy was considered negligible. We study data up to 2018.
-
 \ei
 
 \end{frame}
@@ -99,7 +97,7 @@ head(e_data,n=4)
 @
 
 \bi
-\item \link{life_expectancy_usa.csv}{Data} are from the \link{https://www.mortality.org/hmd/USA/STATS/E0per.txt}{Human Mortality Database}.
+\item \link{life_expectancy_usa.csv}{Data} are from the \link{https://www.mortality.org/}{Human Mortality Database}.
 
 \item \code{e0} is \myemph{life expectancy at birth (LEB)} for civilians, 
 
@@ -141,9 +139,9 @@ head(u_data,4)
 \vspace{-2mm}
 
 <<clean_data>>=
-t <- intersect(e_data$Year,u_data$Year)
-e <- e_data$e0[e_data$Year %in% t]
-u <- apply(u_data[u_data$Year %in% t, 2:13],1,mean)
+yr <- intersect(e_data$Year,u_data$Year)
+e <- e_data$e0[e_data$Year %in% yr]
+u <- apply(u_data[u_data$Year %in% yr, 2:13],1,mean)
 @
 
 \vspace{-10mm}
@@ -159,6 +157,24 @@ plot(ts(cbind(e,u),start=1948),main="",xlab="")
 \item We are interested in changes over business cycle timescales, once trends have been removed. 
 
 \ei
+
+
+\end{frame}
+
+\begin{frame}{Allowing for COVID-19}
+
+\bi
+\item We wish to study the effect of economic fluctuations on population health.
+\item COVID-19 led to a dramatic effect of health on the economy.
+\item Therefore, we analyze data only up to 2019.
+\ei
+
+<<remove_covid,echo=F,eval=T>>=
+time_window <- (yr < 2019.5)
+e <- e[time_window]
+u <- u[time_window]
+yr <- yr[time_window]
+@
 
 \end{frame}
 
@@ -215,9 +231,9 @@ u_hp <- hpfilter(u, freq=100,type="lambda",drift=F)$cycle
 \ei
 
 <<hpplots-code,eval=F,echo=T>>=
-plot(t,u_hp,type="l",xlab="",ylab="detrended unemployment")
+plot(yr,u_hp,type="l",xlab="",ylab="detrended unemployment")
 par(new=TRUE)
-plot(t,e_hp,col="red",type="l",axes=FALSE,xlab="",ylab="")
+plot(yr,e_hp,col="red",type="l",axes=FALSE,xlab="",ylab="")
 axis(side=4, col="red",col.ticks="red",col.axis="red")
 mtext("detrended e0",side=4,col="red",line=3)
 @
@@ -467,7 +483,7 @@ par(mai=c(0.8,0.8,0.1,0.1))
 \begin{frame}{Conclusions}
 
 \bi
-\item There is strong evidence of pro-cyclical mortality at a national level in the USA from 1948 to 2018. For example, the Great Recession of 2009-2010 led to high unemployment, but these two years had above-trend values of life expectancy at birth.
+\item There is strong evidence of pro-cyclical mortality at a national level in the USA from 1948 to 2019. For example, the Great Recession of 2009-2010 led to high unemployment, but these two years had above-trend values of life expectancy at birth.
 
 \item We have argued that this evidence supports a claim that above-trend economic growth CAUSES above-trend mortality.
 
@@ -562,7 +578,7 @@ mysummary(a3,print.sigma=T,loglik=T,coef.label=F)
 \ei
 
 <<hp_t1>>=
-t1 <- 1:35 
+t1 <- 1:36 
 a1 <- arima(e_hp[t1],xreg=u_hp[t1],order=c(1,0,0))
 @
 
@@ -573,7 +589,7 @@ mysummary(a1,print.sigma=F,loglik=F,coef.label=F)
 @
 
 <<hp_t2>>=
-t2 <- 37:71
+t2 <- 37:72
 a2 <- arima(e_hp[t2],xreg=u_hp[t2],order=c(1,0,0))
 @
 
@@ -585,7 +601,7 @@ mysummary(a2,print.sigma=F,loglik=F,coef.label=F)
 
 \bi
 
-\item The difference is small compared to the standard error. Overall there is consistency through this 71 year interval, though the pattern is weak in the 1990s.
+\item The difference is small compared to the standard error. Overall there is consistency through this 72 year interval, though the pattern is weak in the 1990s.
 
 \ei
 
@@ -657,16 +673,16 @@ par(mai=c(0.8,0.8,0.1,0.1))
 \end{equation}
 computed as
 <<clean_data_again>>=
-delta_e <- e - e_data$e0[e_data$Year %in% (t-1)]
+delta_e <- e - e_data$e0[e_data$Year %in% (yr-1)]
 @
 
 \ei
 
 <<plot_diff,echo=F,fig.height=3,fig.width=7,out.width="11cm">>=
 par(mai=c(0.5,0.8,0.2,0.8))
-plot(t,u_hp,type="l",xlab="",ylab="detrended unemployment")
+plot(yr,u_hp,type="l",xlab="",ylab="detrended unemployment")
 par(new=TRUE)
-plot(t,delta_e,col="red",type="l",axes=FALSE,xlab="",ylab="")
+plot(yr,delta_e,col="red",type="l",axes=FALSE,xlab="",ylab="")
 axis(side=4, col="red",col.ticks="red",col.axis="red")
 mtext("differenced e0",side=4,col="red",line=3)
 @
