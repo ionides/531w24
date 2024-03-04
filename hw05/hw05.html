@@ -12,7 +12,7 @@
 <meta name="author" content="DATASCI/STATS 531" />
 
 
-<title>Chapter 5 discussion questions</title>
+<title>Homework 5, due 11:59pm Sunday 3/17</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,52 +349,48 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Chapter 5 discussion questions</h1>
+<h1 class="title toc-ignore">Homework 5, due 11:59pm Sunday 3/17</h1>
 <h4 class="author">DATASCI/STATS 531</h4>
 
 </div>
 
 
 <hr />
-<ol style="list-style-type: decimal">
-<li><strong>Interpretation of a simulation experiment (i.e., a
-bootstrap)</strong>. Recall from Chapter 5, slide 17, the following
-interpretation of a simulation experiment where we repeat the estimation
-procedure on simulations carried out with parameter value <span class="math inline">\(\hat\theta\)</span>. <br> <br> “For large Monte
-Carlo sample size <span class="math inline">\(J\)</span>, the coverage
-of the proposed confidence interval (CI) is well approximated, for
-models in a neighborhood of <span class="math inline">\(\hat\theta\)</span>, by the proportion of the
-intervals <span class="math inline">\(\big[\hat\theta^{[j]}_{1,\mathrm
-lo}, \, \hat\theta^{[j]}_{1,\mathrm hi}\big]\)</span> that include <span class="math inline">\(\hat\theta_1\)</span>.” <br> <br> How does
-checking the number of times our estimated parameter value falls within
-our Monte Carlo simulation CI’s tell us anything about the performance
-of our original CI’s?</li>
-</ol>
+<p>This homework gives you some experience at algebraic manipulation of
+POMP models by deriving the prediction, filtering and smoothing formulas
+in <a href="../10/index.html">Chapter 10</a>.</p>
+<p>The calculations are all applications of basic definitions (such as
+the Markov property) and basic identities for joint, conditional and
+marginal probability density functions. The goal is to check carefully
+how the formulas follow from these properties, so please explain this
+explicitly in your solutions. The hints for Exercises 10.2 and 10.4 in
+the notes may be useful.</p>
+<p>The homework can be handwritten and scanned to pdf, however it is
+recommended to use Latex in Rmarkdown and submit as html. If you are
+relatively unfamiliar with Latex and Rmarkdown, this will take more time
+but it is a worthwhile exercise. As usual, you are welcome to use the
+Latex from the notes as a source, if you like.</p>
+<p>Your report should contain a reference section listing sources. The
+grader should be able to clearly identify where the sources were used,
+for example using reference numbers in the text. Anything and anyone
+consulted while you are working on the homework counts as a source and
+should be credited. The most likely sources for this theoretical
+homework are class notes, colleagues, Piazza posts and past homework
+solutions. It is your responsibility to demonstrate and explain in your
+report the extent to which you have carried out independent work going
+beyond any sources listed. The homework will be graded following the
+grading scheme in the <a href="../syllabus.html">syllabus</a>.</p>
 <hr />
-<ol start="2" style="list-style-type: decimal">
-<li><strong>Interpretation of statistical tests</strong>. Suppose you
-make a statistical test and obtain a p-value <span class="math inline">\(\alpha = 0.182\)</span>, so you fail to reject the
-null hypothesis at all usual levels of statistical significance. What is
-the correct interpretation, (a) or (b) below? When might it matter which
-interpretation you use?</li>
-</ol>
-<ol style="list-style-type: lower-alpha">
-<li><p>You have shown that the null hypothesis is correct.</p></li>
-<li><p>You have shown that this particular test does not reveal the null
-hypothesis to be false, which gives some justification for continuing to
-work under the assumption that the null is correct.</p></li>
-</ol>
-<hr />
-<ol start="3" style="list-style-type: decimal">
-<li><strong>Improved likelihood maximization using arima2</strong>. The
-<code>arima2::arima2</code> function in the arima2 R package uses
-multiple starting values to improve the optimization performance of
-<code>stats::arima</code>. This can lead to greater consistency of AIC
-tables. It does not necessarily protect against roots which cancel or
-lie close to the unit circle. If you choose to experiment with
-<code>arima2</code>, it would be interesting to hear about any favorable
-or unfavorable experiences.</li>
-</ol>
+<p><strong><big>Question 5.1</big></strong>. Derive the identity
+[P2].</p>
+<p><strong><big>Question 5.2</big></strong>. Derive the prediction
+formula, [P4].</p>
+<p><strong><big>Question 5.3</big></strong>. Derive the filtering
+formulas [P5] and [P6].</p>
+<p><strong><big>Question 5.4</big></strong>. Derive the backward
+recursion formulas [P7] and [P8].</p>
+<p><strong><big>Question 5.5</big></strong>. Derive the smoothing
+formula [P9].</p>
 <hr />
 
 

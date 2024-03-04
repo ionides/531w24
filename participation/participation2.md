@@ -10,4 +10,6 @@ Submit your participation report for the time interval 1/22 to 1/30 as a pdf via
 
 Participation is graded according to the [participation rubric](../rubric_participation.html). The expectation is that you should have at least one constructive contribution to the class community each reporting period. Participation is not evaluated on whether it is right or wrong, indeed it is an opportunity to obtain feedback on your thoughts when you don't know if they are correct or not.
 
+The usual rules for scholarship apply to Piazza posts and responses. You are encouraged to use sources; even GenAI can supply useful material. However, you should cite sources. You should not put your own name to material that was not written by you.
+
 ------------
