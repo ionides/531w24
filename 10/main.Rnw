@@ -654,7 +654,7 @@ Often, but not always, we will have a \myemph{time-homogeneous} LG-POMP model, w
 \bi
 \item Let $\{Y_n\}$ be a Gaussian ARMA$(p,q)$ model with noise process $\omega_n\sim \normal[0,\sigma^2]$, defined by 
 \begin{equation} \label{eq:arma}
-Y_n = \sum_{j=1}^p \ar_j Y_{n-j} +  \omega_n + \sum_{k=1}^q \ma_q \omega_{n-k}. 
+Y_n = \sum_{j=1}^p \ar_j Y_{n-j} +  \omega_n + \sum_{k=1}^q \ma_k \omega_{n-k}. 
 \end{equation}
 \item We look for a time-homogeneous LG-POMP defined by [LG1] and [LG2] where $Y_n$ is the first component of $X_n$ with no measurement error.
 \item To do this, we define $d_X=r=\max(p,q+1)$ and
