@@ -3,7 +3,7 @@ title: "Chapter 6 discussion questions"
 author: "DATASCI/STATS 531"
 output:
   html_document:
-    toc: yes
+    toc: no
 ---
 
 \newcommand\prob{\mathbb{P}}
@@ -31,7 +31,7 @@ acf(y2,lag.max=50)
 
 4. **Testing stationarity via a test for unit roots is not necessarily good data analysis**. To test a null hypothesis of a unit root against an alternative hypothesis of a stationary causal ARMA model, one can use the Augmented Dickey-Fuller (ADF) test (e.g., Shumway & Stoffer, 2017, pages 252-253). ADF can be used to justify analyzing the differenced data, since the null hypothesis of ADF asserts that differencing is appropriate. Slide 13 of Chapter 6 discourages differencing unless there is a good scientific reason for it in the context of your data, since it may be more revealing to try to understand a trend rather than to use differencing to remove it (if it is linear) or obscure it (if it is nonlinear). Consequently, this course does not emphasize ADF. Can you think of a specific situation where making an ADF test is a good choice?
 
-### <a name="ADF-examples">A longer discussion of ADF</a>
+### <a name="ADF">A longer discussion of ADF</a>
 
 5. **Examples of the Augmented Dickey-Fuller (ADF) test**.
 To extend the previous discussion about the ADF test, 
