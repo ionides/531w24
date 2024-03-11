@@ -5,8 +5,8 @@ output: html_document
 ---
 
 We are borrowing material from a short course on [Simulation-Based Inference for Epidemiological Dynamics](https://kingaa.github.io/sbied/) (SBIED).
-This short course uses the same notation as STATS/DATASCI 531 and shares an emphasis on likelihood methods for inference.
-Indeed, SBIED can be viewed as a sub-course within STATS/DATASCI 531.
+This short course uses the same notation as DATASCI/STATS 531 and shares an emphasis on likelihood methods for inference.
+Indeed, SBIED can be viewed as a sub-course within DATASCI/STATS 531.
 Although SBIED focuses on epidemiological examples, you can check from previous final projects for [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/), [2021](http://ionides.github.io/531w21/final_project/), [2022](http://ionides.github.io/531w22/final_project/) that the ideas extend readily to a variety of other situations.
 Later, in Chapter 16, we will consider models for financial markets, which is another major area of application for nonlinear time series techniques. 
 
