@@ -12,7 +12,7 @@
 <meta name="author" content="Edward L. Ionides" />
 
 
-<title>Modeling and Analysis of Time Series Data DATASCI/STATS 531. Chapter 11: Introduction to simulation-based inference for epidemiological dynamics via the pomp R package</title>
+<title>Modeling and Analysis of Time Series Data DATASCI/STATS 531 Chapter 12: Simulation of stochastic dynamic models</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -350,79 +350,92 @@ display: none;
 
 
 <h1 class="title toc-ignore">Modeling and Analysis of Time Series
-Data<br>DATASCI/STATS 531.<br>Chapter 11: Introduction to
-simulation-based inference for epidemiological dynamics via the pomp R
-package</h1>
+Data<br>DATASCI/STATS 531<br>Chapter 12: Simulation of stochastic
+dynamic models</h1>
 <h4 class="author">Edward L. Ionides</h4>
 
 </div>
 
 
-<p>We are borrowing material from a short course on <a href="https://kingaa.github.io/sbied/">Simulation-Based Inference for
-Epidemiological Dynamics</a> (SBIED). This short course uses the same
-notation as DATASCI/STATS 531 and shares an emphasis on likelihood
-methods for inference. Indeed, SBIED can be viewed as a sub-course
-within DATASCI/STATS 531. Although SBIED focuses on epidemiological
-examples, you can check from previous final projects for <a href="http://ionides.github.io/531w16/final_project/">2016</a>, <a href="http://ionides.github.io/531w18/final_project/">2018</a>, <a href="http://ionides.github.io/531w20/final_project/">2020</a>, <a href="http://ionides.github.io/531w21/final_project/">2021</a>, <a href="http://ionides.github.io/531w22/final_project/">2022</a> that the
-ideas extend readily to a variety of other situations. Later, in Chapter
-16, we will consider models for financial markets, which is another
-major area of application for nonlinear time series techniques.</p>
-<p>Chapter 11 Part 2 has overlap with Chapter 10. It may be no bad thing
-to see the foundational material again, from a slightly different
-perspective. You are welcome to watch at 1.5 x speed if you are already
-comfortable with Chapter 10.</p>
+<p>As for <a href="../11/index.html">Chapter 11</a>, we use material
+from the short course <a href="https://kingaa.github.io/sbied/">Simulation-Based Inference for
+Epidemiological Dynamics</a> (SBIED). We develop a concrete example of
+the general POMP modeling framework, and we see the theory and practice
+of implementing a simulator for the model.</p>
+<p>The Susceptible-Infected-Recovered (SIR) model used for this chapter
+is a central concept for epidemiology. For the purposes of STATS/DATASCI
+531, we view it as one example of a mechanistic model, which exemplifies
+a more general process of model development and data analysis. One
+epidemiological idea used without definition in the lecture is <span class="math inline">\(R_0\)</span>, defined to be the expected number of
+secondary infections arising from one infected individual in a fully
+susceptible population. The SIR model supposes that previously infected
+individuals cannot become reinfected, so those in compartment R are
+protected from infection.</p>
+<p>The SIR model in epidemiology is closely related to predator-prey
+models in ecology. Similar models can be used to describe spread of
+ideas (including rumors or mis-information) on social networks.</p>
 <table>
 <colgroup>
-<col width="33%" />
-<col width="33%" />
-<col width="33%" />
+<col width="27%" />
+<col width="27%" />
+<col width="44%" />
 </colgroup>
 <tbody>
 <tr class="odd">
 <td align="left">Slides</td>
 <td align="left"></td>
-<td align="left"><a href="https://kingaa.github.io/sbied/intro/slides.pdf">pdf</a></td>
+<td align="center"><a href="https://kingaa.github.io/sbied/stochsim/slides.pdf">pdf</a></td>
 </tr>
 <tr class="even">
-<td align="left">Annotated slides</td>
-<td align="left"></td>
-<td align="left"><a href="slides-annotated.pdf">pdf</a></td>
-</tr>
-<tr class="odd">
 <td align="left">Notes</td>
 <td align="left"></td>
-<td align="left"><a href="https://kingaa.github.io/sbied/intro/notes.pdf">pdf</a></td>
+<td align="center"><a href="https://kingaa.github.io/sbied/stochsim/notes.pdf">pdf</a></td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>R</strong> script</td>
+<td align="left"></td>
+<td align="center"><a href="https://kingaa.github.io/sbied/stochsim/main.R"><strong>R</strong></a></td>
 </tr>
 <tr class="even">
-<td align="left">Recording, Chapter 11, Part 1</td>
-<td align="left">Time series analysis and mechanistic models in ecology
-and epidemiology</td>
-<td align="left"><a href="https://youtu.be/wn4bv3nz0kU">(20
+<td align="left">Worked solutions to the Exercises</td>
+<td align="left"></td>
+<td align="center"><a href="https://kingaa.github.io/sbied/stochsim/exercises.html">html</a></td>
+</tr>
+<tr class="odd">
+<td align="left">Recording, Chapter 12, Part 1</td>
+<td align="left">Compartment models</td>
+<td align="center"><a href="https://youtu.be/l5YCll5qcP0">(17
+mins)</a></td>
+</tr>
+<tr class="even">
+<td align="left">Recording, Chapter 12, Part 2</td>
+<td align="left">Euler’s method for simulating Markov processes</td>
+<td align="center"><a href="https://youtu.be/69F4oEjXkug">(24
 mins)</a></td>
 </tr>
 <tr class="odd">
-<td align="left">Recording, Chapter 11, Part 2</td>
-<td align="left">Introduction to POMP models</td>
-<td align="left"><a href="https://youtu.be/-P4lwVDHxjQ">(22
+<td align="left">Recording, Chapter 12, Part 3</td>
+<td align="left">Compartment models in the pomp package</td>
+<td align="center"><a href="https://youtu.be/XmUQR1Bp8C4">(47
 mins)</a></td>
 </tr>
 <tr class="even">
-<td align="left">Recording, Chapter 11, Part 3</td>
-<td align="left">The pomp R package for POMP models</td>
-<td align="left"><a href="https://youtu.be/1MY8NuJ5fr4">(7
+<td align="left">Recording, Chapter 12, Part 4</td>
+<td align="left">Discussion of exercises</td>
+<td align="center"><a href="https://youtu.be/sNcNhvNY2Ro">(10
 mins)</a></td>
 </tr>
 </tbody>
 </table>
 <hr />
 <!--
-| Annotated slides | | [pdf](slides-annotated.pdf) |
+| Annotated slides  | | [pdf](slides-annotated.pdf) |
 -->
 <hr />
 <p><a href="../index.html">Back to course homepage</a><br />
 <a href="../acknowledge.html">Acknowledgements</a><br />
-<a href="http://github.com/kingaa/sbied/tree/master/intro">Source code
-for these notes</a></p>
+<a href="http://github.com/kingaa/sbied/tree/master/stochsim">Source
+code for these notes</a></p>
 <hr />
 
 

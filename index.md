@@ -45,8 +45,9 @@ The course outline, course information and grading policies are described in the
 
 11. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](11/index.html)
 
-<!--
 12. [Simulation of stochastic dynamic models](12/index.html)
+
+<!--
 
 13. [Likelihood for POMP models: Theory and practice](13/index.html)
 
