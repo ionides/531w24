@@ -138,8 +138,6 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 -------------
 
-<!--
-
 ## Final project
 
 
@@ -149,14 +147,11 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 * [2024 final projects](final_project/index.html)
 
-* You're welcome to browse previous final projects. The [2021 final projects](http://ionides.github.io/531w21/final_project/) have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
+* You're welcome to browse previous final projects. The [2021](http://ionides.github.io/531w21/final_project/) and  [2022](http://ionides.github.io/531w22/final_project/)  final projects have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
 
-If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. The changes from **pomp 2.0** to the current **pomp 4.x** are smaller.
+If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. There are various smaller changes between **pomp 2.0** and the current **pomp 5.6**.
 
 --------
--->
-
-<!--
 
 ## Using the Great Lakes cluster
 
@@ -170,10 +165,9 @@ If building on old source code, note that there are some differences between ver
 
 * Please share knowledge about cluster computing between group members, and/or on piazza, to help everyone who wants to learn these skills.
 
-* Cluster-related questions can also be emailed to hpc-support@umich.edu.
+* Cluster-related questions can also be emailed to arc-support@umich.edu.
 
 ---------
--->
 
 ## Acknowledgements and License
 

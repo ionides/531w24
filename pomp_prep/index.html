@@ -9,10 +9,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Instructor: Edward L. Ionides" />
 
 
-<title>DATASCI/STATS 531 (Winter 2024)  ‘Modeling and Analysis of Time Series Data’</title>
+<title>DATASCI/STATS 531 Winter 2024   POMP software installation</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,209 +348,167 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 (Winter 2024)
-<br>‘Modeling and Analysis of Time Series Data’</h1>
-<h4 class="author">Instructor: Edward L. Ionides</h4>
+<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br> POMP
+software installation</h1>
 
 </div>
 
-<div id="TOC">
+
+<style type="text/css">
+div .nb {
+background-color: #ffeca3;
+border-style: solid;
+border-width: 2;
+border-color: #00274c;
+padding: 1em;
+}
+hr {
+border-width: 3;
+border-color: #00274c;
+}
+</style>
+<hr />
+<p>Please read the appropriate sections below, which give specific
+instructions for installing and testing the <code>pomp</code> software
+and other packages we will be using for data analysis using POMP models.
+First follow the instructions for “all users”, then those for your
+specific operating system (OS).</p>
+<div class="nb">
+<p><strong>Important note:</strong> If you run into problems, email <a href="mailto:ionides@umich.edu" class="email">ionides@umich.edu</a> with
+a detailed description of the problem you’ve encountered. In this
+message, <strong>be certain to include all of the following
+information</strong>:</p>
 <ul>
-<li><a href="#course-description" id="toc-course-description">Course
-description</a></li>
-<li><a href="#class-notes-and-recorded-lectures" id="toc-class-notes-and-recorded-lectures">Class notes and recorded
-lectures</a></li>
-<li><a href="#homework-and-participation-assignments" id="toc-homework-and-participation-assignments">Homework and
-participation assignments</a></li>
-<li><a href="#midterm-project" id="toc-midterm-project">Midterm
-project</a></li>
-<li><a href="#final-project" id="toc-final-project">Final
-project</a></li>
-<li><a href="#using-the-great-lakes-cluster" id="toc-using-the-great-lakes-cluster">Using the Great Lakes
-cluster</a></li>
-<li><a href="#acknowledgements-and-license" id="toc-acknowledgements-and-license">Acknowledgements and
-License</a></li>
+<li>the operating system you’re running,</li>
+<li>the version numbers of <strong>R</strong>, <strong>Rstudio</strong>,
+and <strong>pomp</strong> you’re attempting to install,</li>
+<li>what command(s) you’ve executed, and</li>
+<li>what error messages you’ve received.</li>
 </ul>
+<p>In particular, it is often easiest to send a screenshot or transcript
+showing the commands you’ve entered and the error messages you’ve
+received. In <strong>R</strong>, you can run <code>Sys.info()</code> to
+get a printout of the operating system and software version numbers.</p>
 </div>
-
-<hr />
-<div id="course-description" class="section level2">
-<h2>Course description</h2>
-<p>This course gives an introduction to time series analysis using time
-domain methods and frequency domain methods. The goal is to acquire the
-theoretical and computational skills required to investigate data
-collected as a time series. The first half of the course will develop
-classical time series methodology, including auto-regressive moving
-average (ARMA) models, regression with ARMA errors, and estimation of
-the spectral density. The second half of the course will focus on state
-space model techniques for fitting structured dynamic models to time
-series data. We will progress from fitting linear, Gaussian dynamic
-models to fitting nonlinear models for which Monte Carlo methods are
-required. Examples will be drawn from ecology, economics, epidemiology,
-finance and elsewhere.</p>
-<p>The course outline, course information and grading policies are
-described in the <a href="syllabus.html">syllabus</a>.</p>
-<hr />
+<div id="all-users" class="section level2">
+<h2>All users</h2>
+<div id="install-r-and-rstudio" class="section level3">
+<h3>Install <strong>R</strong> and <strong>RStudio</strong></h3>
+<p>You’ll need at least version 4.3.1 of <strong>R</strong>. Source code
+and binaries are available on CRAN (<a href="https://cran.r-project.org/" class="uri">https://cran.r-project.org/</a>). Install <em>the latest
+version</em> of <strong>RStudio</strong> from <a href="https://www.rstudio.com/products/rstudio/download/">rstudio.com</a>.</p>
 </div>
-<div id="class-notes-and-recorded-lectures" class="section level2">
-<h2>Class notes and recorded lectures</h2>
-<ol style="list-style-type: decimal">
-<li><p><a href="01/index.html">Introduction</a></p></li>
-<li><p><a href="02/index.html">Estimating trend and
-autocovariance</a></p></li>
-<li><p><a href="03/index.html">Stationarity, white noise, and some basic
-time series models</a></p></li>
-<li><p><a href="04/index.html">Linear time series models and the algebra
-of ARMA models</a></p></li>
-<li><p><a href="05/index.html">Parameter estimation and model
-identification for ARMA models</a></p></li>
-<li><p><a href="06/index.html">Extending the ARMA model: Seasonality,
-integration and trend</a></p></li>
-<li><p><a href="07/index.html">Introduction to time series analysis in
-the frequency domain</a></p></li>
-<li><p><a href="08/index.html">Smoothing in the time and frequency
-domains</a></p></li>
-<li><p><a href="09/index.html">Case study: An association between
-unemployment and mortality?</a></p></li>
-<li><p><a href="10/index.html">Introduction to partially observed Markov
-process models</a></p></li>
-<li><p><a href="11/index.html">Introduction to simulation-based
-inference for epidemiological dynamics via the pomp R
-package</a></p></li>
-</ol>
-<!--
-12. [Simulation of stochastic dynamic models](12/index.html)
-
-13. [Likelihood for POMP models: Theory and practice](13/index.html)
-
-14. [Likelihood maximization for POMP models](14/index.html)
-
-15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
-
-16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
-
-17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
-
-There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).
-
--->
+<div id="install-needed-packages" class="section level3">
+<h3>Install needed packages</h3>
+<p>Open a session in <strong>RStudio</strong> and run the following:</p>
+<pre><code>&gt; update.packages()
+&gt; source(&quot;https://ionides.github.io/531w24/pomp_prep/packages.R&quot;)</code></pre>
+<p><em>[The <code>&gt;</code> is the command prompt; it is not part of
+the command. Also, depending on your email client propgram, you may need
+to replace the quotation marks with plain keyboard double
+quotes.]</em></p>
+<p>The first command updates your installed packages. You may be
+prompted to specify a CRAN mirror: choose one geographically near you.
+In <strong>RStudio</strong>, you can also push the “Update” button on
+the “Packages” tab to accomplish this.</p>
+<p>The second command runs a script on my website. It will install some
+needed packages if these are not already installed on your system.</p>
 <hr />
 </div>
-<div id="homework-and-participation-assignments" class="section level2">
-<h2>Homework and participation assignments</h2>
-<p>Please read the <a href="rubric_homework.html">grading rubric</a>
-before submitting homework.</p>
-<ul>
-<li><p><a href="hw00/hw00.html">Homework 0</a>. Setting up your
-computational environment. Nothing to submit.</p></li>
-<li><p><a href="hw01/hw01.html">Homework 1</a>, due Sun Jan 21, 11:59pm.
-<a href="hw01/sol01.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation1.html">Participation 1</a>,
-due Sun Jan 21, 11:59pm.</p></li>
-<li><p><a href="hw02/hw02.html">Homework 2</a>, due Tue Jan 30, 11:59pm.
-<a href="hw02/sol02.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation2.html">Participation 2</a>,
-due Tue Jan 30, 11:59pm.</p></li>
-<li><p><a href="hw03/hw03.html">Homework 3</a>, due Sun Feb 11, 11:59pm.
-<a href="hw03/sol03.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation3.html">Participation 3</a>,
-due Sun Feb 11, 11:59pm.</p></li>
-<li><p><a href="hw04/hw04.html">Homework 4</a>, due Sun Feb 18, 11:59pm.
-<a href="hw04/sol04.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation4.html">Participation 4</a>,
-due Sun Feb 18, 11:59pm.</p></li>
-<li><p><a href="hw05/hw05.html">Homework 5</a>, due Sun Mar 17,
-11:59pm.</p></li>
-</ul>
-<!--
-[Solution](hw05/sol05.html).
--->
-<ul>
-<li><a href="participation/participation5.html">Participation 5</a>, due
-Sun Mar 17, 11:59pm.</li>
-</ul>
-<!--
-
-* [Homework 6](hw06/hw06.html), due Mon Mar 21, 11:59pm. 
-[Solution](hw06/sol06.html).
-
-
-* [Homework 7](hw07/hw07.html), due Mon Mar 28, 11:59pm.
-[Solution](hw07/sol07.html).
-
-* [Participation 6](participation/participation6.html), due Mon Apr 4, 11:59pm.
-
-* [Homework 8](hw08/hw08.pdf), due Mon Apr 4, 11:59pm.
-[Solution](hw08/sol08.pdf).
-
-* [Participation 7](participation/participation7.html), due Mon Apr 18, 11:59pm.
-
-* There is no assigned homework for the last two weeks of the semester. You should work on your final project. The remaining lectures contain material that will be useful for your final projects.
-
--->
+</div>
+<div id="windows-users" class="section level2">
+<h2>Windows users</h2>
+<p>If your machine runs Windows, you must install
+<strong>Rtools</strong>. This will give you the ability to compile C
+code and dynamically link it into an <strong>R</strong> session.</p>
+<p><a href="https://cran.r-project.org/bin/windows/Rtools/">Download
+<strong>Rtools</strong> from CRAN</a> and install it. A
+<a href="https://youtu.be/lmIhiT_QsPE" target="_blank">video tutorial
+demonstrating how to install <strong>Rtools</strong> </a> may be
+helpful. Also, <a href="https://cran.r-project.org/bin/windows/Rtools/">detailed
+installation instructions</a> are available on CRAN. <em>Note that,
+after installation, there is one more step to be completed.</em></p>
 <hr />
 </div>
-<div id="midterm-project" class="section level2">
-<h2>Midterm project</h2>
-<ul>
-<li><p><a href="midterm_project/midterm_project_info.html">Information</a>.</p></li>
-<li><p><a href="midterm_project/midterm_review.html">Midterm peer review
-report instructions</a></p></li>
-<li><p><a href="midterm_project/index.html">2024 midterm
-projects</a></p></li>
-<li><p>You are welcome to browse previous midterm projects. The <a href="http://ionides.github.io/531w22/midterm_project/">2022 midterm
-projects</a> and <a href="http://ionides.github.io/531w21/midterm_project/">2021 midterm
-projects</a> have a posted summary of peer review comments. Earlier
-projects are also available, from <a href="http://ionides.github.io/531w16/midterm_project/">2016</a>, <a href="http://ionides.github.io/531w18/midterm_project/">2018</a> and <a href="http://ionides.github.io/531w20/midterm_project/">2020</a>.</p></li>
-</ul>
+<div id="macosx-users" class="section level2">
+<h2>MacOSX users</h2>
+<p>So that you can compile C code and dynamically link it into an
+<strong>R</strong> session, you will need to have the
+<strong>Xcode</strong> app installed. This is gratis and can be
+installed via the App Store or downloaded from <a href="https://developer.apple.com/download/">developer.apple.com</a>.
+Video tutorials demonstrating how to <a href="https://youtu.be/j0kqPpMecp4">check if you need to install
+Xcode</a>, <a href="https://youtu.be/aryEseip6Mk">how to install
+Xcode</a>, and <a href="https://youtu.be/ikvJcN3Zi2w">how to install
+pomp once you have installed Xcode</a> are available.</p>
+<p>Note that you must go beyond merely installing the
+<strong>Xcode</strong> app. After you’ve installed the app, open a unix
+terminal (listed as the <strong>Terminal</strong> app under “Utilities”
+in the Finder) and run the following line</p>
+<pre><code>xcode-select --install</code></pre>
+<p>This will install the “Command Line Tools” that are needed to compile
+native C codes. Running this command is tantamount to the part of the
+Xcode installation tutorial video where we complete the installation
+using the graphical user interface.</p>
 <hr />
 </div>
-<div id="final-project" class="section level2">
-<h2>Final project</h2>
-<ul>
-<li><p><a href="final_project/final_project_info.html">Information</a></p></li>
-<li><p><a href="final_project/final_review.html">Final review report
-instructions</a></p></li>
-<li><p><a href="final_project/index.html">2024 final
-projects</a></p></li>
-<li><p>You’re welcome to browse previous final projects. The <a href="http://ionides.github.io/531w21/final_project/">2021</a> and <a href="http://ionides.github.io/531w22/final_project/">2022</a> final
-projects have a posted summary of peer review comments. Earlier projects
-from <a href="http://ionides.github.io/531w16/final_project/">2016</a>,
-<a href="http://ionides.github.io/531w18/final_project/">2018</a>, <a href="http://ionides.github.io/531w20/final_project/">2020</a> may also
-be useful.</p></li>
-</ul>
-<p>If building on old source code, note that there are some differences
-between versions of the software package <strong>pomp</strong>. The <a href="https://kingaa.github.io/pomp/vignettes/upgrade_guide.html"><strong>pomp</strong>
-version 2 upgrade guide</a> can be helpful. There are various smaller
-changes between <strong>pomp 2.0</strong> and the current <strong>pomp
-5.6</strong>.</p>
+<div id="all-users-1" class="section level2">
+<h2>All users</h2>
+<div id="test-pomp" class="section level3">
+<h3>Test <strong>pomp</strong></h3>
+<p>Open a session in <strong>RStudio</strong> and run the following:</p>
+<pre><code>&gt; source(&quot;https://kingaa.github.io/scripts/pompTest.R&quot;)</code></pre>
+<p>This will check whether you can work with <strong>pomp</strong>.</p>
+<p>If it fails, try the following:</p>
+<pre><code>&gt; source(&quot;https://kingaa.github.io/scripts/hello.R&quot;,echo=TRUE)</code></pre>
+<p>If this fails to give the “Hello!” message, you will need to follow
+the instructions below that correspond to your OS before re-trying the
+<code>pompTest.R</code> script.</p>
+</div>
+<div id="linux-and-unix" class="section level3">
+<h3>Linux and unix</h3>
+<p>If you have trouble with any of the scripts above, make sure you have
+the GNU compiler collection (GCC), including <strong>gfortran</strong>,
+installed on your computer. Linux distributions typically include this
+by default but it is not impossible that you have somehow avoided
+this.</p>
+</div>
+<div id="macosx" class="section level3">
+<h3>MacOSX</h3>
+<p>If the <code>pompTest.R</code> script fails because you cannot load
+<strong>pomp</strong>, try installing it from source. The easiest way to
+do this is to use the <strong>devtools</strong> package. Do</p>
+<pre><code>install.packages(&quot;devtools&quot;)
+library(devtools)
+install_github(&quot;kingaa/pomp&quot;)</code></pre>
+<p>If, while trying to install from source, you receive the error,</p>
+<pre><code>make: gfortran-8.2: No such file or directory</code></pre>
+<p>or one that otherwise refers to <code>gfortran</code>, then it is
+likely that you do not have the necessary version of
+<strong>gfortran</strong> installed. Have a look at <a href="https://mac.r-project.org/tools/">these instructions</a> and
+contact me at the address above if these don’t work for you.</p>
+<p>Some users have reported receiving an error complaining that</p>
+<pre><code>&#39;stdlib.h&#39; file not found</code></pre>
+<p>This indicates that the command-line tools from
+<strong>Xcode</strong> have not been properly installed. In a unix
+terminal, run</p>
+<pre><code>xcode-select --install</code></pre>
+<p>to correct this problem.</p>
+</div>
+<div id="windows" class="section level3">
+<h3>Windows</h3>
+<p>You have probably failed to install the <strong>Rtools</strong>
+correctly. Revisit the <a href="#windows-users">instructions
+above</a>.</p>
+<hr />
+<p><a href="../"><strong>Back to course homepage</strong></a><br />
+<a href="https://www.youtube.com/playlist?list=PLluGwj6FGt2R3iM5CAEfIIof5dQfHVRgz"><strong>Video
+instructions for Windows users</strong></a><br />
+<a href="https://www.youtube.com/playlist?list=PLluGwj6FGt2S8GmrOF3s68LlsWoTRmuMQ"><strong>Video
+instructions for MacOS users</strong></a> <br> <a href="https://kingaa.github.io/sbied/prep/index.html"><strong>Acknowledgment:
+these instructions are derived from
+https://kingaa.github.io/sbied/prep</strong></a></p>
 <hr />
 </div>
-<div id="using-the-great-lakes-cluster" class="section level2">
-<h2>Using the Great Lakes cluster</h2>
-<ul>
-<li><p>Great Lakes access will be set up after the midterm project and
-used for the second half of the course.</p></li>
-<li><p><a href="greatlakes/index.html">Introductory notes</a> for using
-our class account on the greatlakes cluster. This is optional but may be
-helpful for your final project.</p></li>
-<li><p>If you are already familiar with using R on Great Lakes, all you
-need to know is the class account:
-<code>stats531w24_class</code>.</p></li>
-<li><p>You are expected to use our class account only for computations
-related to DATASCI/STATS 531.</p></li>
-<li><p>Please share knowledge about cluster computing between group
-members, and/or on piazza, to help everyone who wants to learn these
-skills.</p></li>
-<li><p>Cluster-related questions can also be emailed to <a href="mailto:arc-support@umich.edu" class="email">arc-support@umich.edu</a>.</p></li>
-</ul>
-<hr />
-</div>
-<div id="acknowledgements-and-license" class="section level2">
-<h2>Acknowledgements and License</h2>
-<p>This course and the code involved are made available with an <a href="LICENSE">MIT license</a>. Some components follow a Creative
-Commons Attribution non-commercial license. A longer list of
-acknowledgments is <a href="acknowledge.html">available</a>.</p>
 </div>
 
 

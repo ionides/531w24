@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Instructor: Edward L. Ionides" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 (Winter 2024)  ‘Modeling and Analysis of Time Series Data’</title>
+<title>Final project instructions</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,210 +349,227 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 (Winter 2024)
-<br>‘Modeling and Analysis of Time Series Data’</h1>
-<h4 class="author">Instructor: Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Final project instructions</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
-<div id="TOC">
-<ul>
-<li><a href="#course-description" id="toc-course-description">Course
-description</a></li>
-<li><a href="#class-notes-and-recorded-lectures" id="toc-class-notes-and-recorded-lectures">Class notes and recorded
-lectures</a></li>
-<li><a href="#homework-and-participation-assignments" id="toc-homework-and-participation-assignments">Homework and
-participation assignments</a></li>
-<li><a href="#midterm-project" id="toc-midterm-project">Midterm
-project</a></li>
-<li><a href="#final-project" id="toc-final-project">Final
-project</a></li>
-<li><a href="#using-the-great-lakes-cluster" id="toc-using-the-great-lakes-cluster">Using the Great Lakes
-cluster</a></li>
-<li><a href="#acknowledgements-and-license" id="toc-acknowledgements-and-license">Acknowledgements and
-License</a></li>
-</ul>
-</div>
 
 <hr />
-<div id="course-description" class="section level2">
-<h2>Course description</h2>
-<p>This course gives an introduction to time series analysis using time
-domain methods and frequency domain methods. The goal is to acquire the
-theoretical and computational skills required to investigate data
-collected as a time series. The first half of the course will develop
-classical time series methodology, including auto-regressive moving
-average (ARMA) models, regression with ARMA errors, and estimation of
-the spectral density. The second half of the course will focus on state
-space model techniques for fitting structured dynamic models to time
-series data. We will progress from fitting linear, Gaussian dynamic
-models to fitting nonlinear models for which Monte Carlo methods are
-required. Examples will be drawn from ecology, economics, epidemiology,
-finance and elsewhere.</p>
-<p>The course outline, course information and grading policies are
-described in the <a href="syllabus.html">syllabus</a>.</p>
-<hr />
-</div>
-<div id="class-notes-and-recorded-lectures" class="section level2">
-<h2>Class notes and recorded lectures</h2>
+<p>The format for submitting the final project is different from the
+midterm project. The main reason for that is to facilitate running the
+peer review via Canvas.</p>
+<p><strong><big>Final project outline</big></strong>. Find a time series
+dataset of your choice. Carry out a time series analysis, taking
+advantage of what we have learned so far in this course. Write a report,
+submitted on Canvas as a zip file by the deadline, 11:59pm on Tuesday
+4/23. The zip file should contain the following:</p>
 <ol style="list-style-type: decimal">
-<li><p><a href="01/index.html">Introduction</a></p></li>
-<li><p><a href="02/index.html">Estimating trend and
-autocovariance</a></p></li>
-<li><p><a href="03/index.html">Stationarity, white noise, and some basic
-time series models</a></p></li>
-<li><p><a href="04/index.html">Linear time series models and the algebra
-of ARMA models</a></p></li>
-<li><p><a href="05/index.html">Parameter estimation and model
-identification for ARMA models</a></p></li>
-<li><p><a href="06/index.html">Extending the ARMA model: Seasonality,
-integration and trend</a></p></li>
-<li><p><a href="07/index.html">Introduction to time series analysis in
-the frequency domain</a></p></li>
-<li><p><a href="08/index.html">Smoothing in the time and frequency
-domains</a></p></li>
-<li><p><a href="09/index.html">Case study: An association between
-unemployment and mortality?</a></p></li>
-<li><p><a href="10/index.html">Introduction to partially observed Markov
-process models</a></p></li>
-<li><p><a href="11/index.html">Introduction to simulation-based
-inference for epidemiological dynamics via the pomp R
-package</a></p></li>
+<li><p>A file called <code>blinded.Rmd</code> and its compiled version
+<code>blinded.html</code> which contain no identifying text. This
+version will be used for anonymous peer review and posted on the course
+website.</p></li>
+<li><p>Data files and any other files needed to compile the Rmd on a
+standard R or Rstudio environment. You can assume that the grader and
+peer reviewers will install required libraries as needed.</p></li>
 </ol>
-<!--
-12. [Simulation of stochastic dynamic models](12/index.html)
-
-13. [Likelihood for POMP models: Theory and practice](13/index.html)
-
-14. [Likelihood maximization for POMP models](14/index.html)
-
-15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
-
-16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
-
-17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
-
-There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).
-
--->
+<p>In addition to the project report, there is a separate Canvas
+assignment requesting submission of a short individual statement
+describing (i) your role in the group; (ii) how the group shared the
+tasks involved in writing the report. This is not necessary if you
+carried out an individual final project. The individual roles statement
+can be as short as a paragraph. Points for this individual report will
+be awarded in the teamwork category of the grading rubric below. It is
+expected that every group member will be awarded the same score.
+However, in special circumstances, these individual statements could be
+used to make appropriate adjustments.</p>
+<p><strong><big>Choice of data and the analysis task</big></strong>. It
+is expected that part of your project will involve a POMP analysis,
+using the modeling and inference approaches we have studied in the
+second half of this semester. A common goal of POMP analysis is to
+connect theory to data. To do this, you must think about both the theory
+and the data. If possible, choose a dataset on a topic for which you
+know, or are willing to discover, some background theory. A good way to
+get ideas for topics to study and places to find data is to look at the
+past final projects from <a href="https://ionides.github.io/531w22/final_project/index.html">2022</a>
+or previous years (<a href="http://ionides.github.io/531w16/final_project/index.html">2016</a>,
+<a href="https://ionides.github.io/531w18/final_project/index.html">2018</a>,
+<a href="https://ionides.github.io/531w20/final_project/index.html">2020</a>,
+<a href="https://ionides.github.io/531w21/final_project/index.html">2021</a>).
+Each of these projects should contain the data and information about
+where the data came from. You may want to search for your own data set,
+but it is also legitimate to re-analyze data from a previous final
+project. If you do re-analyze data, you should explain clearly how your
+analysis goes beyond the previous work, and you should be especially
+careful to give proper credit to any code you reuse. Also, note that old
+<strong>pomp</strong> code may need modification to run on the current
+version of <strong>pomp</strong>. The <a href="https://kingaa.github.io/pomp/vignettes/upgrade_guide.html"><strong>pomp</strong>
+version 2 upgrade guide</a> can be helpful for older code. Various
+smaller changes have also acrued between <strong>pomp 2.0</strong> to
+the current <strong>pomp 5.6</strong>.</p>
+<p>As for the midterm project, the time series should hopefully have at
+least 100 time points. You can have less, if your interests demand it.
+Shorter data needs additional care, since model diagnostics and
+asymptotic approximations become more delicate on small datasets. If
+your data are longer than, say, 1000 time points, you can subsample if
+you start having problems working with too much data. Computational
+considerations may prevent you analyzing as large a model, or as long a
+dataset, as you would ideally do. That is fine. You can present a
+smaller, computationally feasible analysis and discuss possible
+extensions to your analysis.</p>
 <hr />
-</div>
-<div id="homework-and-participation-assignments" class="section level2">
-<h2>Homework and participation assignments</h2>
-<p>Please read the <a href="rubric_homework.html">grading rubric</a>
-before submitting homework.</p>
-<ul>
-<li><p><a href="hw00/hw00.html">Homework 0</a>. Setting up your
-computational environment. Nothing to submit.</p></li>
-<li><p><a href="hw01/hw01.html">Homework 1</a>, due Sun Jan 21, 11:59pm.
-<a href="hw01/sol01.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation1.html">Participation 1</a>,
-due Sun Jan 21, 11:59pm.</p></li>
-<li><p><a href="hw02/hw02.html">Homework 2</a>, due Tue Jan 30, 11:59pm.
-<a href="hw02/sol02.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation2.html">Participation 2</a>,
-due Tue Jan 30, 11:59pm.</p></li>
-<li><p><a href="hw03/hw03.html">Homework 3</a>, due Sun Feb 11, 11:59pm.
-<a href="hw03/sol03.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation3.html">Participation 3</a>,
-due Sun Feb 11, 11:59pm.</p></li>
-<li><p><a href="hw04/hw04.html">Homework 4</a>, due Sun Feb 18, 11:59pm.
-<a href="hw04/sol04.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation4.html">Participation 4</a>,
-due Sun Feb 18, 11:59pm.</p></li>
-<li><p><a href="hw05/hw05.html">Homework 5</a>, due Sun Mar 17,
-11:59pm.</p></li>
-</ul>
-<!--
-[Solution](hw05/sol05.html).
--->
-<ul>
-<li><a href="participation/participation5.html">Participation 5</a>, due
-Sun Mar 17, 11:59pm.</li>
-</ul>
-<!--
-
-* [Homework 6](hw06/hw06.html), due Mon Mar 21, 11:59pm. 
-[Solution](hw06/sol06.html).
-
-
-* [Homework 7](hw07/hw07.html), due Mon Mar 28, 11:59pm.
-[Solution](hw07/sol07.html).
-
-* [Participation 6](participation/participation6.html), due Mon Apr 4, 11:59pm.
-
-* [Homework 8](hw08/hw08.pdf), due Mon Apr 4, 11:59pm.
-[Solution](hw08/sol08.pdf).
-
-* [Participation 7](participation/participation7.html), due Mon Apr 18, 11:59pm.
-
-* There is no assigned homework for the last two weeks of the semester. You should work on your final project. The remaining lectures contain material that will be useful for your final projects.
-
--->
+<p><strong><big>Groups</big></strong>. There will be randomly assigned
+groups of approximately 3 people. As pointed out in the syllabus, in
+special situations you can request to write an individual midterm
+project. This may be appropriate if you have a particular dataset or
+scientific question that has motivated your interest in learning time
+series analysis. You must request this before groups are assigned. Once
+you are in a group you have to come to an agreement with your group on
+what data to analyze. You will not be able to request your own group
+partners - in order to treat everyone fairly, groups will be
+randomized.</p>
 <hr />
-</div>
-<div id="midterm-project" class="section level2">
-<h2>Midterm project</h2>
-<ul>
-<li><p><a href="midterm_project/midterm_project_info.html">Information</a>.</p></li>
-<li><p><a href="midterm_project/midterm_review.html">Midterm peer review
-report instructions</a></p></li>
-<li><p><a href="midterm_project/index.html">2024 midterm
-projects</a></p></li>
-<li><p>You are welcome to browse previous midterm projects. The <a href="http://ionides.github.io/531w22/midterm_project/">2022 midterm
-projects</a> and <a href="http://ionides.github.io/531w21/midterm_project/">2021 midterm
-projects</a> have a posted summary of peer review comments. Earlier
-projects are also available, from <a href="http://ionides.github.io/531w16/midterm_project/">2016</a>, <a href="http://ionides.github.io/531w18/midterm_project/">2018</a> and <a href="http://ionides.github.io/531w20/midterm_project/">2020</a>.</p></li>
-</ul>
+<p><strong><big>Data privacy and project anonymity</big></strong>. The
+projects, together with their data and source code, will be posted
+anonymously on the class website unless you have particular reasons why
+this should not be done. For example, you may have access to data with
+privacy concerns. The projects will be posted anonymously. After the
+semester is finished, you can request for your name(s) to be added to
+your project if you want to.</p>
 <hr />
-</div>
-<div id="final-project" class="section level2">
-<h2>Final project</h2>
+<p><strong><big>More comments on choice of data and data analysis
+goals</big></strong>.</p>
 <ul>
-<li><p><a href="final_project/final_project_info.html">Information</a></p></li>
-<li><p><a href="final_project/final_review.html">Final review report
-instructions</a></p></li>
-<li><p><a href="final_project/index.html">2024 final
-projects</a></p></li>
-<li><p>You’re welcome to browse previous final projects. The <a href="http://ionides.github.io/531w21/final_project/">2021</a> and <a href="http://ionides.github.io/531w22/final_project/">2022</a> final
-projects have a posted summary of peer review comments. Earlier projects
-from <a href="http://ionides.github.io/531w16/final_project/">2016</a>,
-<a href="http://ionides.github.io/531w18/final_project/">2018</a>, <a href="http://ionides.github.io/531w20/final_project/">2020</a> may also
-be useful.</p></li>
-</ul>
-<p>If building on old source code, note that there are some differences
-between versions of the software package <strong>pomp</strong>. The <a href="https://kingaa.github.io/pomp/vignettes/upgrade_guide.html"><strong>pomp</strong>
-version 2 upgrade guide</a> can be helpful. There are various smaller
-changes between <strong>pomp 2.0</strong> and the current <strong>pomp
-5.6</strong>.</p>
-<hr />
-</div>
-<div id="using-the-great-lakes-cluster" class="section level2">
-<h2>Using the Great Lakes cluster</h2>
-<ul>
-<li><p>Great Lakes access will be set up after the midterm project and
-used for the second half of the course.</p></li>
-<li><p><a href="greatlakes/index.html">Introductory notes</a> for using
-our class account on the greatlakes cluster. This is optional but may be
-helpful for your final project.</p></li>
-<li><p>If you are already familiar with using R on Great Lakes, all you
-need to know is the class account:
-<code>stats531w24_class</code>.</p></li>
-<li><p>You are expected to use our class account only for computations
-related to DATASCI/STATS 531.</p></li>
-<li><p>Please share knowledge about cluster computing between group
-members, and/or on piazza, to help everyone who wants to learn these
-skills.</p></li>
-<li><p>Cluster-related questions can also be emailed to <a href="mailto:arc-support@umich.edu" class="email">arc-support@umich.edu</a>.</p></li>
+<li><p>If you already have a dataset, or scientific topic, to motivate
+your time series final project, that is good. Otherwise, here are some
+ideas.</p></li>
+<li><p>A standard approach for a final project is to take some
+previously published data, do your own time series analysis, and write
+it up by putting it in the context of the previously published
+analysis.</p></li>
+<li><p>You can reproduce part of a previously published analysis, being
+careful to explain the relationship between what you have done and what
+was done previously. You should also think of some things to try that
+are not the same as what was done previously.</p></li>
+<li><p>Depending on your choice of project, you may be in any of the
+following situations:</p>
+<ol style="list-style-type: decimal">
+<li><p>A <strong>pomp</strong> representation already exists for the
+POMP model you want to use.</p></li>
+<li><p>Your task involves POMP models that are variations on an existing
+<strong>pomp</strong> representation.</p></li>
+<li><p>Your analysis involves a POMP model which leads you to develop
+your own <strong>pomp</strong> representation.</p></li>
+</ol></li>
+<li><p>If you develop a <strong>pomp</strong> representation of a POMP
+model for a new dataset, test it and demonstrate it, that is already a
+full project.</p></li>
+<li><p>The more your model derives from previous work, the further you
+are expected to go in carrying out a thorough data analysis.</p></li>
 </ul>
 <hr />
-</div>
-<div id="acknowledgements-and-license" class="section level2">
-<h2>Acknowledgements and License</h2>
-<p>This course and the code involved are made available with an <a href="LICENSE">MIT license</a>. Some components follow a Creative
-Commons Attribution non-commercial license. A longer list of
-acknowledgments is <a href="acknowledge.html">available</a>.</p>
-</div>
+<p><strong><big>Methodology not covered in class</big></strong>. This
+course has focused on ARMA and POMP models, two related approaches to
+time domain analysis of time series. For example, we have not spent much
+time on frequency domain analysis of multivariate time series. If you
+decide that alternative approaches are particularly relevant for your
+data analysis goal, you can use them in your project as a complementary
+approach to what we have covered in class. Eplaining and justifying an
+alternative approach can be a substantial component of the project.</p>
+<hr />
+<p><strong><big>Expectations for the report</big></strong>. The final
+report will be graded on the following categories, the same as for the
+midterm project.</p>
+<ul>
+<li><p>Communicating your data analysis. [10 points]</p>
+<ul>
+<li><p>Raising a question. You should explain some background to the
+data you chose, and give motivation for the reader to appreciate the
+purpose of your data analysis.</p></li>
+<li><p>Reaching a conclusion. You should say what you have concluded
+about your question(s).</p></li>
+<li><p>Communication style. Material should be presented in a way that
+helps the reader to appreciate the contribution of the project. Code and
+computer output are included only if they are pertinent to the
+discussion. Usually, code remains in the source file, and numerical
+results are presented in tables or graphs or text, rather than raw
+computer output.</p></li>
+<li><p>You will submit your source code, but you should not expect the
+reader to study it. If the reader has to study the source code, your
+report probably has not explained well enough what you were
+doing.</p></li>
+</ul></li>
+<li><p>Statistical methodology. [10 points]</p>
+<ul>
+<li><p>Justify your choices for the statistical methodology.</p></li>
+<li><p>The models and methods you use should be fully explained, either
+by references or within your report.</p></li>
+<li><p>Focus on a few, carefully explained and justified, figures,
+tables, statistics and hypothesis tests. You may want to try many
+things, but only write up evidence supporting how the data help you to
+get from your question to your conclusions. Value the reader’s time: you
+may lose points for including material that is of borderline relevance,
+or that is not adequately explained and motivated.</p></li>
+<li><p>Correctness. Obviously, we aim to avoid errors in the math we
+present, our code, or the reasoning used to draw conclusions from
+results. Being self-critical and paying attention to detail can help
+here.</p></li>
+</ul></li>
+<li><p>Scholarship. [10 points]</p>
+<ul>
+<li><p>Your report should make references where appropriate. For a
+well-written report the citations should be clearly linked to the
+material. The reader should not have to do detective work to figure out
+what assertion is linked to what reference.</p></li>
+<li><p>You should properly acknowledge any sources (people or documents
+or internet sites) that contributed to your project.</p></li>
+<li><p>You are welcome, and encouraged, to look at previous projects,
+linked from <a href="../index.html">the course website</a>. If you
+address a question related to a previous project, you should put your
+contribution in the context of the previous work and explain how your
+approach varies or extends the previous work. It is especially important
+that this is clearly explained: substantial points will be lost if the
+reader has to carry out detective work to figure out clearly the
+relationship to a previous project.</p></li>
+<li><p>When using a reference to point the reader to descriptions
+elsewhere, you should provide a brief summary in your own report to make
+it self-contained.</p></li>
+<li><p>Teamwork. This will be assessed based on the separate statement
+of group roles submitted to Canvas.</p></li>
+</ul></li>
+</ul>
+<hr />
+<p><strong><big>Plagiarism</big></strong>. All sources are allowed. You
+can access any website and talk to any human about your project, as long
+as the interaction is properly credited. If material is taken directly
+from another source, that source must be cited and the copied material
+clearly attributed to the source, for example by the use of quotation
+marks. Failing to do this is <a href="https://en.wikipedia.org/wiki/Plagiarism">plagiarism</a> and will,
+at a minimum, result in zero credit for the scholarship category. For
+course projects, we should be at least as careful with attributions than
+the high standards expected across academia. Explaining how you gathered
+information for your project can strengthen the presentation. For
+example, any time you discuss your project with a classmate, or you use
+advice from <a href="https://stackoverflow.com/">Stack Overflow</a>, you
+can add this to the acknowledgements section of your project.</p>
+<p>Further discussion of plagiarism can be found in <a href="http://www.nap.edu/catalog.php?record_id=12192">On Being a
+Scientist: A Guide to Responsible Conduct in Research: Third edition
+(2009)</a>, by <i>The National Academies Press</i>. Here is how the <a href="http://www.rackham.umich.edu/current-students/policies/academic-policies/section11#1132">Rackham
+Academic and Professional Integrity Policy</a> describes plagiarism:</p>
+<blockquote>
+<p><b> 8.1.2 Plagiarism </b></p>
+<p>Includes:</p>
+<p>Representing the words, ideas, or work of others as one’s own in
+writing or presentations, and failing to give full and proper credit to
+the original source.</p>
+<p>Failing to properly acknowledge and cite language from another
+source, including paraphrased text.</p>
+<p>Failing to properly cite any ideas, images, technical work, creative
+content, or other material taken from published or unpublished sources
+in any medium, including online material or oral presentations, and
+including the author’s own previous work.</p>
+</blockquote>
+<hr />
 
 
 

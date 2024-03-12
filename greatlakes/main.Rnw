@@ -1,0 +1,315 @@
+
+\usepackage{paralist}
+\usepackage{pgfpages}
+%\usepackage{mathtools}
+%\usepackage{amsmath}
+%\usepackage{amssymb}
+\usepackage{xspace}        
+\usepackage{graphicx}
+\usepackage{listings}
+
+\setlength{\parskip}{0mm}
+\setlength{\parindent}{0mm}
+\lstset{language=C}
+
+\newcommand\link[2]{\href{#1}{#2}}
+\newcommand{\doi}[1]{\link{https://doi.org/#1}{\texttt{doi:~{#1}}}}
+\newcommand\code[1]{\texttt{#1}}
+\newcommand\package[1]{\textbf{#1}}
+\newcommand\bi{\begin{itemize}}
+\newcommand\ei{\end{itemize}}
+
+\mode<beamer>{\usetheme{AnnArbor}}
+\mode<beamer>{\setbeamertemplate{footline}}
+\mode<beamer>{\setbeamertemplate{footline}[frame number]}
+\mode<beamer>{\setbeamertemplate{frametitle continuation}[from second][\insertcontinuationcountroman]}
+\mode<beamer>{\setbeamertemplate{navigation symbols}{}}
+
+\mode<handout>{\pgfpagesuselayout{2 on 1}[letterpaper,border shrink=5mm]}
+
+\def\CHAPTER{12}
+\title{DATASCI/STATS 531\\Parallel statistical computing in R on greatlakes}
+\author{Edward L. Ionides}
+
+\setbeamertemplate{footline}[frame number]
+
+<<setup,include=FALSE,cache=FALSE,purl=FALSE,child="../setup.Rnw">>=
+@
+
+\begin{document}
+
+\maketitle
+
+\mode<article>{\tableofcontents}
+
+\mode<presentation>{
+  \begin{frame}{Outline}
+    \tableofcontents
+  \end{frame}
+}
+
+\section{Logging in to greatlakes}
+
+\begin{frame}{Requirements}
+
+We follow \link{https://arc-ts.umich.edu/greatlakes/user-guide/\#document-3}{Section 1.3} of the \link{https://arc-ts.umich.edu/greatlakes/user-guide/}{greatlakes user guide}. As preliminaries, you need:
+
+\begin{itemize}
+  \item A Slurm account. Everybody in this class is a member of the account \code{stats531w24\_class}. Graduate students in the Applied Statistics and Data Science masters programs, or Statistics PhD program, also have a primary departmental account, \code{stats\_dept1}, and a smaller departmental backup account for if you exhaust your resourses, \code{stats\_dept2}. 
+   \item A greatlakes cluster login account. If you have not yet filled in the form at \url{https://arc-ts.umich.edu/greatlakes/user-guide/} then do so.
+   \item A umich internet address. Use the umich VPN if you are not on campus.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Connecting to greatlakes with macOS or Linux}
+  \begin{enumerate}
+  \item Open a Terminal window (recall that, on a Mac, this can be done using Control-Spacebar and typing Terminal) and type
+<<,echo=T,eval=F>>=
+ssh uniqname@greatlakes.arc-ts.umich.edu
+@
+where \code{uniqname} is your uniqname.
+\item Login with your Kerberos level-1 password, and Duo two-factor authentication.
+  \end{enumerate}
+This creates a remote terminal shell on greatlakes.
+
+\end{frame}
+
+
+
+\begin{frame}{Connecting to greatlakes with Windows}
+This is essentially the same as for macOS, except that you may need to install a program that provides a terminal window
+  \begin{enumerate}
+  \item Follow instructions to install PuTTY at \url{https://documentation.its.umich.edu/node/350}
+  \item Launch PuTTY and enter \code{greatlakes.arc-ts.umich.edu} as the host name, then click open.
+If you receive a ``PuTTY Security Alert'' pop-up, this is completely normal, click the ``Yes'' option. This will tell PuTTY to trust the host the next time you want to connect to it. From there, a terminal window will open; you will be required to enter your UMICH uniqname and then your Kerberos level-1 password in order to log in. Please note that as you type your password, it may be that nothing you type appears on the screen; this is completely normal. Press ``Enter/Return'' key once you are done typing your password.
+\item Complete the request for Duo two-factor authentication.
+  \end{enumerate}
+This creates a remote terminal shell on greatlakes.
+
+\end{frame}
+
+
+\section{Moving files on and off greatlakes}
+
+\begin{frame}[fragile]{Moving files on and off greatlakes: \code{scp}}
+
+On Mac or Linux, you can use \code{scp} which has similar syntax to \code{cp}.
+
+To copy \code{myfile} on your laptop to a subdirectory \code{mydir} of your home directory on greatlakes:
+<<,echo=T,eval=F>>=
+scp myfile uniqname@greatlakes-xfer.arc-ts.umich.edu:mydir
+@
+To copy an entire directory, use the \code{-r} flag for recursive copy:
+<<,echo=T,eval=F>>=
+scp -r mydir uniqname@greatlakes-xfer.arc-ts.umich.edu:
+@
+These commands can also be reversed to copy files from greatlakes to your machine. The following copies \code{mydir} back to the current working directory:
+<<,echo=T,eval=F>>=
+scp -r uniqname@greatlakes-xfer.arc-ts.umich.edu:mydir .
+@
+You will need to authenticate via Duo to complete the file transfer.
+On Windows, you can use WinSCP or FileZilla. 
+\end{frame}
+
+\section{Working with batch jobs}
+
+\begin{frame}{Cluster batch workflow}
+
+\begin{enumerate}
+\item You create a batch script and submit it as a job
+\item Your job is scheduled, and it enters the queue
+\item When its turn arrives, your job will execute the batch script
+\item Your script has access to all applications and data
+\item When your script completes, anything it sent to standard output
+and error are saved in files stored in your submission directory
+\item You can ask that email be sent to you when your jobs starts, ends,
+or fails
+\item You can check on the status of your job at any time,
+or delete it if it's not doing what you want
+\item A short time after your job completes, it disappears
+\end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]{Useful batch commands}
+
+Submit a job
+<<,echo=T,eval=F>>=
+sbatch sample.sbat
+@
+
+Query job status
+<<,echo=T,eval=F>>=
+squeue -j jobid
+squeue -u uniqname
+@
+Delete a job
+<<,echo=T,eval=F>>=
+scancel jobid
+@
+Check a job script and estimate its start time
+<<,echo=T,eval=F>>=
+sbatch --test-only sample.sbat
+@
+\end{frame}
+
+
+
+\begin{frame}{More Slurm commands to try}
+
+\begin{tabular}{ll}
+\code{sacct -u user} \hspace{5mm} & show recent job history
+\\
+\code{seff jobid} & show cpu utilization for jobid
+\\
+\code{my\_accounts} & list accounts you have permission to use
+\end{tabular}
+
+\end{frame}
+
+
+\section{R modules on greatlakes}
+
+\begin{frame}[fragile]{R modules on greatlakes}
+
+Sotware on greatlakes is packaged in modules which must be loaded
+<<,echo=T,eval=F>>=
+module load R
+@
+Other versions of R are available:
+<<,echo=T,eval=F>>=
+module avail R
+@
+\bi
+\item 
+We see that R4.3.1 is currently the default. For simple multicore computing, sending jobs to multiple cores on a single node, the default R module is appropriate. 
+
+\ei
+\end{frame}
+
+
+\section{A test for foreach} 
+
+\begin{frame}[fragile]{Set up test for foreach} 
+
+\begin{itemize}
+\item
+The \texttt{greatlakes} subdirectory of the \texttt{531w24} git repository has a file \texttt{test.sbat} which submits a batch job running the parallel \texttt{foreach} test in \texttt{test.R}.
+\item
+A basic Linux exercise is to set up a directory on greatlakes with these files, at which point you can run
+<<,echo=T,eval=F>>=
+sbatch test.sbat
+@
+to submit the job. If you have little or no experience with Linux or Unix, this is a nontrivial task. You could ask for help or read \link{https://ubuntu.com/tutorials/command-line-for-beginners}{https://ubuntu.com/tutorials/command-line-for-beginners}.
+\item You can transfer the files from your laptop via \texttt{scp}, or by copy-paste, but it may be simplest to clone the class git repository into your greatlakes account,
+<<,echo=T,eval=F>>=
+git clone https://github.com/ionides/531w24.git
+@
+\end{itemize}
+
+\end{frame}
+
+\section{Editing text files on greatlakes}
+
+\begin{frame}[fragile]{Editing text files on greatlakes}
+
+\begin{itemize}
+\item Inspect the text file \texttt{test.sbat}, for example by
+<<,echo=T,eval=F>>=
+more test.sbat
+@
+Is it fairly self-explanatory?
+\item One thing that needs changing is to set your email address for alerts about jobs beginning and ending. 
+\item To make these edits on greatlakes, you need a text editor.
+\item It is convenient to use a text editor that runs in a terminal. Options include
+<<,echo=T,eval=F>>=
+vi test.sbat
+emacs -nw test.sbat
+nano test.sbat
+@
+\item It is useful to acquire some familiarity with each of these editors.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Comparing results}
+
+\begin{itemize}
+\item You are now ready to run a batch job
+<<,echo=T,eval=F>>=
+sbatch test.sbat
+@
+\item
+From inspecting the code in \texttt{test.R}, we see that the results are saved in \texttt{test.csv}
+\item 
+You can asess what you learn from comparing run times on greatlakes and your laptop, though the main goal here is just to practice running the code.
+
+\end{itemize}
+
+\end{frame}
+
+\section{pomp on greatlakes}
+
+\begin{frame}[fragile]{Installing packages, including pomp}
+
+\begin{itemize}
+\item After making R available by running
+<<,echo=T,eval=F>>=
+module load R
+@
+you can start an R session in a terminal on the login node just by typing \code{R}.
+\item This is useful for setting up all the R libraries you may need.
+\item You are not supposed to do heavy multi-core computing on the login node, but installing libraries and small tests is okay.
+\item For example, if I run the following:
+<<,echo=T,eval=F>>=
+[ionides@gl-login1 ~]$ module load R
+[ionides@gl-login1 ~]$ R
+> install.packages("tidyverse")
+> install.packages("pomp")
+@
+then my subsequent R jobs run via \code{sbatch} are able to use \code{library(tidyverse)} or \code{library(pomp)}.
+
+\end{itemize}
+
+
+\end{frame}
+
+\section{Other ways to run R on greatlakes}
+
+\begin{frame}[fragile]{Other ways to run R on greatlakes}
+
+\begin{itemize}
+\item It is sometimes useful to start an interactive session on greatlakes, particularly for debugging. This is done from the terminal as follows:
+\end{itemize}
+<<,echo=T,eval=F>>=
+module load R
+srun --nodes=1 --account=stats531w24_class --ntasks-per-node=8 \
+  --pty /bin/bash
+@
+\begin{itemize}
+\item You can then run R in the terminal as usual, just by typing
+<<,echo=T,eval=F>>=
+R
+@
+\item This R session will have access to the cores you have requested.
+\item Here, we require \texttt{nodes=1} since \texttt{library(doParallel)} alone cannot work with cores spread across different machines.
+\item You can also run \link{https://arc-ts.umich.edu/greatlakes/user-guide/\#document-2}{web-based Rstudio}
+However, batch jobs remain the basic tool for intensive statistical computing.
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}{Acknowledgments}
+  \begin{itemize}
+  \item
+    This lesson builds on the \link{https://arc-ts.umich.edu/greatlakes/user-guide/}{Greal Lakes User Guide}, an \link{https://ionides.github.io/531w20/cluster/STATS_531_Introduction_to_R_and_pomp_on_Great_Lakes.pdf}{introduction by Charles Antonelli and John Thiels}, and notes from \link{https://ionides.github.io/810f23/gl/notes.pdf}{STATS 810}.
+\item
+    Compiled on \today.
+
+  \end{itemize}
+
+\end{frame}
+
+
+\end{document}
