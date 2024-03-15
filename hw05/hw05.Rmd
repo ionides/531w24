@@ -1,0 +1,43 @@
+---
+title: "Homework 5, due 11:59pm Sunday 3/17"
+author: "DATASCI/STATS 531"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+This homework gives you some experience at algebraic manipulation of POMP models by deriving the prediction, filtering and smoothing formulas in [Chapter 10](../10/index.html).
+
+The calculations are all applications of basic definitions (such as the Markov property) and basic identities for joint, conditional and marginal probability density functions. 
+The goal is to check carefully how the formulas follow from these properties, so please explain this explicitly in your solutions.
+The hints for Exercises 10.2 and 10.4 in the notes may be useful.
+
+The homework can be handwritten and scanned to pdf, however it is recommended to use Latex in Rmarkdown and submit as html. If you are relatively unfamiliar with Latex and Rmarkdown, this will take more time but it is a worthwhile exercise. As usual, you are welcome to use the Latex from the notes as a source, if you like.
+
+Your report should contain a reference section listing sources. The grader should be able to clearly identify where the sources were used, for example using reference numbers in the text. Anything and anyone consulted while you are working on the homework counts as a source and should be credited. The most likely sources for this theoretical homework are class notes, colleagues, Piazza posts and past homework solutions. It is your responsibility to demonstrate and explain in your report the extent to which you have carried out independent work going beyond any sources listed. The homework will be graded following the grading scheme in the [syllabus](../syllabus.html).
+
+
+--------
+
+**<big>Question 5.1</big>**. Derive the identity [P2].
+
+
+**<big>Question 5.2</big>**. Derive the prediction formula, [P4].
+
+
+**<big>Question 5.3</big>**. Derive the filtering formulas [P5] and [P6].
+
+
+**<big>Question 5.4</big>**. Derive the backward recursion formulas [P7] and [P8].
+
+**<big>Question 5.5</big>**. Derive the smoothing formula [P9].
+
+
+-----------------

@@ -3,7 +3,7 @@ title: "Chapter 6 discussion questions"
 author: "DATASCI/STATS 531"
 output:
   html_document:
-    toc: yes
+    toc: no
 ---
 
 \newcommand\prob{\mathbb{P}}
@@ -17,9 +17,7 @@ output:
 
 2. **The multiplicative structure for SARIMA**. Question 6.2 raised the issue of whether there is a scientific reason to think that practical models for seasonal phenomena should have a product structure to their ARMA polynomials, leading to a preference for [S3] over [S2] that goes beyond methodological convenience. Can you suggest a reason, or alternatively suggest a specific case where a non-multiplicative model like [S2] makes more sense?
 
-3. **Testing stationarity via a test for unit roots is not necessarily good data analysis**. To test a null hypothesis of a unit root against an alternative hypothesis of a stationary causal ARMA model, one can use the Augmented Dickey-Fuller (ADF) test (e.g., Shumway & Stoffer, 2017, pages 252-253). ADF can be used to justify analyzing the differenced data, since the null hypothesis of ADF asserts that differencing is appropriate. Slide 13 of Chapter 6 discourages differencing unless there is a good scientific reason for it in the context of your data, since it may be more revealing to try to understand a trend rather than to use differencing to remove it (if it is linear) or obscure it (if it is nonlinear). Consequently, this course does not emphasize ADF. Can you think of a specific situation where making an ADF test is a good choice?
-
-4. **Annual cycles modeled by local AR(2) vs seasonal SAR(1)**. The following code shows that monthyly SAR models have an ACF with peaks at multiples of 12 lags, without correlation elsewhere. By contrast, an AR(2) model can have an oscillating ACF with period 12 months, as described in Chapter 4. How does this help us interpret the residuals on Slide 10 of Chapter 6?
+3. **Annual cycles modeled by local AR(2) vs seasonal SAR(1)**. The following code shows that monthyly SAR models have an ACF with peaks at multiples of 12 lags, without correlation elsewhere. By contrast, an AR(2) model can have an oscillating ACF with period 12 months, as described in Chapter 4. How does this help us interpret the residuals on Slide 10 of Chapter 6?
 
 ```{r}
 library(astsa)
@@ -31,5 +29,60 @@ y2 <- sarima.sim(sar=c(0.6),S=12)
 acf(y2,lag.max=50)
 ```
 
+4. **Testing stationarity via a test for unit roots is not necessarily good data analysis**. To test a null hypothesis of a unit root against an alternative hypothesis of a stationary causal ARMA model, one can use the Augmented Dickey-Fuller (ADF) test (e.g., Shumway & Stoffer, 2017, pages 252-253). ADF can be used to justify analyzing the differenced data, since the null hypothesis of ADF asserts that differencing is appropriate. Slide 13 of Chapter 6 discourages differencing unless there is a good scientific reason for it in the context of your data, since it may be more revealing to try to understand a trend rather than to use differencing to remove it (if it is linear) or obscure it (if it is nonlinear). Consequently, this course does not emphasize ADF. Can you think of a specific situation where making an ADF test is a good choice?
+
+### <a name="ADF">A longer discussion of ADF</a>
+
+5. **Examples of the Augmented Dickey-Fuller (ADF) test**.
+To extend the previous discussion about the ADF test, 
+
+```{r series, echo=T}
+n <- 0:100
+set.seed(42)
+epsilon <- rnorm(n=length(n),mean=0,sd=1)
+y1 <- 2*n/100 + epsilon
+y2 <- exp(1.5*n/100) + epsilon
+y3 <- sin(2*pi*n/200)
+y4 <- n*(100-n)/2500
+```
+
+```{r plots, echo=F,fig.width=8,fig.height=6,fig.fullwidth=TRUE}
+## make a 2x2 plot of y1, y2, y3 and y4, all plotted against n, using ggplot
+df <- data.frame(n, y1, y2, y3, y4)
+
+# Reshape the data to a long format
+df_long <- tidyr::gather(df, key = "variable", value = "value", -n)
+
+# Use ggplot to make the 2x2 plot
+library(ggplot2)
+ggplot(df_long, aes(x = n, y = value)) +
+  geom_line() +
+  facet_wrap(~ variable, scales = "free_y")
+
+```
+
+Using the default settings of `adf.test` in the `tseries` R package, `y1`, `y2` and `y3` are found to have clear evidence against the unit root null hypothesis, and are therefore determined to be stationary.
+
+The trends in `y1` and `y2` are highly significant if one fits a simple linear model using `lm()`. Evidently, ADF is not sensitive to this non-stationarity, at least using the default tuning parameters.
+
+`y3` is found to have extremely strong evidence for stationarity (using the common abuse of language when there is strong evidence against the null) with an ADF statistic of order $10^{13}$. However, a rather similar looking function, `y4`, is found to be compatible with the unit root null hypothesis.
+
+```{r y1_adf, echo=F, warning=FALSE, message=FALSE}
+tseries::adf.test(y1)
+```
+
+```{r y2_adf, echo=F, warning=FALSE, message=FALSE}
+tseries::adf.test(y2)
+```
+
+```{r y3_adf, echo=F, warning=FALSE, message=FALSE}
+tseries::adf.test(y3)
+```
+
+```{r y4_adf, echo=F, warning=FALSE, message=FALSE}
+tseries::adf.test(y4)
+```
+
+The ADF approach is to argue that a time series is well modeled as stationary by rejecting the hypothesis that it is well modeled as a unit-root Gaussian autoregressive process. A problem here is that many time series models are in neither of these categories, a common example being a nonlinear trend with stationary noise. One has to be rather careful about treating rejection of the null as evidence for the alternative. This is a common issue with all inference, Bayesian and frequentist: if all models under consideration are silly, then the inference is silly. Do you think that the ADF test leads to silly conclusions in this case? How do you know whether it is appropriate for your data analysis, and how do you convince others of this?
 
 ---------------

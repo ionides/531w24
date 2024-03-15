@@ -30,7 +30,8 @@ How does checking the number of times our estimated parameter value falls within
 
 (b) You have shown that this particular test does not reveal the null hypothesis to be false, which gives some justification for continuing to work under the assumption that the null is correct.
 
-
-
 ---------------
 
+3. **Improved likelihood maximization using arima2**. The `arima2::arima2` function in the arima2 R package uses multiple starting values to improve the optimization performance of `stats::arima`. This can lead to greater consistency of AIC tables. It does not necessarily protect against roots which cancel or lie close to the unit circle. If you choose to experiment with `arima2`, it would be interesting to hear about any favorable or unfavorable experiences.
+
+-----------------

@@ -385,6 +385,17 @@ hypothesis to be false, which gives some justification for continuing to
 work under the assumption that the null is correct.</p></li>
 </ol>
 <hr />
+<ol start="3" style="list-style-type: decimal">
+<li><strong>Improved likelihood maximization using arima2</strong>. The
+<code>arima2::arima2</code> function in the arima2 R package uses
+multiple starting values to improve the optimization performance of
+<code>stats::arima</code>. This can lead to greater consistency of AIC
+tables. It does not necessarily protect against roots which cancel or
+lie close to the unit circle. If you choose to experiment with
+<code>arima2</code>, it would be interesting to hear about any favorable
+or unfavorable experiences.</li>
+</ol>
+<hr />
 
 
 

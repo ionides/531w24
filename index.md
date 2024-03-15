@@ -43,11 +43,11 @@ The course outline, course information and grading policies are described in the
 
 10. [Introduction to partially observed Markov process models](10/index.html)
 
-<!--
-
 11. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](11/index.html)
 
 12. [Simulation of stochastic dynamic models](12/index.html)
+
+<!--
 
 13. [Likelihood for POMP models: Theory and practice](13/index.html)
 
@@ -94,11 +94,15 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 * [Participation 4](participation/participation4.html), due Sun Feb 18, 11:59pm.
 
-<!--
-* [Homework 5](hw05/hw05.html), due Mon Mar 14, 11:59pm.
-[Solution](hw05/sol05.html).
+* [Homework 5](hw05/hw05.html), due Sun Mar 17, 11:59pm.
 
-* [Participation 5](participation/participation5.html), due Mon Mar 21, 11:59pm.
+<!--
+[Solution](hw05/sol05.html).
+-->
+
+* [Participation 5](participation/participation5.html), due Sun Mar 17, 11:59pm.
+
+<!--
 
 * [Homework 6](hw06/hw06.html), due Mon Mar 21, 11:59pm. 
 [Solution](hw06/sol06.html).
@@ -135,25 +139,22 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 -------------
 
-<!--
-
 ## Final project
 
 
 * [Information](final_project/final_project_info.html)
 
-* [Final review report instructions](final_project/final_review.html)
-
-* [2024 final projects](final_project/index.html)
-
-* You're welcome to browse previous final projects. The [2021 final projects](http://ionides.github.io/531w21/final_project/) have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
-
-If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. The changes from **pomp 2.0** to the current **pomp 4.x** are smaller.
-
---------
--->
+* [Final peer review report instructions](final_project/final_review.html)
 
 <!--
+* [2024 final projects](final_project/index.html)
+-->
+
+* You're welcome to browse previous final projects. The [2021](http://ionides.github.io/531w21/final_project/) and  [2022](http://ionides.github.io/531w22/final_project/)  final projects have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
+
+If building on old source code, note that there are some differences between versions of the software package **pomp**. The [**pomp** version 2 upgrade guide](https://kingaa.github.io/pomp/vignettes/upgrade_guide.html) can be helpful. There are various smaller changes between **pomp 2.0** and the current **pomp 5.6**.
+
+--------
 
 ## Using the Great Lakes cluster
 
@@ -167,10 +168,9 @@ If building on old source code, note that there are some differences between ver
 
 * Please share knowledge about cluster computing between group members, and/or on piazza, to help everyone who wants to learn these skills.
 
-* Cluster-related questions can also be emailed to hpc-support@umich.edu.
+* Cluster-related questions can also be emailed to arc-support@umich.edu.
 
 ---------
--->
 
 ## Acknowledgements and License
 
