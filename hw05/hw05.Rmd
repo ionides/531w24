@@ -1,9 +1,14 @@
 ---
-title: "Homework 5, due 11:59pm Sunday 3/17"
-author: "DATASCI/STATS 531"
-output:
-  html_document:
-    toc: yes
+title: "Homework 5"
+author: "DATASCI/STATS 531, Liangqi Tang"
+format: 
+  html:
+    toc: TRUE
+    toc-depth: 5
+    code-fold: TRUE
+    code-summary: "Code"
+    code-tools: TRUE
+    embed-resources: TRUE
 ---
 
 \newcommand\prob{\mathbb{P}}
@@ -26,18 +31,217 @@ Your report should contain a reference section listing sources. The grader shoul
 
 --------
 
-**<big>Question 5.1</big>**. Derive the identity [P2].
+# Question 5.1. 
 
+Derive the identity [P2].
 
-**<big>Question 5.2</big>**. Derive the prediction formula, [P4].
+**Answer**:
 
+I derive the identity [P2] independently:
 
-**<big>Question 5.3</big>**. Derive the filtering formulas [P5] and [P6].
+$$
+\begin {aligned}
+f_{X_{0:N}}(x_{0:N}) &= f_{X_{0:N-1}}(x_{0:N-1}) \cdot f_{X_n|X_{0:N-1}}(x_n|x_{0:N-1})\\
+&= f_{X_{0:N-1}}(x_{0:N-1}) \cdot f_{X_n|X_{n-1}}(x_n | x_{n-1})\\
+&= \cdots\\
+&= f_{X_0}(x_0) \prod_{n=1}^N f_{X_n|X_{n-1}}(x_n|x_{n-1})
+\end {aligned}
+$$
 
+For the second equation above, I used the property of Markov process (cite:[Markov Process Property (P1)](https://ionides.github.io/531w24/10/slides.pdf)):
 
-**<big>Question 5.4</big>**. Derive the backward recursion formulas [P7] and [P8].
+$$
+f_{X_n|X_{0:n-1}}(x_n|x_{0:n-1}) = f_{X_n|X_{n-1}} (x_n | x_{n-1})
+$$
 
-**<big>Question 5.5</big>**. Derive the smoothing formula [P9].
+****
 
+# Question 5.2. 
 
------------------
+Derive the prediction formula, [P4].
+
+**Answer**:
+
+I derive the formula independently.
+
+Since:
+
+$$
+f_{X_n|Y_{1:n-1}}(x_n | y^*_{1:n-1}) = \int f_{X_{n-1},X_n | Y_{1:n-1}}(x_{n-1}, x_n | y^*_{1:n-1})dx_{n-1}
+$$
+
+This is just the definition of marginal density(cite:[Wikipedia, definition of marginal density](https://en.wikipedia.org/wiki/Marginal_distribution#Marginal_probability_density_function)).
+
+This is equivalent to prove:
+
+$$
+\int f_{X_{n-1},X_n | Y_{1:n-1}}(x_{n-1}, x_n | y^*_{1:n-1})dx_{n-1} = \int f_{X_{n-1}|Y_{1:n-1}}(x_{n-1}|y^*_{1:n-1}) f_{X_n | X_{n-1}}(x_n|x_{n-1})dx_{n-1}
+$$
+
+i.e. To prove
+
+$$
+f_{X_{n-1},X_n | Y_{1:n-1}}(x_{n-1}, x_n | y^*_{1:n-1}) =  f_{X_{n-1}|Y_{1:n-1}}(x_{n-1}|y^*_{1:n-1}) f_{X_n | X_{n-1}}(x_n|x_{n-1})
+$$
+
+Since (Markov process):
+
+$$
+f_{X_n | X_{n-1}}(x_n|x_{n-1}) = f_{X_n | X_{n-1}, Y_{1:n-1}}(x_n|x_{n-1}, y^*_{1:n-1})
+$$
+
+Thus this is just the definition of conditional probability that: (cite:[Wikipedia, conditional density](https://en.wikipedia.org/wiki/Conditional_probability_distribution))
+
+$$
+f(x_1,x_2) = f(x_1) \cdot f(x_2 | x_1)
+$$
+
+Thus the formula is derived.
+
+****
+
+# Question 5.3. 
+
+Derive the filtering formulas [P5] and [P6].
+
+**Answer**:
+
+I derive the formula independently.
+
+For [P5]:
+
+Since:
+
+$$
+f_{X_n| Y_{1:n}}(x_n | y^*_{1:n}) \cdot f_{Y_n | Y_{1:n-1}}(y^*_n | y^*_{1:n-1}) = f_{X_n,Y_{n} | Y_{1:n-1}}(x_n,y_{n}| y^*_{1:n-1})
+$$
+
+And
+
+$$
+\begin {aligned}
+f_{X_n|Y_{1:n-1}}(x_n | y^*_{1:n-1}) \cdot f_{Y_n|X_n}(y^*_n | x_n) &= f_{X_n|Y_{1:n-1}}(x_n | y^*_{1:n-1}) \cdot f_{Y_n|X_n, Y_{1:n-1}}(y^*_n | x_n, y^*_{1:n-1})\\
+&= f_{X_n,Y_n | Y_{1:n-1}}(x_n,y_n| y^*_{1:n-1})
+\end {aligned}
+$$
+
+The second equation above I use the [property of measurement model, P3](https://ionides.github.io/531w24/10/slides.pdf). Thus [P6] is derived.
+
+Thus:
+
+$$
+f_{X_n| Y_{1:n}}(x_n | y^*_{1:n}) \cdot f_{Y_n | Y_{1:n-1}}(y^*_n | y^*_{1:n-1}) =f_{X_n|Y_{1:n-1}}(x_n | y^*_{1:n-1}) \cdot f_{Y_n|X_n}(y^*_n | x_n) 
+$$
+
+i.e.
+
+$$
+f_{X_n| Y_{1:n}}(x_n | y^*_{1:n}) =\frac{f_{X_n|Y_{1:n-1}}(x_n | y^*_{1:n-1}) \cdot f_{Y_n|X_n}(y^*_n | x_n)}{f_{Y_n | Y_{1:n-1}}(y^*_n | y^*_{1:n-1})}
+$$
+
+this is just the [Bayes formula](https://en.wikipedia.org/wiki/Bayes%27_theorem) conditional on $Y_{1:n-1}$. Thus [P5] is derived.
+
+For [P6]:
+
+Since:
+
+$$
+\begin {aligned}
+f_{Y_n | Y_{1:n-1}}(y^*_n | y^*_{1:n-1}) &= \int f_{X_n | Y_{1:n-1}}(x_n | y^*_{1:n-1})\cdot f_{Y_n | X_n, Y_{1:n-1}}(y^*_n|x_n, y^*_{1:n-1})dx_n\\
+& = \int f_{X_n | Y_{1:n-1}}(x_n | y^*_{1:n-1})\cdot f_{Y_n | X_n}(y^*_n | x_n)dx_n
+\end {aligned}
+$$
+
+The second equation above I use the [property of measurement model, P3](https://ionides.github.io/531w24/10/slides.pdf). Thus [P6] is derived.
+
+****
+
+# Question 5.4. 
+
+Derive the backward recursion formulas [P7] and [P8].
+
+**Answer**:
+
+I derive the formula independently.
+
+For [P7]:
+
+$$
+\begin {aligned}
+f_{Y_{n:N} | X_n} (y^*_{n:N} | x_n) &= f_{Y_n| X_n, Y_{n+1:N}} (y^*_n | x_n, y^*_{n+1:N}) \cdot f_{Y_{n+1:N}|X_n}(y^*_{n+1:N} | x_n) \\
+&= f_{Y_n| X_n}(y^*_n|x_n)\cdot f_{Y_{n+1:N}|X_n}(y^*_{n+1:N} | x_n)
+\end {aligned}
+$$
+
+Again, the second equation above I used [property of measurement model, P3](https://ionides.github.io/531w24/10/slides.pdf). Thus [P7] is derived.
+
+For [P8]:
+
+Since:
+
+$$
+\begin {aligned}
+f_{Y_{n+1:N} | X_n} (y^*_{n+1:N} | x_n) = \int f_{Y_{n+1:N}, X_{n+1} | X_n}(y^*_{n+1:N}, x_{n+1} | x_n) dx_{n+1}
+\end {aligned}
+$$
+
+This is equivalent to prove:
+
+$$
+\int f_{Y_{n+1:N}, X_{n+1} | X_n}(y^*_{n+1:N}, x_{n+1} | x_n) dx_{n+1} =  \int f_{Y_{n+1:N} | X_{n+1}} (y^*_{n+1:N} | x_{n+1}) f_{X_{n+1} | X_n} (x_{n+1} | x_n) dx_{n+1}
+$$
+
+i.e. To prove:
+
+$$
+f_{Y_{n+1:N}, X_{n+1} | X_n}(y^*_{n+1:N}, x_{n+1} | x_n) = f_{Y_{n+1:N} | X_{n+1}} (y^*_{n+1:N} | x_{n+1}) f_{X_{n+1} | X_n} (x_{n+1} | x_n)
+$$
+
+Since:
+
+$$
+f_{Y_{n+1:N} | X_{n+1}} (y^*_{n+1:N} | x_{n+1}) = f_{Y_{n+1:N} | X_{n+1}, X_n} (y^*_{n+1:N} | x_{n+1}, x_n)
+$$
+
+Thus it's just the definition of conditional density. Thus [P8] is proved.
+
+****
+
+# Question 5.5. 
+
+Derive the smoothing formula [P9].
+
+**Answer**:
+
+I derive the formula independently with the hint of slides10 p25.
+
+$$
+\begin {aligned}
+f_{X_n | Y_{1:N}} (x_n | y^*_{1:N}) \cdot f_{Y_{n:N} | Y_{1:n-1}} (y^*_{n:N} | y^*_{1:n-1}) &= f_{X_n, Y_{n:N} | Y_{1:n-1}} (x_n, y^*_{n:N} | y^*_{1:n-1})
+\end {aligned}
+$$
+
+And 
+
+$$
+\begin {aligned}
+f_{X_n | Y_{1:n-1}} (x_n | y^*_{1:n-1}) \cdot f_{Y_{n:N} | X_n} (y^*_{n:N} |x_n) &= 
+f_{X_n | Y_{1:n-1}} (x_n | y^*_{1:n-1}) \cdot f_{Y_{n:N} | X_n, Y_{1:n-1}} (y^*_{n:N} |x_n, y^*_{1:n-1})\\
+&= f_{X_n, Y_{n:N} | Y_{1:n-1}} (x_n, y^*_{n:N} | y^*_{1:n-1})
+\end {aligned}
+$$
+
+In the first equation above I used the property of measurement process.
+
+Thus [P9] is derived.
+
+****
+
+# Reference
+
+- 1. [Markov Process Property (P1)](https://ionides.github.io/531w24/10/slides.pdf)
+- 2. [Wikipedia, definition of marginal density](https://en.wikipedia.org/wiki/Marginal_distribution#Marginal_probability_density_function)
+- 3. [Wikipedia, conditional density](https://en.wikipedia.org/wiki/Conditional_probability_distribution)
+- 4. [Bayes formula](https://en.wikipedia.org/wiki/Bayes%27_theorem)
+- 5. [property of measurement model, P3](https://ionides.github.io/531w24/10/slides.pdf)
+- 6. [Hints and properties of slides10, p20](https://ionides.github.io/531w24/10/slides.pdf)
