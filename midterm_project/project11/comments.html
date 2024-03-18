@@ -9,9 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 Winter 2024  Midterm projects</title>
+<title>Review comments on Project 11</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,140 +349,53 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br>Midterm
-projects</h1>
+<h1 class="title toc-ignore">Review comments on Project 11</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<hr />
-<ul>
-<li><p>Projects are posted anonymously below. Source code and data are
-available from <a href="https://github.com/ionides/531w24/tree/master/midterm_project">https://github.com/ionides/531w24/midterm_project</a>.</p></li>
-<li><p>After the course is over and the class grades are assigned, you
-may choose to request to have your name attached to your
-project.</p></li>
-</ul>
-<hr />
-<table>
-<colgroup>
-<col width="35%" />
-<col width="35%" />
-<col width="28%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">1. <a href="project01/blinded.html">NYC Traffic
-Accidents</a></td>
-<td align="left"><a href="project01/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">2. <a href="project02/blinded.html">Bitcoin and
-Dogecoin</a></td>
-<td align="left"><a href="project02/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">3. <a href="project03/blinded.html">Unemployment and
-Federal Interest Rate</a></td>
-<td align="left"><a href="project03/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">4. <a href="project04/blinded.html">CO2 emmision in the
-US</a></td>
-<td align="left"><a href="project04/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">5. <a href="project05/blinded.html">US Vehicle
-Sales</a></td>
-<td align="left"><a href="project05/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">6. <a href="project06/blinded.html">Power
-Consumption</a></td>
-<td align="left"><a href="project06/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">7. <a href="project07/blinded.html">Precipitation in
-Detroit</a></td>
-<td align="left"><a href="project07/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">8. <a href="project08/blinded.html">Solar Wind</a></td>
-<td align="left"><a href="project08/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">9. <a href="project09/blinded.html">Sunspots</a></td>
-<td align="left"><a href="project09/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">10. <a href="project10/blinded.html">Bitcoin</a></td>
-<td align="left"><a href="project10/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">11. <a href="project11/blinded.html">Wind Power
-Production</a></td>
-<td align="left"><a href="project11/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">12. <a href="project12/blinded.html">Household
-Electricity Consumption</a></td>
-<td align="left"><a href="project12/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">13. <a href="project13/blinded.html">Political
-Regimes</a></td>
-<td align="left"><a href="project13/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">14. <a href="project14/blinded.html">Apple Stock
-Price</a></td>
-<td align="left"><a href="project14/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">15. <a href="project15/blinded.html">Nvidia Stock
-Price</a></td>
-<td align="left"><a href="project15/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">16. <a href="project16/blinded.html">Sales of Electric
-Vehicles in the US</a></td>
-<td align="left"><a href="project16/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<ol style="list-style-type: decimal">
+<li><p>A clearly written, scholarly project.</p></li>
+<li><p>The code is clean, well commented, and runs
+successfully.</p></li>
+<li><p>Effective use is made of alternative plots toggled by a button to
+investigate variations in the analysis.</p></li>
+<li><p>A nice demonstration of ChatGPT for formatting R output using
+kable.</p></li>
+</ol>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>The use of ADF is inappropriate in the presence of seasonality -
+it is a clear feature of the data, yet it does not appear in the null
+model or the usual alternative for the test.</p></li>
+<li><p>There is an error in the mathematical expression of the SARIMA
+model since they should use <span class="math inline">\(p\)</span>,
+<span class="math inline">\(q\)</span>, <span class="math inline">\(P\)</span>, and <span class="math inline">\(Q\)</span> as the order of the AR and MA
+polynomials instead of <span class="math inline">\(p\)</span> for all of
+them. Parameters should be explained.</p></li>
+<li><p>Conclusion. “The magnitude of the autocorrelation bars gradually
+shrinks over time” is an artifact. The usual 1/N normalizing constant in
+the sample autocovariance means that it necessarily decays at lags
+approaching N.</p></li>
+<li><p>Extensive use is made of the Ljung-Box test. This statistic can
+be useful to look at when there is uncertaintly about whether the sample
+ACF is conclusive for or against the white noise hypothesis. However,
+generally, the Ljung-Box statistic is less informative than the sample
+ACF.</p></li>
+<li><p>Comparing likelihood values to assess the value of
+deseasonalizing or detrending is tricky. How many degrees of freedom
+does the detrending or deseasonalizing us up?</p></li>
+<li><p>There are longer-than-Gaussian tails to the residuals. This may
+or may not be severe enough to affect the results, but should be noted.
+A normal quantile plot is more sensitive to showing this than a
+histogram.</p></li>
+</ol>
+</div>
 
 
 

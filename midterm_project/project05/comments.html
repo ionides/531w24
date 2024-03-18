@@ -9,9 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 Winter 2024  Midterm projects</title>
+<title>Review comments on Project 5</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,140 +349,53 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br>Midterm
-projects</h1>
+<h1 class="title toc-ignore">Review comments on Project 5</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<hr />
-<ul>
-<li><p>Projects are posted anonymously below. Source code and data are
-available from <a href="https://github.com/ionides/531w24/tree/master/midterm_project">https://github.com/ionides/531w24/midterm_project</a>.</p></li>
-<li><p>After the course is over and the class grades are assigned, you
-may choose to request to have your name attached to your
-project.</p></li>
-</ul>
-<hr />
-<table>
-<colgroup>
-<col width="35%" />
-<col width="35%" />
-<col width="28%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">1. <a href="project01/blinded.html">NYC Traffic
-Accidents</a></td>
-<td align="left"><a href="project01/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">2. <a href="project02/blinded.html">Bitcoin and
-Dogecoin</a></td>
-<td align="left"><a href="project02/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">3. <a href="project03/blinded.html">Unemployment and
-Federal Interest Rate</a></td>
-<td align="left"><a href="project03/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">4. <a href="project04/blinded.html">CO2 emmision in the
-US</a></td>
-<td align="left"><a href="project04/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">5. <a href="project05/blinded.html">US Vehicle
-Sales</a></td>
-<td align="left"><a href="project05/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">6. <a href="project06/blinded.html">Power
-Consumption</a></td>
-<td align="left"><a href="project06/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">7. <a href="project07/blinded.html">Precipitation in
-Detroit</a></td>
-<td align="left"><a href="project07/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">8. <a href="project08/blinded.html">Solar Wind</a></td>
-<td align="left"><a href="project08/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">9. <a href="project09/blinded.html">Sunspots</a></td>
-<td align="left"><a href="project09/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">10. <a href="project10/blinded.html">Bitcoin</a></td>
-<td align="left"><a href="project10/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">11. <a href="project11/blinded.html">Wind Power
-Production</a></td>
-<td align="left"><a href="project11/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">12. <a href="project12/blinded.html">Household
-Electricity Consumption</a></td>
-<td align="left"><a href="project12/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">13. <a href="project13/blinded.html">Political
-Regimes</a></td>
-<td align="left"><a href="project13/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">14. <a href="project14/blinded.html">Apple Stock
-Price</a></td>
-<td align="left"><a href="project14/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">15. <a href="project15/blinded.html">Nvidia Stock
-Price</a></td>
-<td align="left"><a href="project15/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">16. <a href="project16/blinded.html">Sales of Electric
-Vehicles in the US</a></td>
-<td align="left"><a href="project16/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The report has clear motivation and data analysis leading to well
+written conclusions. Most codes are concise and have informative naming
+convention. In addition, the project conducts a successful prediction
+that matches the motivation well. The report contains an extensive
+reference section.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>Plotting a histogram of the raw data may be less insightful than
+looking at residuals. The raw data is a mix of trend and noise, so the
+marginal distribution of the data may be uninformative.</p></li>
+<li><p>Incorrect interpretation in “The gradual decline of the ACF bars
+as the lag increases suggests that the time series data is likely
+non-stationary, as the correlation with past values slowly diminishes
+rather than cutting off sharply.” Cutting off sharply distinguishes MA
+models from AR models.</p></li>
+<li><p>Finding non-stationarity via ADF may not be the best way to see
+if there is evidence for a trend (rather than for a random walk).
+Formally, the ADF test checks A against B; you find there is evidence to
+support doing A rather than B so you proceed to do C. Here, A is a unit
+root AR model; B is a stationary ARMA model; C is a nonlinear trend plus
+stationary noise. Nevertheless, it is reasonable to carry out subsequent
+SARMA modeling on detrended data.</p></li>
+<li><p>The STL procedure used is well described.</p></li>
+<li><p>Nice presentation with different versions of the plots, toggled
+by a button.</p></li>
+<li><p>For the <span class="math inline">\(SARIMA(1,0,0)\times(3,0,2)_{12}\)</span>, many of
+the roots lie very close to the unit circle. This is somewhat
+problematic and should be discussed. The seasonal P, Q choices in the
+model may be too big.</p></li>
+<li><p>It is an empty statement to notice that “The residuals are
+centered around 0, so the constant mean function assumption is valid.”
+Residuals are centered because of the mathematical consequences of
+fitting to the data, regardless of how well the model fits.</p></li>
+<li><p>Seasonality plot, showing all years superimposed in different
+colors, is an effective way to visualize seasonality.</p></li>
+</ol>
+</div>
 
 
 

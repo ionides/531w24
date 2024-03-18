@@ -9,9 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 Winter 2024  Midterm projects</title>
+<title>Review comments on Project 8</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,140 +349,98 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br>Midterm
-projects</h1>
+<h1 class="title toc-ignore">Review comments on Project 8</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<hr />
-<ul>
-<li><p>Projects are posted anonymously below. Source code and data are
-available from <a href="https://github.com/ionides/531w24/tree/master/midterm_project">https://github.com/ionides/531w24/midterm_project</a>.</p></li>
-<li><p>After the course is over and the class grades are assigned, you
-may choose to request to have your name attached to your
-project.</p></li>
-</ul>
-<hr />
-<table>
-<colgroup>
-<col width="35%" />
-<col width="35%" />
-<col width="28%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">1. <a href="project01/blinded.html">NYC Traffic
-Accidents</a></td>
-<td align="left"><a href="project01/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">2. <a href="project02/blinded.html">Bitcoin and
-Dogecoin</a></td>
-<td align="left"><a href="project02/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">3. <a href="project03/blinded.html">Unemployment and
-Federal Interest Rate</a></td>
-<td align="left"><a href="project03/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">4. <a href="project04/blinded.html">CO2 emmision in the
-US</a></td>
-<td align="left"><a href="project04/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">5. <a href="project05/blinded.html">US Vehicle
-Sales</a></td>
-<td align="left"><a href="project05/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">6. <a href="project06/blinded.html">Power
-Consumption</a></td>
-<td align="left"><a href="project06/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">7. <a href="project07/blinded.html">Precipitation in
-Detroit</a></td>
-<td align="left"><a href="project07/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">8. <a href="project08/blinded.html">Solar Wind</a></td>
-<td align="left"><a href="project08/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">9. <a href="project09/blinded.html">Sunspots</a></td>
-<td align="left"><a href="project09/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">10. <a href="project10/blinded.html">Bitcoin</a></td>
-<td align="left"><a href="project10/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">11. <a href="project11/blinded.html">Wind Power
-Production</a></td>
-<td align="left"><a href="project11/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">12. <a href="project12/blinded.html">Household
-Electricity Consumption</a></td>
-<td align="left"><a href="project12/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">13. <a href="project13/blinded.html">Political
-Regimes</a></td>
-<td align="left"><a href="project13/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">14. <a href="project14/blinded.html">Apple Stock
-Price</a></td>
-<td align="left"><a href="project14/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">15. <a href="project15/blinded.html">Nvidia Stock
-Price</a></td>
-<td align="left"><a href="project15/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">16. <a href="project16/blinded.html">Sales of Electric
-Vehicles in the US</a></td>
-<td align="left"><a href="project16/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>An interesting application of time series methods to space weather. A
+range of methods is applied, with a Loess decomposition being preferred
+to ARIMA modeling.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>The project report is missing a title.</p></li>
+<li><p>The introduction could better clarify and motivate the specific
+goals of the time series analysis. We don’t model just for the sake of
+modeling, or forecast just for the sake of forecasting.</p></li>
+<li><p>There are no equations anywhere in the text. For a technical
+statistical report, we expect some technical explanation of the models
+and methods involved.</p></li>
+<li><p>Numbered captions for figures would help the reader. This is
+especially true in the context of helping peer reviewers, but the
+authors knew their report would be read by reviewers.</p></li>
+<li><p>What is <code>flux1</code> and <code>flux2</code>? If we don’t
+know more about what these are, it is hard to tell whether the analysis
+is appropriate.</p></li>
+<li><p>What is <code>na.approx</code> from <code>zoo</code>? Why is it
+appropriate here?</p></li>
+<li><p>One can guess which are the interpolated values, but it would be
+good to show them on the plot.</p></li>
+<li><p>The periodogram for the residuals from the smoothed time series
+has a peak power driven by the nonparametric detrending process. The
+team has removed low frequencies, and so there is a peak corresponding
+to the highest frequencies not removed by the smoothing procedure. This
+is probably not a real scientific property of the data. That could be
+confirmed by looking at the frequency response function for the
+detrending operation. Or it can be avoided by calculating the
+periodogram of the raw data.</p></li>
+<li><p>The choice of <span class="math inline">\(d=1\)</span> for the
+ARIMA analysis is not well discussed, though indeed that is probably the
+most reasonable value if one is to do ARIMA. The report spends most of
+its time developing an interesting alternative approach, so limiting
+discussion of ARIMA is fine.</p></li>
+<li><p>The STL decomposition is not explained, and the quantities
+<code>t.window</code> and <code>s.window</code> are not
+defined.</p></li>
+<li><p>For “lags extending up to approximately 1750,” it would be better
+to put in units.</p></li>
+<li><p>“These bounds are generally indicative of the threshold beyond
+which autocorrelations are deemed statistically significant.” They
+provide a 95% coverage under the hypothesis of white noise. As soon as
+that hypothesis is rejected, they no longer have
+interpretation.</p></li>
+<li><p>“We specify <code>seasonal = TRUE</code> due to the presence of
+an oscillating pattern.” The model does not have a seasonal
+component.</p></li>
+<li><p>The authors also don’t state what criterion is used to choose the
+“best model” (ARIMA(2,1,2)).</p></li>
+<li><p>Without explanation in the report, the source code reveals that
+<code>auto.arima</code> was used. In
+<code>forecast::auto.arima(max.p=50, max.q=50, seasonal=TRUE, stepwise=FALSE)</code>
+with the default seasonal parameters <code>(max.P=2, max.Q=2)</code>,
+the maximum value of <span class="math inline">\(p+q+P+Q\)</span> for
+the models tried is given by <code>max.order</code> (5 by default). So,
+it is likely that the full parameter space described by the authors is
+never explored. Using highly automated procedures requires care, and at
+the very least the team should let the reader know what was being
+used.</p></li>
+<li><p>MAPE and MASE should be defined.</p></li>
+<li><p>“MASE is greater than 1, suggesting that the forecasted values
+are not very accurate.” Whether 1 is big or small should depend on the
+scale of the problem.</p></li>
+<li><p>A wide range of frequencies is removed by this detrending. The
+maximum in the frequency domain may be just the edge where frequencies
+are no longer removed by the detrending - looking at the frequency
+response function for the detrending would help address that.</p></li>
+<li><p>Some plots do not have units of time and frequency.</p></li>
+<li><p>Residuals have non-constant variance, from the residual time
+plot.</p></li>
+<li><p>STL decomposition after detrending has the result that the trend
+models the residuals from the detrending, which is noise. The seasonal
+component has small magnitude, since the data do not have substantial
+annual seasonality.</p></li>
+<li><p>Predicting each component of an STL separately is an interesting
+idea. It seems to have some justification here, but the evidence is not
+enough to be reasonably sure: the only evidence is success at predicting
+on one particular window, which is a very high-variance
+evaluation.</p></li>
+</ol>
+</div>
 
 
 

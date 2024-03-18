@@ -9,9 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 Winter 2024  Midterm projects</title>
+<title>Review comments on Project 14</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,140 +349,69 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br>Midterm
-projects</h1>
+<h1 class="title toc-ignore">Review comments on Project 14</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<hr />
-<ul>
-<li><p>Projects are posted anonymously below. Source code and data are
-available from <a href="https://github.com/ionides/531w24/tree/master/midterm_project">https://github.com/ionides/531w24/midterm_project</a>.</p></li>
-<li><p>After the course is over and the class grades are assigned, you
-may choose to request to have your name attached to your
-project.</p></li>
-</ul>
-<hr />
-<table>
-<colgroup>
-<col width="35%" />
-<col width="35%" />
-<col width="28%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">1. <a href="project01/blinded.html">NYC Traffic
-Accidents</a></td>
-<td align="left"><a href="project01/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">2. <a href="project02/blinded.html">Bitcoin and
-Dogecoin</a></td>
-<td align="left"><a href="project02/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">3. <a href="project03/blinded.html">Unemployment and
-Federal Interest Rate</a></td>
-<td align="left"><a href="project03/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">4. <a href="project04/blinded.html">CO2 emmision in the
-US</a></td>
-<td align="left"><a href="project04/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">5. <a href="project05/blinded.html">US Vehicle
-Sales</a></td>
-<td align="left"><a href="project05/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">6. <a href="project06/blinded.html">Power
-Consumption</a></td>
-<td align="left"><a href="project06/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">7. <a href="project07/blinded.html">Precipitation in
-Detroit</a></td>
-<td align="left"><a href="project07/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">8. <a href="project08/blinded.html">Solar Wind</a></td>
-<td align="left"><a href="project08/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">9. <a href="project09/blinded.html">Sunspots</a></td>
-<td align="left"><a href="project09/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">10. <a href="project10/blinded.html">Bitcoin</a></td>
-<td align="left"><a href="project10/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">11. <a href="project11/blinded.html">Wind Power
-Production</a></td>
-<td align="left"><a href="project11/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">12. <a href="project12/blinded.html">Household
-Electricity Consumption</a></td>
-<td align="left"><a href="project12/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">13. <a href="project13/blinded.html">Political
-Regimes</a></td>
-<td align="left"><a href="project13/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">14. <a href="project14/blinded.html">Apple Stock
-Price</a></td>
-<td align="left"><a href="project14/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">15. <a href="project15/blinded.html">Nvidia Stock
-Price</a></td>
-<td align="left"><a href="project15/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">16. <a href="project16/blinded.html">Sales of Electric
-Vehicles in the US</a></td>
-<td align="left"><a href="project16/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The report provides a clear description of what the ARMA model
+framework is and what the different parameters mean, including
+discussion about the AIC. It was a good choice to avoid the ARMA(4,3) in
+favor of the ARMA(1,0) model as that is quite a large model for ARMA. It
+was helpful to include the final ARMA model formula with the actual
+fitted values.</p>
+<p>
+<p>Although the ARMA-GARCH framework wasn’t discussed in class, it is
+appropriate here, and the group provided a good explanation of what this
+model is. The code was reproducible and was well written. The project is
+well-referenced.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>Introduction. “Time series analysis can help us uncover patterns
+in the stock prices and provide valuable insights to investors hoping to
+make a profit.” This is not obviously true given the efficient market
+hypothesis. It would be good to provide references to support this
+claim.</p></li>
+<li><p>ACF and frequency analysis. These both have some indication of
+non-white noise. There is a substantial negative lag 1 autocorrelation
+and non-white periodogram, with increased power in higher
+frequencies.</p></li>
+<li><p>AR(1) is an appropriate choice of model. In principle, it is
+quite a big deal that ARMA(1,0) is substantially better than ARMA(0,0).
+This should therefore be discussed at length, in the context of the
+efficient market hypothesis. Extraordinary claims need extraordinary
+attention.</p></li>
+<li><p>The interpretation of residuals seems correct.</p></li>
+<li><p>ARMA(1,0)-GARCH(1,1) is appropriate given the evidence.</p></li>
+<li><p>It would be interesting to do a likelihood ratio test (or
+something similar) to asses the extent to which ARMA(1,0)-GARCH(1,1)
+improves over either ARMA or GARCH alone.</p></li>
+<li><p>Markets should have noticed if a big, widely traded stock has
+predictability. It opens the possibility of statistical
+arbitrage.</p></li>
+<li><p>For the periodogram plot, the bandwidth value is given in the
+plot, however there is no dialogue provided about what this value means
+regarding this data. If this wasn’t an important value to discuss, it
+should be removed.</p></li>
+<li><p>The description of what type of smoothing was used for the
+periodogram was quite vague. The use of non-parametric estimation was
+mentioned, but it was necessary to investigate the source code to find
+that 2 spans of size 30 were used in this estimation.</p></li>
+<li><p>There is a missing definition of what the volatility metric is
+defined as, perhaps including it could prevent confusion with
+readers.</p></li>
+<li><p>Similarly to the ARMA section, writing out the final form of the
+learned ARMA-GARCH model would ensure consistency across the whole
+report with what information is given.</p></li>
+<li><p>It might be interesting to look for seasonality in volatility,
+e.g., related to September product releases.</p></li>
+</ol>
+</div>
 
 
 

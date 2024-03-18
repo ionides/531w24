@@ -9,9 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 Winter 2024  Midterm projects</title>
+<title>Review comments on Project 9</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,140 +349,49 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br>Midterm
-projects</h1>
+<h1 class="title toc-ignore">Review comments on Project 9</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<hr />
-<ul>
-<li><p>Projects are posted anonymously below. Source code and data are
-available from <a href="https://github.com/ionides/531w24/tree/master/midterm_project">https://github.com/ionides/531w24/midterm_project</a>.</p></li>
-<li><p>After the course is over and the class grades are assigned, you
-may choose to request to have your name attached to your
-project.</p></li>
-</ul>
-<hr />
-<table>
-<colgroup>
-<col width="35%" />
-<col width="35%" />
-<col width="28%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">1. <a href="project01/blinded.html">NYC Traffic
-Accidents</a></td>
-<td align="left"><a href="project01/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">2. <a href="project02/blinded.html">Bitcoin and
-Dogecoin</a></td>
-<td align="left"><a href="project02/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">3. <a href="project03/blinded.html">Unemployment and
-Federal Interest Rate</a></td>
-<td align="left"><a href="project03/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">4. <a href="project04/blinded.html">CO2 emmision in the
-US</a></td>
-<td align="left"><a href="project04/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">5. <a href="project05/blinded.html">US Vehicle
-Sales</a></td>
-<td align="left"><a href="project05/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">6. <a href="project06/blinded.html">Power
-Consumption</a></td>
-<td align="left"><a href="project06/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">7. <a href="project07/blinded.html">Precipitation in
-Detroit</a></td>
-<td align="left"><a href="project07/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">8. <a href="project08/blinded.html">Solar Wind</a></td>
-<td align="left"><a href="project08/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">9. <a href="project09/blinded.html">Sunspots</a></td>
-<td align="left"><a href="project09/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">10. <a href="project10/blinded.html">Bitcoin</a></td>
-<td align="left"><a href="project10/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">11. <a href="project11/blinded.html">Wind Power
-Production</a></td>
-<td align="left"><a href="project11/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">12. <a href="project12/blinded.html">Household
-Electricity Consumption</a></td>
-<td align="left"><a href="project12/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">13. <a href="project13/blinded.html">Political
-Regimes</a></td>
-<td align="left"><a href="project13/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">14. <a href="project14/blinded.html">Apple Stock
-Price</a></td>
-<td align="left"><a href="project14/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">15. <a href="project15/blinded.html">Nvidia Stock
-Price</a></td>
-<td align="left"><a href="project15/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">16. <a href="project16/blinded.html">Sales of Electric
-Vehicles in the US</a></td>
-<td align="left"><a href="project16/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The introduction gives good background and motivation, with adequate
+references. The conclusion, which discusses the weak annual seasonality
+in addition to the solar cycle, is supported by the data analysis.
+Interactive plots are helpful to let readers see some alternative
+analysis without cluttering the main progression of the report.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>Sec. 1.1. Data. You can focus on describing the variables that
+will actually be analyzed in this project.</p></li>
+<li><p>One thing worth discussion about the data: since the observation
+of sunspot starts at an early period, is there any measurement error
+occurs in the data set, especially before modern instrumentation around,
+say, 1900.</p></li>
+<li><p>Sec. 2.1. The sample ACF is described as “There are many
+successive points indicating auto-regression, however the strength of
+the relationship changes over time with a stronger relationship
+occurring at the trough of the cycle. This shows an obvious change in
+variance.” But, it is really a change in covariance. The variance at
+each time point can be constant yet with the covariance showing
+oscillations as a function of lag.</p></li>
+<li><p>Show time units in sample ACF plots.</p></li>
+<li><p>Sec. 3.2. Identify mathematical inconsistencies in the AIC table,
+and discuss.</p></li>
+<li><p>The AIC reported as lowest (<span class="math inline">\(ARIMA(1,0,2)\times(1,0,0)_{12}\)</span>) is not in
+fact lowest, (e.g. <span class="math inline">\(ARIMA(3,0,1)\times(1,0,1)_{12}\)</span>). This
+could use clarification.</p></li>
+<li><p>Sec 4. The residuals show non-constant variance from the time
+plot. In that case, testing their marginal distribution becomes
+meaningless. Thus, the discussion of residuals could be improved. It
+also suggests a log or square root transformation to stabilize
+variances.</p></li>
+</ol>
+</div>
 
 
 

@@ -9,9 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 Winter 2024  Midterm projects</title>
+<title>Review comments on Project 15</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,140 +349,74 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br>Midterm
-projects</h1>
+<h1 class="title toc-ignore">Review comments on Project 15</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<hr />
-<ul>
-<li><p>Projects are posted anonymously below. Source code and data are
-available from <a href="https://github.com/ionides/531w24/tree/master/midterm_project">https://github.com/ionides/531w24/midterm_project</a>.</p></li>
-<li><p>After the course is over and the class grades are assigned, you
-may choose to request to have your name attached to your
-project.</p></li>
-</ul>
-<hr />
-<table>
-<colgroup>
-<col width="35%" />
-<col width="35%" />
-<col width="28%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">1. <a href="project01/blinded.html">NYC Traffic
-Accidents</a></td>
-<td align="left"><a href="project01/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">2. <a href="project02/blinded.html">Bitcoin and
-Dogecoin</a></td>
-<td align="left"><a href="project02/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">3. <a href="project03/blinded.html">Unemployment and
-Federal Interest Rate</a></td>
-<td align="left"><a href="project03/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">4. <a href="project04/blinded.html">CO2 emmision in the
-US</a></td>
-<td align="left"><a href="project04/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">5. <a href="project05/blinded.html">US Vehicle
-Sales</a></td>
-<td align="left"><a href="project05/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">6. <a href="project06/blinded.html">Power
-Consumption</a></td>
-<td align="left"><a href="project06/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">7. <a href="project07/blinded.html">Precipitation in
-Detroit</a></td>
-<td align="left"><a href="project07/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">8. <a href="project08/blinded.html">Solar Wind</a></td>
-<td align="left"><a href="project08/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">9. <a href="project09/blinded.html">Sunspots</a></td>
-<td align="left"><a href="project09/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">10. <a href="project10/blinded.html">Bitcoin</a></td>
-<td align="left"><a href="project10/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">11. <a href="project11/blinded.html">Wind Power
-Production</a></td>
-<td align="left"><a href="project11/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">12. <a href="project12/blinded.html">Household
-Electricity Consumption</a></td>
-<td align="left"><a href="project12/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">13. <a href="project13/blinded.html">Political
-Regimes</a></td>
-<td align="left"><a href="project13/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">14. <a href="project14/blinded.html">Apple Stock
-Price</a></td>
-<td align="left"><a href="project14/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">15. <a href="project15/blinded.html">Nvidia Stock
-Price</a></td>
-<td align="left"><a href="project15/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">16. <a href="project16/blinded.html">Sales of Electric
-Vehicles in the US</a></td>
-<td align="left"><a href="project16/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>Various time series methods are used to confirm that Nvidia stock
+price closely follows standard financial theory.</p>
+<p>
+<p>A thorough introduction identifies a reasonable goal for time series
+analysis.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>The candlestick plot is clearly explained and motivated. However,
+the lower plot in the figure seems not to be explained.</p></li>
+<li><p>Sec. 2.2.1 “The daily log-return in 2023 is more volatile” is not
+clear from the plot. There is a big peak in 2023, but otherwise the
+variance seems lower than 2022.</p></li>
+<li><p>Sec. 3.2. Basic mathematical finance suggests that a linear (or
+polynomial) trend model for stock prices is inappropriate. That is
+indeed what the team find, but it could be put in the context of basic
+background understanding of the system. Arguably, effort could have been
+better spent on different analysis.</p></li>
+<li><p>Sec. 3.3.2. ADF test is appropriate for the log return data,
+since its null hypothesis (a generalization of a random walk) fits the
+data. For the differenced data, the ADF null is not very
+relevant.</p></li>
+<li><p>Sec. 4.2.3. “AR roots inside the unit circle” should be “inverse
+AR roots inside the unit circle.”</p></li>
+<li><p>Sec. 4.2.4. Testing sensitivity as a consequence of an
+over-paramterized model is a good idea. However, the specific arugment
+that,“This adjustment is based on the rationale that no returns are
+initially observed when entering the stock market” is hard to
+understand. No returns being oserved is different from an observed
+return of 0.</p></li>
+<li><p>Sec. 5. It is interesting to note that only the 3 outliers after
+2022-10-14 interfere with the Gaussian modeling assumption. However, the
+efficient market hypothesis does not require that the distribution
+should be Gaussian.</p></li>
+<li><p>Comparing volatility: A standard deviation in daily log-returns
+of 0.035 is used to state that the stock has a ‘moderate level of
+volatility’ (presumably in daily returns). It would have been good to
+give a frame of reference for that number and statement. How much
+volatility is considered ‘moderate’ when talking about stocks? The
+reader could use more context.</p></li>
+<li><p>A missing component of the analysis is to look at models with
+time-varying volatility, such as GARCH.</p></li>
+<li><p>It would be interesting to look at the relationship between this
+stock and other measures - competitors, market indices, etc - which
+could be done using regression with ARMA errors.</p></li>
+<li><p>Captions and numbers for figures and tables would be
+helpful.</p></li>
+<li><p>The conclusion that the stock satisfies the efficient market
+hypothesis to within statistical error (i.e., it is unpredictable) is an
+anticlimax. This is the usual assumption for markets.</p></li>
+<li><p>The project focuses heavily on showing whether or not the stock
+price is conducive with the Efficient Market Theory. However not much is
+explained about the theory or how, if it was true, it would be
+equivalent to showing that the stock price followed a random walk.
+Understanding that this report is written for graduate level
+statisticians, who may not know much about this, additional
+clarification would be appropriate.</p></li>
+</ol>
+</div>
 
 
 
