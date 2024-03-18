@@ -25,3 +25,7 @@ The introduction gives good background and motivation, with adequate references.
 1. The AIC reported as lowest ($ARIMA(1,0,2)\times(1,0,0)_{12}$) is not in fact lowest, (e.g. $ARIMA(3,0,1)\times(1,0,1)_{12}$). This could use clarification.
 
 1. Sec 4. The residuals show non-constant variance from the time plot. In that case, testing their marginal distribution becomes meaningless. Thus, the discussion of residuals could be improved. It also suggests a log or square root transformation to stabilize variances.
+
+1. Methodologically, a fairly unambitious project. No bivariate analysis, or regression with ARMA errors, or profile likelihood or bootstrap. Nevertheless, the analysis presented is carried out to a good standard of accuracy and well explained.
+
+

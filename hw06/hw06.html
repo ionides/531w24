@@ -12,7 +12,7 @@
 <meta name="author" content="DATASCI/STATS 531" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Homework 6, due 11:59pm Sunday 3/24</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,128 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
+<h1 class="title toc-ignore">Homework 6, due 11:59pm Sunday 3/24</h1>
 <h4 class="author">DATASCI/STATS 531</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
 <hr />
+<p>Please submit your homework report to Canvas, including both the
+Rmarkdown (.Rmd) source file and an HTML file compiled from it. If
+necessary, you can submit other files needed for your Rmd file to
+compile, but please do not submit a copy of the data. Your Rmd file can
+read in the Consett measles data from the internet, via</p>
+<pre class="r"><code>read.csv(&quot;https://kingaa.github.io/sbied/stochsim/Measles_Consett_1948.csv&quot;) </code></pre>
+<p>Your report should contain a reference section listing sources. The
+grader should be able to clearly identify where the sources were used,
+for example using reference numbers in the text. Anything and anyone
+consulted while you are working on the homework counts as a source and
+should be credited. The homework will be graded following the grading
+scheme in the <a href="../syllabus.html">syllabus</a>.</p>
+<p>This homework is conceptually quite simple, but involves overcoming
+various technical hurdles. The hurdles may be overcome quite quickly, or
+could turn into a longer battle. To make progress on statistical
+inference for POMP models, we have to solve these underlying
+computational issues. If technical difficulties arise, do not wait long
+before asking your colleagues, coming to office hours, or posting on
+Piazza.</p>
+<hr />
+<div id="installing-the-pomp-package" class="section level3">
+<h3>Installing the <strong>pomp</strong> package</h3>
+<ul>
+<li><p>Computation time is an unavoidable consideration when working
+with simulation-based inference, for all but small datasets and simple
+models.</p></li>
+<li><p>The <strong>pomp</strong> package therefore allows you to specify
+the most computationally intensive steps—usually, simulation of the
+stochastic dynamic system, and evaluation of the measurement density—as
+snippets of C code.</p></li>
+<li><p>Consequently, to use <strong>pomp</strong>, your R program must
+have access to a C compiler. In addition, <strong>pomp</strong> takes
+advantage of some Fortran code and therefore requires a Fortran
+compiler.</p></li>
+<li><p>Installing the necessary compilers should be fairly routine, but
+does involve an extra step beyond the usual installation of an R
+package, unless you are running the Linux operating system for which
+they are usually installed by default. Given how fundamental C and
+Fortran are to scientific computing, it is unfortunate that Mac and
+Windows do not provide these compilers by default.</p></li>
+<li><p>Detailed instructions for installing <strong>pomp</strong> and
+other software that we will use with it are provided in the following
+places:</p>
+<ul>
+<li><p>The <a href="https://kingaa.github.io/pomp/install.html">pomp
+website installation page</a></p></li>
+<li><p>Additional instructions on our <a href="https://ionides.github.io/531w24/pomp_prep/index.html">course
+website</a></p></li>
+</ul></li>
+</ul>
+<hr />
+</div>
+<div id="homework-questions" class="section level3">
+<h3>Homework questions</h3>
+<p><strong><big>Question 6.1</big>. Exploring behavior of a POMP model:
+simulating an SIR process.</strong></p>
+<p>Write a solution to Exercise 2.3 from Chapter 12 (Simulation of
+stochastic dynamic models). Note the following:</p>
+<ul>
+<li><p>We are working toward formal inference for POMP models.
+Nevertheless, playing with your model by plotting simulations at various
+parameter values is a useful exercise for getting to understand how your
+model behaves. It is not enough to know just what parameter value
+maximizes the likelihood, we also want to understand enough about the
+model to be able to interpret this MLE. What types of behavior can the
+model exhibit? How could we describe the behaviors that are consistent
+with the data?</p></li>
+<li><p>Your solution will have to build a copy of the measles model so
+that you can experiment with it. The <a href="https://kingaa.github.io/sbied/stochsim/main.R">Chapter 12 R
+script</a> may be useful. The script uses Hadley Wickham’s
+<code>tidyverse</code> and <code>ggplot</code> approach to R. This is a
+widely used approach, and well worth learning if you have not seen it
+before, but you may also stick with basic R. To read the script, you
+will need to know that <code>x |&gt; myfunc(y)</code> is equivalent to
+<code>myfunc(x,y)</code>, so <code>|&gt;</code> is simply a convenient
+way to chain together functions, where the output of one function is
+piped into the next. Check that you understand this syntax for the
+code</p></li>
+</ul>
+<pre class="r"><code>readr::read_csv(&quot;https://kingaa.github.io/sbied/stochsim/Measles_Consett_1948.csv&quot;) |&gt;
+  dplyr::select(week,reports=cases) -&gt; meas</code></pre>
+<ul>
+<li><p>Here, we use the function <code>read_csv</code> from
+<code>readr</code>, which is part of <code>tidyverse</code>, in place of
+the basic R function <code>read.csv</code>.</p></li>
+<li><p>Worked solutions are linked from the notes, if you get stuck.
+Ideally, you may like to look at them after solving the homework
+independently. Your solution is welcome to discuss the relationship
+between your investigation of the model and the posted
+solutions.</p></li>
+<li><p>Another example of building a pomp model is the <a href="https://kingaa.github.io/sbied/intro/ricker.html">Ricker
+model</a>, originally developed to model fish populations and used in
+this example to model a bird population.</p></li>
+<li><p>Various other tutorials and resources are available on the <a href="https://kingaa.github.io/pomp/docs.html">pomp package web
+site</a>.</p></li>
+</ul>
+<hr />
+<p><strong><big>Question 6.2</big>. Modifying a POMP model: Adding a
+latent period to the SIR model</strong></p>
+<p>Write a solution to Exercise 2.4 from Chapter 12 (Simulation of
+stochastic dynamic models).</p>
+<p>You should use Csnippets for this. It should not require techniques
+beyond those developed in Chapter 12. However, if you are interested in
+learning more about writing compiled C code for R, you can look at the
+<a href="https://cran.r-project.org/doc/manuals/r-release/R-exts.html">R
+extensions manual</a>. The section on <a href="https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Distribution-functions">distribution
+functions</a> is particularly relevant.</p>
+<hr />
+</div>
+<div id="acknowledgements" class="section level3">
+<h3>Acknowledgements</h3>
+<p>The questions derive from material in a short course on <a href="http://kingaa.github.io/sbied/index.html">Simulation-based
+Inference for Epidemiological Dynamics</a></p>
+<hr />
+</div>
 
 
 
