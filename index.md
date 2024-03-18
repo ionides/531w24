@@ -47,9 +47,9 @@ The course outline, course information and grading policies are described in the
 
 12. [Simulation of stochastic dynamic models](12/index.html)
 
-<!--
-
 13. [Likelihood for POMP models: Theory and practice](13/index.html)
+
+<!--
 
 14. [Likelihood maximization for POMP models](14/index.html)
 
