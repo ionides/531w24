@@ -26,7 +26,9 @@ An interesting application of time series methods to space weather. A range of m
 
 1. One can guess which are the interpolated values, but it would be good to show them on the plot.
 
-1. The periodogram for the residuals from the smoothed time series has a peak power driven by the nonparametric detrending process. The team has removed low frequencies, and so there is a peak corresponding to the highest frequencies not removed by the smoothing procedure. This is probably not a real scientific property of the data. That could be confirmed by looking at the frequency response function for the detrending operation. Or it can be avoided by calculating the periodogram of the raw data.
+1. The periodogram for the residuals from the smoothed time series has a peak power driven by the nonparametric detrending process. The team has removed low frequencies, and so there is a peak corresponding to the highest frequencies not removed by the smoothing procedure. This may not be a real scientific property of the data. That could be confirmed by looking at the frequency response function for the detrending operation. Or it can be avoided by calculating the periodogram of the raw data.
+
+1. The sun's [synodic rotation](https://en.wikipedia.org/wiki/Solar_rotation) period is approximately 26 days, which is twice the observed peak frequency in the periodogram. So, perhaps there is a scientific foundation to this frequency. More investigation is needed.
 
 1. The choice of $d=1$ for the ARIMA analysis is not well discussed, though indeed that is probably the most reasonable value if one is to do ARIMA. The report spends most of its time developing an interesting alternative approach, so limiting discussion of ARIMA is fine. 
 

@@ -49,9 +49,9 @@ The course outline, course information and grading policies are described in the
 
 13. [Likelihood for POMP models: Theory and practice](13/index.html)
 
-<!--
-
 14. [Likelihood maximization for POMP models](14/index.html)
+
+<!--
 
 15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
 

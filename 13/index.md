@@ -16,6 +16,7 @@ Section VII looks deeper at likelihood inference - there is overlap with Chapter
 | | ||
 |:---------------|:---------------|:------------------------:|
 | Slides  | | [pdf](https://kingaa.github.io/sbied/pfilter/slides.pdf) |
+| Annotated slides | | [pdf](slides-annotated.pdf) |
 | Notes   | | [pdf](https://kingaa.github.io/sbied/pfilter/notes.pdf) |
 | **R** script  | | [**R**](https://kingaa.github.io/sbied/pfilter/main.R)      | Recording, Chapter 13, Sections I,II | The likelihood function and the likelihood of a POMP model | [(23 mins)](https://youtu.be/y0Wc6qt5qY0) | 
 | Recording, Chapter 13, Section III | Computing the likelihood | [(27 mins)](https://youtu.be/uZZKglvJq0c) |
@@ -26,7 +27,7 @@ Section VII looks deeper at likelihood inference - there is overlap with Chapter
 -----------
 
 <!--
-| Annotated slides  | | [pdf](slides-annotated.pdf) |
+| Annotated slides | | [pdf](slides-annotated.pdf) |
 -->
 
 ----------------------

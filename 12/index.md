@@ -13,6 +13,7 @@ The SIR model in epidemiology is closely related to predator-prey models in ecol
 | | ||
 |:---------------|:---------------|:------------------------:|
 | Slides  | | [pdf](https://kingaa.github.io/sbied/stochsim/slides.pdf) |
+| Annotated slides  | | [pdf](slides-annotated.pdf) |
 | Notes   | | [pdf](https://kingaa.github.io/sbied/stochsim/notes.pdf) |
 | **R** script  | | [**R**](https://kingaa.github.io/sbied/stochsim/main.R)                                                                   |
 | Worked solutions to the Exercises | | [html](https://kingaa.github.io/sbied/stochsim/exercises.html)                    

@@ -1,0 +1,61 @@
+---
+title: "Homework 7, due 11:59pm Sunday 3/31"
+author: "DATASCI/STATS 531"
+output:
+  html_document
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+\newcommand\data[1]{#1^*}
+
+--------
+
+Please submit your homework report to Canvas as both an Rmarkdown (Rmd) file and an html file produced by it. You are welcome to collaborate with other members of your final project group: you have a collective incentive to learn how to take advantage of greatlakes, and the tools practiced in this homework will be useful for the final project. You are also welcome to post on Piazza, either sharing advice or asking questions. You should run your own code, and as usual you should report on all sources and give proper acknowledgement of the extent of their contributions. Proper acknowledgement involves both listing sources at the end of the report and citing the sources at all appropriate points during the report. It is expected that your solution to Question 7.2 will involve borrowing code provided in the notes. Past solutions are also available, if you need extra hints, but you may learn more by starting from the code in the notes. Either way, your report should be explicit about what you borrowed and from where. Your report should document issues that arose and explain the work you put into your solution.
+
+------------
+
+### Homework questions
+
+
+**<big>Question 7.1</big>. Introduction to the greatlakes cluster.**
+
+The greatlakes cluster is a collection of high-performance Linux machines operated by University of Michigan. Each machine has 36 CPU cores. This facilitates computationally intensive Monte Carlo statistical inference, allowing more thorough investigations than are possible on a laptop. Linux cluster computing is the standard platform for computationally intensive statistics and data science, so learning how to work on greatlakes is worthwhile, if this is new to you. This question may be easy if you are already familiar with greatlakes. It is possible to access Rstudio on greatlakes from a web interface. However, for larger tasks it is better to submit batch jobs, and that is that we practice here. Once you have successfully run a simple parallel R command, following the instructions below, it is fairly straightforward to run any foreach loop in parallel.
+
+Read the [greatlakes notes on the course website](../greatlakes/index.html) and work through the example to run the parallel foreach in the file [test.R](../greatlakes/test.R) on greatlakes. 
+
+(a) Report on any issues you had to overcome to run the test code as a batch job on greatlakes. Did everything go smoothly, or were there problems you had to overcome?
+
+(b) Have you used a Linux cluster before?
+
+(c) Compare the run times reported by test.R for both greatlakes and your laptop. How do you interpret these results?
+
+----------
+
+**<big>Question 7.2</big>. Likelihood maximization for the SEIR model.**
+
+We consider an SEIR model for the Consett measles epidemic, which is the same model and data used for Homework 6. Write a report presenting the following steps. You will need to tailor the intensity of your search to the computational resources at your disposal. In particular, choose the number of starting points, number of particles employed, and the number of IF2 iterations appropriately for the size and speed of your machine. It is okay for this homework if the Monte Carlo error is larger than you would like.
+
+Develop your code to run in parallel on all the cores of your laptop and then run the same code on greatlakes. Report on the change in computing time.
+
+(a) Conduct a local search and then a global search using the multi-stage, multi-start method.
+
+(b) How does the maximized likelihood for the SEIR model compare with what we obtained for the SIR model?
+
+(c) How do the parameter estimates differ between SIR and SEIR?
+
+(d) Calculate and plot a profile likelihood over the reporting rate for the SEIR model. Construct a 95% confidence interval for the reporting rate, and discuss how this profile compares with the SIR profile in Chapter 14.
+
+----------
+
+### Acknowledgements
+
+Question 7.2 derives from material in [Simulation-based Inference for Epidemiological Dynamics](http://kingaa.github.io/sbied/index.html).
+
+---------------
+
+
+
+

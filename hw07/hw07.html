@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Edward L. Ionides" />
+<meta name="author" content="DATASCI/STATS 531" />
 
 
-<title>Modeling and Analysis of Time Series Data DATASCI/STATS 531.  Chapter 13: Likelihood for POMP models: Theory and practice</title>
+<title>Homework 7, due 11:59pm Sunday 3/31</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,97 +349,94 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Modeling and Analysis of Time Series
-Data<br>DATASCI/STATS 531. <br>Chapter 13: Likelihood for POMP models:
-Theory and practice</h1>
-<h4 class="author">Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Homework 7, due 11:59pm Sunday 3/31</h1>
+<h4 class="author">DATASCI/STATS 531</h4>
 
 </div>
 
 
-<p>We continue using material from the short course <a href="https://kingaa.github.io/sbied/">Simulation-Based Inference for
-Epidemiological Dynamics</a> (SBIED). We review likelihood-based
-inference, and introduce the particle filter (also known as sequential
-Monte Carlo) which enables likelihood evaluation for general POMP
-models. We use the <code>pfilter()</code> implementation of particle
-filtering in pomp to investigate the likelihood surface for a
-Susceptible-Infected-Recovered (SIR) model.</p>
-<p>Sections I and II review material in Chapter 10, from a slightly
-different perspective, and you may want to watch this at 1.5 x speed if
-you are already comfortable with the material. Section III introduces
-the particle filter algorithm. Section IV reviews the likelihood-based
-inference topics of Chapter 5, in the context of POMP models. Sections V
-and VI look at the geometry of the likelihood for an SIR model. Section
-VII looks deeper at likelihood inference - there is overlap with Chapter
-5 but also some important new ideas.</p>
-<table>
-<colgroup>
-<col width="27%" />
-<col width="27%" />
-<col width="44%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">Slides</td>
-<td align="left"></td>
-<td align="center"><a href="https://kingaa.github.io/sbied/pfilter/slides.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left">Annotated slides</td>
-<td align="left"></td>
-<td align="center"><a href="slides-annotated.pdf">pdf</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Notes</td>
-<td align="left"></td>
-<td align="center"><a href="https://kingaa.github.io/sbied/pfilter/notes.pdf">pdf</a></td>
-</tr>
-<tr class="even">
-<td align="left"><strong>R</strong> script</td>
-<td align="left"></td>
-<td align="center"><a href="https://kingaa.github.io/sbied/pfilter/main.R"><strong>R</strong></a></td>
-</tr>
-<tr class="odd">
-<td align="left">Recording, Chapter 13, Section III</td>
-<td align="left">Computing the likelihood</td>
-<td align="center"><a href="https://youtu.be/uZZKglvJq0c">(27
-mins)</a></td>
-</tr>
-<tr class="even">
-<td align="left">Recording, Chapter 13, Section IV</td>
-<td align="left">Review of likelihood-based inference</td>
-<td align="center"><a href="https://youtu.be/68cX1ckgusY">(12
-mins)</a></td>
-</tr>
-<tr class="odd">
-<td align="left">Recording, Chapter 13, Sections V,VI</td>
-<td align="left">Geometry of the likelihood function</td>
-<td align="center"><a href="https://youtu.be/oNpdp5WcdUQ">(31
-mins)</a></td>
-</tr>
-<tr class="even">
-<td align="left">Recording, Chapter 13, Section VII</td>
-<td align="left">From likelihood evaluation toward inference</td>
-<td align="center"><a href="https://youtu.be/ZJ7mmC0E3zs">(17
-mins)</a></td>
-</tr>
-<tr class="odd">
-<td align="left"></td>
-<td align="left"></td>
-<td align="center"></td>
-</tr>
-</tbody>
-</table>
 <hr />
-<!--
-| Annotated slides | | [pdf](slides-annotated.pdf) |
--->
+<p>Please submit your homework report to Canvas as both an Rmarkdown
+(Rmd) file and an html file produced by it. You are welcome to
+collaborate with other members of your final project group: you have a
+collective incentive to learn how to take advantage of greatlakes, and
+the tools practiced in this homework will be useful for the final
+project. You are also welcome to post on Piazza, either sharing advice
+or asking questions. You should run your own code, and as usual you
+should report on all sources and give proper acknowledgement of the
+extent of their contributions. Proper acknowledgement involves both
+listing sources at the end of the report and citing the sources at all
+appropriate points during the report. It is expected that your solution
+to Question 7.2 will involve borrowing code provided in the notes. Past
+solutions are also available, if you need extra hints, but you may learn
+more by starting from the code in the notes. Either way, your report
+should be explicit about what you borrowed and from where. Your report
+should document issues that arose and explain the work you put into your
+solution.</p>
 <hr />
-<p><a href="../index.html">Back to course homepage</a><br />
-<a href="../acknowledge.html">Acknowledgements</a><br />
-<a href="http://github.com/kingaa/sbied/tree/master/pfilter">Source code
-for these notes</a></p>
+<div id="homework-questions" class="section level3">
+<h3>Homework questions</h3>
+<p><strong><big>Question 7.1</big>. Introduction to the greatlakes
+cluster.</strong></p>
+<p>The greatlakes cluster is a collection of high-performance Linux
+machines operated by University of Michigan. Each machine has 36 CPU
+cores. This facilitates computationally intensive Monte Carlo
+statistical inference, allowing more thorough investigations than are
+possible on a laptop. Linux cluster computing is the standard platform
+for computationally intensive statistics and data science, so learning
+how to work on greatlakes is worthwhile, if this is new to you. This
+question may be easy if you are already familiar with greatlakes. It is
+possible to access Rstudio on greatlakes from a web interface. However,
+for larger tasks it is better to submit batch jobs, and that is that we
+practice here. Once you have successfully run a simple parallel R
+command, following the instructions below, it is fairly straightforward
+to run any foreach loop in parallel.</p>
+<p>Read the <a href="../greatlakes/index.html">greatlakes notes on the
+course website</a> and work through the example to run the parallel
+foreach in the file <a href="../greatlakes/test.R">test.R</a> on
+greatlakes.</p>
+<ol style="list-style-type: lower-alpha">
+<li><p>Report on any issues you had to overcome to run the test code as
+a batch job on greatlakes. Did everything go smoothly, or were there
+problems you had to overcome?</p></li>
+<li><p>Have you used a Linux cluster before?</p></li>
+<li><p>Compare the run times reported by test.R for both greatlakes and
+your laptop. How do you interpret these results?</p></li>
+</ol>
 <hr />
+<p><strong><big>Question 7.2</big>. Likelihood maximization for the SEIR
+model.</strong></p>
+<p>We consider an SEIR model for the Consett measles epidemic, which is
+the same model and data used for Homework 6. Write a report presenting
+the following steps. You will need to tailor the intensity of your
+search to the computational resources at your disposal. In particular,
+choose the number of starting points, number of particles employed, and
+the number of IF2 iterations appropriately for the size and speed of
+your machine. It is okay for this homework if the Monte Carlo error is
+larger than you would like.</p>
+<p>Develop your code to run in parallel on all the cores of your laptop
+and then run the same code on greatlakes. Report on the change in
+computing time.</p>
+<ol style="list-style-type: lower-alpha">
+<li><p>Conduct a local search and then a global search using the
+multi-stage, multi-start method.</p></li>
+<li><p>How does the maximized likelihood for the SEIR model compare with
+what we obtained for the SIR model?</p></li>
+<li><p>How do the parameter estimates differ between SIR and
+SEIR?</p></li>
+<li><p>Calculate and plot a profile likelihood over the reporting rate
+for the SEIR model. Construct a 95% confidence interval for the
+reporting rate, and discuss how this profile compares with the SIR
+profile in Chapter 14.</p></li>
+</ol>
+<hr />
+</div>
+<div id="acknowledgements" class="section level3">
+<h3>Acknowledgements</h3>
+<p>Question 7.2 derives from material in <a href="http://kingaa.github.io/sbied/index.html">Simulation-based
+Inference for Epidemiological Dynamics</a>.</p>
+<hr />
+</div>
 
 
 
