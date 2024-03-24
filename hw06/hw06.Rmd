@@ -1,8 +1,14 @@
 ---
-title: "Homework 6, due 11:59pm Sunday 3/24"
-author: "DATASCI/STATS 531"
-output:
-  html_document
+title: "Homework 6"
+author: "DATASCI/STATS 531, Liangqi Tang"
+format: 
+  html:
+    toc: TRUE
+    toc-depth: 5
+    code-fold: TRUE
+    code-summary: "Code"
+    code-tools: TRUE
+    embed-resources: TRUE
 ---
 
 \newcommand\prob{\mathbb{P}}
@@ -25,7 +31,7 @@ This homework is conceptually quite simple, but involves overcoming various tech
 
 ---------------
 
-### Installing the **pomp** package
+# Installing the **pomp** package
 
 
 * Computation time is an unavoidable consideration when working with simulation-based inference, for all but small datasets and simple models. 
@@ -45,10 +51,12 @@ This homework is conceptually quite simple, but involves overcoming various tech
 -----------------
 
 
-### Homework questions
+# Homework questions
 
 
-**<big>Question 6.1</big>. Exploring behavior of a POMP model: simulating an SIR process.**
+## Question 6.1. 
+
+Exploring behavior of a POMP model: simulating an SIR process.
 
 Write a solution to Exercise 2.3 from Chapter 12 (Simulation of stochastic dynamic models). Note the following:
 
@@ -68,22 +76,203 @@ readr::read_csv("https://kingaa.github.io/sbied/stochsim/Measles_Consett_1948.cs
 
 * Various other tutorials and resources are available on the [pomp package web site](https://kingaa.github.io/pomp/docs.html).
 
-----------
+**Answer**:
 
-**<big>Question 6.2</big>. Modifying a POMP model: Adding a latent period to the SIR model**
+In this question, the code is basically copied or modified from the [class slides](https://kingaa.github.io/sbied/stochsim/slides.pdf)
+
+Firstly, we load the data and plot the original data:
+
+```{r, warning = FALSE, message = FALSE}
+# load the data
+library(tidyverse)
+library(ggplot2)
+read_csv(paste0("https://kingaa.github.io/sbied/stochsim/",
+  "Measles_Consett_1948.csv")) |>
+  select(week,reports=cases) -> meas
+
+# plot the original data
+meas |> as.data.frame() |>
+  ggplot(aes(x=week,y=reports))+
+  geom_line()+
+  geom_point()+
+  ggtitle("Consett measles outbreak (original)")
+```
+
+Then we add components to pomp models:
+
+```{r, waring = FALSE, message= FALSE}
+# implement the SIR model in pomp
+library(pomp)
+
+# step function
+sir_step <- function (S, I, R, N, Beta, mu_IR, delta.t,
+  H, ...) {
+  dN_SI <- rbinom(n=1,size=S,prob=1-exp(-Beta*I/N*delta.t))
+  dN_IR <- rbinom(n=1,size=I,prob=1-exp(-mu_IR*delta.t))
+  S <- S - dN_SI
+  I <- I + dN_SI - dN_IR
+  R <- R + dN_IR
+  H <- H + dN_IR
+  c(S = S, I = I, R = R, H = H)
+}
+
+# initial function
+sir_rinit <- function (N, eta, ...) {
+  c(S = round(N*eta), I = 1, R = round(N*(1-eta)), H = 0)
+}
+
+# basic pomp model
+meas |>
+  pomp(times="week",t0=0,
+    rprocess=euler(sir_step,delta.t=1/7),
+    rinit=sir_rinit, accumvars="H"
+  ) -> measSIR
+
+# dmeasure component
+sir_dmeas <- function (reports, H, rho, k, log, ...) {
+  dnbinom(x=reports, size=k, mu=rho*H, log=log)
+}
+
+# rmeasure component
+sir_rmeas <- function (H, rho, k, ...) {
+  c(reports=rnbinom(n=1, size=k, mu=rho*H))
+}
+
+# add dmeasure and rmeasure to pomp
+measSIR |>
+  pomp(
+    rmeasure=sir_rmeas,
+    dmeasure=sir_dmeas
+  ) -> measSIR
+```
+
+Next, I choose plausible parameter values, adjust them and plot the simulation:
+
+Adjust process is as follows:
+
+1. first I keep $\mathcal{R}_0 = 15$ and adjust $\beta$ and $\mu_{IR}$ simultaneously but I found out that only in the first few weeks the simulation values would be non-zero. This indicated that we might wrongly estimate the $\mathcal{R}_0 = 15$. Thus I separately addjust the value of $\beta$ and $\mu_{IR}$ and get the results below.
+
+2. Then when I adjust the value of $\rho$, I found that the larger the value of $\rho$ is, the larger the peak value of the simulation and vice versa. $\rho =0.5$ is already the best choice.
+
+3. The $k$ value does not have much influence on the simulation. Generally I choose $k = 20$ since I found the simulation results show the better relationship between the two peaks.
+
+4. $\eta$ basically affect the position of the peak values and $eta = 0.03$ is already a very good choice.
+
+The final simulation result of my chosen parameters are as follows:
+
+```{r, waring = FALSE, message= FALSE}
+# generate simulations based on the parameter values we choose:
+measSIR |>
+  simulate(
+    params=c(Beta=25,mu_IR=0.15,rho=0.5,k=20,
+      eta=0.03,N=38000),
+    nsim=20,format="data.frame",include.data=TRUE
+  ) -> sims
+
+# plot the simulations
+sims |>
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")+
+  ggtitle("Simulations of SIR")
+```
+
+After I finished my adjustments to the parameters, I compared it with the [worked solutions](https://kingaa.github.io/sbied/stochsim/exercises.html) posted on class website. Basically the worked solutions also change the $\beta$ and $\mu_{IR}$ separately, thus override our preconfigured $\mathcal{R}_0$. Besides I additionally change the value of $k$.
+
+****
+
+## Question 6.2.
+
+Modifying a POMP model: Adding a latent period to the SIR model**
 
 Write a solution to Exercise 2.4 from Chapter 12 (Simulation of stochastic dynamic models).
 
 You should use Csnippets for this. It should not require techniques beyond those developed in Chapter 12. However, if you are interested in learning more about writing compiled C code for R, you can look at the [R extensions manual](https://cran.r-project.org/doc/manuals/r-release/R-exts.html). The section on [distribution functions](https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Distribution-functions) is particularly relevant.
 
-----------
+**Answer**:
 
+In this question, the code is basically copied or modified from the [class slides](https://kingaa.github.io/sbied/stochsim/slides.pdf) and [worked solutions](https://kingaa.github.io/sbied/stochsim/exercises.html).
 
-### Acknowledgements
+Firstly, we re-write the pomp model using `Csnippet`: basically we treat E in the same way as I.
+
+```{r}
+# step function: E is similar to the component I, add E in the chain
+seir_step <- Csnippet("
+  double dN_SE = rbinom(S,1-exp(-Beta*I/N*dt));
+  double dN_EI = rbinom(E,1-exp(-mu_EI*dt));
+  double dN_IR = rbinom(I,1-exp(-mu_IR*dt));
+  S -= dN_SE;
+  E += dN_SE - dN_EI;
+  I += dN_EI - dN_IR;
+  R += dN_IR;
+  H += dN_IR;
+")
+
+# initial function: suppose we do not no the latent value of E at first.
+seir_rinit <- Csnippet("
+  S = nearbyint(eta*N);
+  E = 0; 
+  I = 1;
+  R = nearbyint((1-eta)*N);
+  H = 0;
+")
+
+# dmeasure component
+seir_dmeas <- Csnippet("
+  lik = dnbinom_mu(reports,k,rho*H,give_log);
+")
+
+# rmeasure component
+seir_rmeas <- Csnippet("
+  reports = rnbinom_mu(k,rho*H);
+")
+
+# add components to pomp model: clarify E and mu_EI
+meas |>
+  pomp(times="week",t0=0,
+    rprocess=euler(seir_step,delta.t=1/7),
+    rinit=seir_rinit,
+    rmeasure=seir_rmeas,
+    dmeasure=seir_dmeas,
+    accumvars="H",
+    statenames=c("S","E","I","R","H"),
+    paramnames=c("Beta","mu_EI","mu_IR","N","eta","rho","k")
+  ) -> measSEIR
+```
+
+Then change the parameters and simulate:
+
+```{r, waring = FALSE, message= FALSE}
+# generate simulations based on the parameter values we choose:
+measSEIR |>
+  simulate(
+    params=c(Beta=30,mu_EI=0.8,mu_IR=1,rho=0.5,k=10,
+      eta=0.05,N=38000),
+    nsim=20,format="data.frame",include.data=TRUE
+  ) -> sims
+
+# plot the simulations
+sims |>
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")+
+  ggtitle("Simulations of SEIR")
+```
+
+From the simulation results, it seems that by including a latent period we can not get much improvement.
+
+****
+
+# Acknowledgements
 
 The questions derive from material in a short course on [Simulation-based Inference for Epidemiological Dynamics](http://kingaa.github.io/sbied/index.html)
 
----------------
+****
+
+# Reference
+
+- 1. [class slides](https://kingaa.github.io/sbied/stochsim/slides.pdf)
+- 2. [worked solutions](https://kingaa.github.io/sbied/stochsim/exercises.html)
 
 
 
