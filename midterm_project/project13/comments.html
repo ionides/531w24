@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 13</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,86 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 13</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The introduction section is clearly formed and expressed, translating
+a complex political scenario into a manageable time series model.
+Innovative research questions are raised and answered. Data and model
+results are all explained in the context of historical events and
+political backgrounds and conjectures. A range of methods are used,
+including cross-spectrum and pairwise coherency. The attention to
+mulitple testing is appreciated. The structure of this report is well
+organized.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>HP detrending is not usually necessary on a differenced time
+series. Here, the differencing has already removed the trend. More
+usually, HP detrending is an alternative to differencing which can be
+appropriate when the data are well modeled by a nonlinear mean plus
+stationary noise.</p></li>
+<li><p>The reasoning for HP detrending, that there is some
+autocorrelation in Sec. 8.1, may be weak. Small amounts of decaying
+sample autocorrelation are generally best modeled by a stationary noise
+process rather than nonstationary mean plus stationary noise.</p></li>
+<li><p>Figure 1. <span class="math inline">\(n\)</span> is an
+unfortunate axis label, since it is already used to enumerate
+observations.</p></li>
+<li><p>It might be worth describing the HP filter since it plays a
+significant role. Readers can follow the documentation at
+‘MFilter::hpfilter’ but it is better to describe briefly in the
+report.</p></li>
+<li><p>Consider integrating the ACF plot into section 2 rather than
+placing it in the appendix since it causes trouble with reference
+reading</p></li>
+<li><p>A spectrum analysis before detrending might help address the
+questions, since the HP detrending might have removed a meaningful
+frequency.</p></li>
+<li><p>The periodogram does not support the claim,“Only the periodograms
+of detrended Total Regimes and Electoral Democracy demonstrate an
+indication of cyclical behavior.” None of the smoothed periodograms show
+a significant peak. All the periodograms dip down toward frequency=0 due
+to the effect of the detrending.</p></li>
+<li><p>“The phase plot below shows that there seems to be a lag
+relationship between Closed Autocracy and Electoral Autocracy.” In fact,
+the phase relationship is always around pi, bearing in mind that <span class="math inline">\(\pi\)</span> and <span class="math inline">\(-\pi\)</span> are equivalent and both correspond
+to out-of-phase relationships. This is evidence of switching between
+these two political systems.</p></li>
+<li><p>The reported “highly similar amplitude between the frequency 0.2
+and 0.3 of Total Regimes and Electoral Democracy” looks more like
+frequency 0.3 and 0.35 in the pairwise coherency plot. The error bars
+are big here; it may be helpful to smooth the coherency plot more than
+the periodogram.</p></li>
+<li><p>The discreteness of the count data raises potential issues for
+Gaussian ARMA methods - this may or may not be problematic, and could be
+checked by simulation from an appropriate discrete model, perhaps a
+hidden Markov model (also known as a POMP).</p></li>
+<li><p>The use of bullet points can both add and subtract from clarity.
+For a clearly flowing development of the ideas, paragraphs are
+better.</p></li>
+<li><p>Sec. 4.1. It is possible that the detrending could lead to
+dependence. For example, differencing of white noise leads to a model
+with an MA root on the unit circle.</p></li>
+<li><p>Sec. 5. This is an interesting analysis. A couple of
+comments:</p>
+<ol style="list-style-type: lower-alpha">
+<li><p>How can Diff. Log-lik be negative? Presumably this is because of
+numerical error?</p></li>
+<li><p>The ARIMA model here is large, with 6-8 parameters to describe a
+fairly short time series of length 122. Does a smaller model lead to the
+same conclusions?</p></li>
+</ol></li>
+<li><p>The units of time and frequency are missing in some plots (sample
+ACF, spectrum).</p></li>
+</ol>
+</div>
 
 
 

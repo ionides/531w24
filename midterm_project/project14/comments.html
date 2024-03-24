@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 14</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,69 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 14</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The report provides a clear description of what the ARMA model
+framework is and what the different parameters mean, including
+discussion about the AIC. It was a good choice to avoid the ARMA(4,3) in
+favor of the ARMA(1,0) model as that is quite a large model for ARMA. It
+was helpful to include the final ARMA model formula with the actual
+fitted values.</p>
+<p>
+<p>Although the ARMA-GARCH framework wasn’t discussed in class, it is
+appropriate here, and the group provided a good explanation of what this
+model is. The code was reproducible and was well written. The project is
+well-referenced.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>Introduction. “Time series analysis can help us uncover patterns
+in the stock prices and provide valuable insights to investors hoping to
+make a profit.” This is not obviously true given the efficient market
+hypothesis. It would be good to provide references to support this
+claim.</p></li>
+<li><p>ACF and frequency analysis. These both have some indication of
+non-white noise. There is a substantial negative lag 1 autocorrelation
+and non-white periodogram, with increased power in higher
+frequencies.</p></li>
+<li><p>AR(1) is an appropriate choice of model. In principle, it is
+quite a big deal that ARMA(1,0) is substantially better than ARMA(0,0).
+This should therefore be discussed at length, in the context of the
+efficient market hypothesis. Extraordinary claims need extraordinary
+attention.</p></li>
+<li><p>The interpretation of residuals seems correct.</p></li>
+<li><p>ARMA(1,0)-GARCH(1,1) is appropriate given the evidence.</p></li>
+<li><p>It would be interesting to do a likelihood ratio test (or
+something similar) to asses the extent to which ARMA(1,0)-GARCH(1,1)
+improves over either ARMA or GARCH alone.</p></li>
+<li><p>Markets should have noticed if a big, widely traded stock has
+predictability. It opens the possibility of statistical
+arbitrage.</p></li>
+<li><p>For the periodogram plot, the bandwidth value is given in the
+plot, however there is no dialogue provided about what this value means
+regarding this data. If this wasn’t an important value to discuss, it
+should be removed.</p></li>
+<li><p>The description of what type of smoothing was used for the
+periodogram was quite vague. The use of non-parametric estimation was
+mentioned, but it was necessary to investigate the source code to find
+that 2 spans of size 30 were used in this estimation.</p></li>
+<li><p>There is a missing definition of what the volatility metric is
+defined as, perhaps including it could prevent confusion with
+readers.</p></li>
+<li><p>Similarly to the ARMA section, writing out the final form of the
+learned ARMA-GARCH model would ensure consistency across the whole
+report with what information is given.</p></li>
+<li><p>It might be interesting to look for seasonality in volatility,
+e.g., related to September product releases.</p></li>
+</ol>
+</div>
 
 
 

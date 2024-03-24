@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 15</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,74 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 15</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>Various time series methods are used to confirm that Nvidia stock
+price closely follows standard financial theory.</p>
+<p>
+<p>A thorough introduction identifies a reasonable goal for time series
+analysis.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>The candlestick plot is clearly explained and motivated. However,
+the lower plot in the figure seems not to be explained.</p></li>
+<li><p>Sec. 2.2.1 “The daily log-return in 2023 is more volatile” is not
+clear from the plot. There is a big peak in 2023, but otherwise the
+variance seems lower than 2022.</p></li>
+<li><p>Sec. 3.2. Basic mathematical finance suggests that a linear (or
+polynomial) trend model for stock prices is inappropriate. That is
+indeed what the team find, but it could be put in the context of basic
+background understanding of the system. Arguably, effort could have been
+better spent on different analysis.</p></li>
+<li><p>Sec. 3.3.2. ADF test is appropriate for the log return data,
+since its null hypothesis (a generalization of a random walk) fits the
+data. For the differenced data, the ADF null is not very
+relevant.</p></li>
+<li><p>Sec. 4.2.3. “AR roots inside the unit circle” should be “inverse
+AR roots inside the unit circle.”</p></li>
+<li><p>Sec. 4.2.4. Testing sensitivity as a consequence of an
+over-paramterized model is a good idea. However, the specific arugment
+that,“This adjustment is based on the rationale that no returns are
+initially observed when entering the stock market” is hard to
+understand. No returns being oserved is different from an observed
+return of 0.</p></li>
+<li><p>Sec. 5. It is interesting to note that only the 3 outliers after
+2022-10-14 interfere with the Gaussian modeling assumption. However, the
+efficient market hypothesis does not require that the distribution
+should be Gaussian.</p></li>
+<li><p>Comparing volatility: A standard deviation in daily log-returns
+of 0.035 is used to state that the stock has a ‘moderate level of
+volatility’ (presumably in daily returns). It would have been good to
+give a frame of reference for that number and statement. How much
+volatility is considered ‘moderate’ when talking about stocks? The
+reader could use more context.</p></li>
+<li><p>A missing component of the analysis is to look at models with
+time-varying volatility, such as GARCH.</p></li>
+<li><p>It would be interesting to look at the relationship between this
+stock and other measures - competitors, market indices, etc - which
+could be done using regression with ARMA errors.</p></li>
+<li><p>Captions and numbers for figures and tables would be
+helpful.</p></li>
+<li><p>The conclusion that the stock satisfies the efficient market
+hypothesis to within statistical error (i.e., it is unpredictable) is an
+anticlimax. This is the usual assumption for markets.</p></li>
+<li><p>The project focuses heavily on showing whether or not the stock
+price is conducive with the Efficient Market Theory. However not much is
+explained about the theory or how, if it was true, it would be
+equivalent to showing that the stock price followed a random walk.
+Understanding that this report is written for graduate level
+statisticians, who may not know much about this, additional
+clarification would be appropriate.</p></li>
+</ol>
+</div>
 
 
 

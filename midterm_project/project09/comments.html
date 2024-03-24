@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 9</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,53 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 9</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The introduction gives good background and motivation, with adequate
+references. The conclusion, which discusses the weak annual seasonality
+in addition to the solar cycle, is supported by the data analysis.
+Interactive plots are helpful to let readers see some alternative
+analysis without cluttering the main progression of the report.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>Sec. 1.1. Data. You can focus on describing the variables that
+will actually be analyzed in this project.</p></li>
+<li><p>One thing worth discussion about the data: since the observation
+of sunspot starts at an early period, is there any measurement error
+occurs in the data set, especially before modern instrumentation around,
+say, 1900.</p></li>
+<li><p>Sec. 2.1. The sample ACF is described as “There are many
+successive points indicating auto-regression, however the strength of
+the relationship changes over time with a stronger relationship
+occurring at the trough of the cycle. This shows an obvious change in
+variance.” But, it is really a change in covariance. The variance at
+each time point can be constant yet with the covariance showing
+oscillations as a function of lag.</p></li>
+<li><p>Show time units in sample ACF plots.</p></li>
+<li><p>Sec. 3.2. Identify mathematical inconsistencies in the AIC table,
+and discuss.</p></li>
+<li><p>The AIC reported as lowest (<span class="math inline">\(ARIMA(1,0,2)\times(1,0,0)_{12}\)</span>) is not in
+fact lowest, (e.g. <span class="math inline">\(ARIMA(3,0,1)\times(1,0,1)_{12}\)</span>). This
+could use clarification.</p></li>
+<li><p>Sec 4. The residuals show non-constant variance from the time
+plot. In that case, testing their marginal distribution becomes
+meaningless. Thus, the discussion of residuals could be improved. It
+also suggests a log or square root transformation to stabilize
+variances.</p></li>
+<li><p>Methodologically, a fairly unambitious project. No bivariate
+analysis, or regression with ARMA errors, or profile likelihood or
+bootstrap. Nevertheless, the analysis presented is carried out to a good
+standard of accuracy and well explained.</p></li>
+</ol>
+</div>
 
 
 

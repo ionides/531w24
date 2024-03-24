@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 4</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,62 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 4</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>Various time series techniques are used to study global climate
+change. The recent reduction in CO2 emitted by US is noted.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>Resolve the warnings at the start of the report, or suppress
+them.</p></li>
+<li><p>Show less raw R output.</p></li>
+<li><p>Numbered sections and figure captions would help the
+reader.</p></li>
+<li><p>Specify the source of the data. The introduction is too brief
+(arguably, non-existent) and has no references.</p></li>
+<li><p>The data are monthly, apparently, but that should be specified.
+Elsewhere, time units (months, years) should be specified.</p></li>
+<li><p>Looking at the data, there is no need to do an ADF test for
+stationarity. There is a clear empirical trend. Also, it is not clear
+that a unit root AR process (assumed by ADF) is a reasonable null
+hypothesis for these data.</p></li>
+<li><p>The SARIMA equations have errors: there should be four lag
+choices, <span class="math inline">\(p\)</span>, <span class="math inline">\(q\)</span>, <span class="math inline">\(P\)</span>, <span class="math inline">\(Q\)</span>, whereas this team has <span class="math inline">\(P=p\)</span>, <span class="math inline">\(Q=q\)</span>. Also, <span class="math inline">\(B^{12}\)</span> is written as <span class="math inline">\(B_{12}\)</span>, which is not a usual way to write
+a power of <span class="math inline">\(B\)</span>.</p></li>
+<li><p>There is heteroskedasticity in the data. This may be due to
+growing amplitude of seasonality? That could be explored.</p></li>
+<li><p>Frequency analysis. <span class="math inline">\(T=1/0.09\)</span>
+is approximately 12 not approximately 1.</p></li>
+<li><p>Give units of time where appropriate, including for lags in
+sample ACF plots.</p></li>
+<li><p><code>auto.arima</code> is used without any explanation of what
+it actually does. Does it just select by AIC or does it do something
+else? Is there any reason to think it is better or worse than looking at
+an AIC table? An answer to this is that <code>auto.arima</code> rejects
+models with roots close to the unit circle, which may be a good decision
+but needs discussion.</p></li>
+<li><p>The test of fitted values here may not be very demanding. For
+example, if you predicted each observation by the previous observation,
+one might get something that looks similar.</p></li>
+<li><p>Model 2. “and the data is in fact stationary” could be reworded
+more formally and accurately.</p></li>
+<li><p>“a light tailed normal distribution of residuals” should be “a
+heavy tailed normal…”</p></li>
+<li><p>A difference <span class="math inline">\(d=1\)</span> with a
+seasonal difference <span class="math inline">\(D=1\)</span> was picked
+without clear justification.</p></li>
+<li><p>For portability and easy reproducibility, avoid absolute path
+names for files.</p></li>
+</ol>
+</div>
 
 
 

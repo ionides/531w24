@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 2</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,76 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 2</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The project is mostly well-motivated and well presented. It involves
+some ambitious data analysis techniques, including a bootstrap
+experiment. References are provided. The initial hypotheses are
+addressed by the data analysis to reach the conclusions.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>“Bitcoin’s Long-term Periodicity” may be a misnomer. However,
+high power in low frequencies is a similar idea and well
+defined.</p></li>
+<li><p>Avoid unprocessed R output. Either attend to R warning messages
+or suppress them. Suppress package loading notifications.</p></li>
+<li><p>When comparing graphs, it is worth considering giving a shared
+axis so both are on a comparable scale.</p></li>
+<li><p>There are arguably too many graphs. Better to focus on the key
+results that you want your reader to think about. Other groups have
+effectively used buttons to toggle to alternative analysis to let
+readers look deeper, if they choose, withouy losing the flow of the main
+argument.</p></li>
+<li><p>The use of <code>auto.arima</code> is hard to interpret when you
+don’t say what <code>auto.arima</code> does.</p></li>
+<li><p>Diagnosis of invertibility, stationarity, and causality. This is
+the inverse root plotted - so no roots are outside the unit circle.
+However, plenty are on <span class="math inline">\(x^2+y^2=1\)</span>.
+Further, AR and MA roots are very close to canceling in some
+cases.</p></li>
+<li><p>Significant figures: don’t show excessive precision (e.g., 7 sig.
+figs.) when reporting an imprecise estimate.</p></li>
+<li><p>The sample ACF plots are incorrectly titled. In the code, they
+all correspond to log returns (which is the best thing to plot) whereas
+they are described variously as closing price and log closing
+price.</p></li>
+<li><p>Some biviariate time series analysis (e.g., Chapter 9 of the
+course notes) would help to address the question of the relationship
+between these stocks.</p></li>
+<li><p>The code is fairly clear, with one portability error: file
+references should be relative rather than absolute. Avoid
+<code>btc_data &lt;- read.csv(&quot;~/Downloads/STATS531/midterm/BTC_Data.csv&quot;)</code>.</p></li>
+<li><p>Provide time/frequency units in plots. Do not present unexplained
+numbers (e.g., bandwidth in the periodograms).</p></li>
+<li><p>The bootstrap study is interesting, and a good idea.
+Unfortunately, it has a bug. The <code>arima.sim</code> command is
+missing the <code>ma</code> component. This means that the simulation is
+pure <code>ar</code>, which makes the model identifiable. The
+unidentifability is from the nearly canceling roots, which have been
+mistakenly removed. Without the reproducible code provided by the team,
+this would have been hard for the reader to debug.</p></li>
+<li><p>The total value of Bitcoin is much larger than Dogecoin. It might
+help the readers if you can scale the price in terms of the total value
+of the currency.</p></li>
+<li><p>There is an inconsistent conclusion: “While the model selected by
+<code>auto.arima</code> for BTC does not outperform the ARIMA(0,1,0),
+the significance of the rest of the models do not support the idea of `A
+Random Walk Down Wall Street’.” This is like saying, “Although the data
+support X, the data do not support X.”</p></li>
+<li><p>The report writes, “we assume that a linear trend exists in the
+time-series datasets according to the consensus of the market”. It is
+unclear where this consensus is coming from, and this statement is
+missing a clear link to a reference.</p></li>
+</ol>
+</div>
 
 
 

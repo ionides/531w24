@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 10</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,118 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 10</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The section on limitations stands out as a relative strength. Also,
+the models and methods used are described clearly, though without
+adequate references.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>The introduction (Sec. 1.1) is written in the style of ChatGPT,
+with elaborate language, coherent discussion of relevant points, but a
+relatively distant and imprecise relationship to the concrete goals and
+accomplishments of the project. The text might have seemed evidence of
+reasonable effort in previous years (apart from the complete absence of
+references) but now Chat GPT is available, an introduction that is no
+better than basic ChatGPT output is weak.</p>
+<p>
+<p>To understand this, it may be helpful to think of a similar
+transition that occurred with the arrival of Wikipedia. Before Wikipedia
+and Google Scholar, it was impressive when people managed to track down
+the scientific background for their analysis. Nowadays, doing that is
+fairly quick, and the difference between a mediocre project and a strong
+one is whether the background is well explained in the specific context
+of the data, goals and accomplishments of the project.</p>
+<p>
+<p>Submitting ChatGPT-like text for publication in a scientific journal,
+or for a project report in an industry job, would be considered
+inadequate. For Masters level projects, the expectation is to learn how
+to write statistical analysis at a professional level.</p></li>
+<li><p>Similarly, for Sec. 1.2, there is much sophisticated language but
+rather little concrete meaning. “This temporal specificity affords us a
+sophisticated lens through which to observe the evolving landscape of
+the cryptocurrency market, offering a meticulous chronological
+perspective of its fluctuations and tendencies.” What does this
+mean?</p></li>
+<li><p>Section 2.1. Any interpolation method has weaknesses as well as
+strengths. Listing only the strengths (as done here) gives only part of
+the perspective. In particular, adding interpolated data points gives
+fictitious data points the same statistical weight as actual data
+points, leading to potential bias.</p></li>
+<li><p>Section 2.2. Reducing 4000 data points to 100 “without
+sacrificing analytical depth” is likely impossible. Better to admit that
+a sub-sample was analyzed for convenience, rather than making a strong
+but unsupported claim such as, “The resulting dataset retained the
+temporal essence of the original data.”</p></li>
+<li><p>Section 2.3. The section on code implementation does not have
+much code, and can be dropped. There is no point describing your own
+code as “meticulous” since unsupported self-praise is avoided in
+technical writing.</p></li>
+<li><p>Section 3.1. Better to plot data such as this on a log
+scale.</p></li>
+<li><p>The statement “volatility […] is vividly captured in the trend
+analysis” is not true according to the definition of volatility and
+trend. Volatility is a property of high frequencies, which have been
+removed from this plot.</p></li>
+<li><p>Section 4. Presenting large amounts of R code and unprocessed
+output is hard to read.</p></li>
+<li><p>There seems to be some confusion about whether BIC or AIC was
+used for model selection.</p></li>
+<li><p><code>auto.arima</code> is used without any explanation of what
+it actually does. Does it just select by AIC or does it do something
+else? Is there any reason to think it is better or worse than looking at
+an AIC table? An answer to this is that <code>auto.arima</code> rejects
+models with roots close to the unit circle, which may be a good decision
+but needs discussion.</p></li>
+<li><p>Sec 4.1.2. A reference for GARCH would be appropriate, since the
+method was not covered in class. In general, more references would
+strengthen the report.</p></li>
+<li><p>Sec 4.2.1. The comment “The Residuals from ARIMA plot does not
+show any obvious patterns, which suggests that the model has captured
+the data’s structure adequately.” is incorrect. The plot shows much more
+variability in later time points. It shows that ARIMA modeling should
+have been done on the log scale.</p></li>
+<li><p>Rather than showing a Ljung-Box test, it would be more
+informative to show the sample ACF of the squared residuals, while
+reaching the same conclusion.</p></li>
+<li><p>Sec 4.2.2. The GARCH residuals also show severe model
+misspecification. GARCH could be appropriate for the difference of the
+log price, but not the price itself. The comment, “The plot of the
+standardized residuals does not exhibit any significant patterns or
+systematic behavior,” is wrong.</p></li>
+<li><p>“In our case, the ACF plot reveals that the correlations are
+within the confidence bounds” is not supported by looking at the
+plot.</p></li>
+<li><p>Sec. 4.3.2. “The increasing volatility reflects growing
+uncertainty in the market, highlighting the potential for larger price
+swings and the need for caution among investors and analysts.” In fact,
+the detected increase in volatility is simply a result of failing to
+take the difference of logs before doing the GARCH analysis.</p></li>
+<li><p>Sec. 5.1 “Our comprehensive time series analysis revealed a
+strong positive correlation between market sentiment and Bitcoin prices,
+supporting the hypothesis that sentiment significantly influences market
+behavior.” This is a weak conclusion. Little is done to investigate this
+relationship. Do price increases lead to sentiment increases or vice
+versa? This conclusion assumes a causal direction without proper
+justification. At the least, one could look at lag
+relationships.</p></li>
+<li><p>Stylistically, it would help if you removed irrelevant R code
+outputs from the final report. There are several print statements for
+things like loading packages, which clutter the final document. Another
+step you could take to improve the report’s look is using the ‘kable’
+package. This is used to format tables nicely in an RMD output. Also,
+there is an Appendix section at the bottom of the report, but it has no
+content. This should be removed from the final report.</p></li>
+</ol>
+</div>
 
 
 

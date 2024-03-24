@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 1</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,78 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 1</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>A clearly written report, with clearly presented code, using a
+variety of time series techniques to investigate a question of public
+health interest. Constructive use of ChatGPT to assist the project
+development without harming the report by over-use.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>“several” seems to be 1.2 million globally or hundreds in NYC,
+which is more than “several.”</p></li>
+<li><p>In the introduction, “root causes” are mentioned without
+explaining what they might be. Additional discussion of the data and the
+issues at stake would be helpful.</p></li>
+<li><p>Using the decompose function is unclear as a method if the report
+doesn’t discuss what it does.</p></li>
+<li><p>“The ACF shows non-stationarity” is not necessarily true - a
+decaying and oscillating sample ACF can be consistent with
+stationarity.</p></li>
+<li><p>Figures could be numbered and captioned for easier
+reference.</p></li>
+<li><p>“verify that the first order difference of the number of people
+injured from vehicle is stationary.”. To be more careful, we cannot
+verify that it is stationary, but we can (and do) reject the null
+hypothesis of a time-homogeneous linear process with a unit
+root.</p></li>
+<li><p>When interpreting the AIC table, and choosing ARIMA(4.1,3), look
+for inconsistencies in the table and for evidence of roots on the unit
+cicrle, and/or close to canceling. Also, if you choose a value on the
+edge on the table one may want to explore a bigger table.</p></li>
+<li><p>“Unfortunately, we cannot compare the two models by purely using
+AIC as they are using the different amount of differencing” is wrong
+because the differencing is the same here.</p></li>
+<li><p>“residuals… adhering to the zero-mean assumption.” The residuals
+in a regression sum to zero by construction, not by assumption. It is
+similar in an ARIMA model.</p></li>
+<li><p>The greedy algorithm to select <span class="math inline">\(P=Q=1\)</span> with <span class="math inline">\(p\)</span> and <span class="math inline">\(q\)</span> fixed from a non-seasonal model is
+reasonable, but in what sense does it guarantee “we have established
+that the <span class="math inline">\(SARIMA(4,1,3)\times(1,0,1)_{12}\)</span> model
+best fits the seasonal patterns observed in the data”?</p></li>
+<li><p>The conclusion says, “highlighting the critical role of
+data-driven decision-making in public health and safety initiatives”.
+This does not seem to be supported by the analysis. There is no
+explanation of how this model may help decision-making, and certainly no
+evidence provided to explain why such a model is critical for
+this.</p></li>
+<li><p>One of the main results is discovery of seasonality, but this
+could be explained further and discussed: which months have high
+accident rates, and can you conjecture why?</p></li>
+<li><p>For visualizing seasonality, the plot of superimposed annual
+cycles in Project 5 would be a good strategy.</p></li>
+<li><p>It could be relevant to look for covariate time series, to carry
+out regression with ARMA errors or cross-correlation or coherence
+analysis to help understand factors explaining variations in the number
+of accidents.</p></li>
+<li><p>There are a healthy number of references. A consistent reference
+style, such as APA (<a href="https://apastyle.apa.org/style-grammar-guidelines/references">https://apastyle.apa.org/style-grammar-guidelines/references</a>)
+could be used.</p></li>
+<li><p>The clickable format for the figures is not particularly
+convenient. The version in the text has fonts too small to
+read.</p></li>
+<li><p>Additional proof-reading to correct small mistakes would remove
+distractions for the reader.</p></li>
+</ol>
+</div>
 
 
 

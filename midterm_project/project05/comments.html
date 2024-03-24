@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="DATASCI/STATS 531" />
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>Participation report 3, due Sunday 2/11, 11:59pm</title>
+<title>Review comments on Project 5</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,37 +349,53 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Participation report 3, due Sunday 2/11,
-11:59pm</h1>
-<h4 class="author">DATASCI/STATS 531</h4>
+<h1 class="title toc-ignore">Review comments on Project 5</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<p>Submit your participation report for the time interval 1/31 to 2/11
-as a pdf via Canvas. Please copy-paste in your report the contributions
-you have made (if any) to the class Piazza site. A simple and acceptable
-format is a screen shot of your contribution which includes your name.
-This will be an efficient way for the grader to keep track of
-participation. You can also list here any other contributions you have
-made to our DATASCI/STATS 531 learning community during this interval,
-including contributions in class. However, Piazza is expected to be the
-most common form of active participation. If there is no discussion on
-the Piazza site that you want to join, start a new one! Thoughts you
-have about the notes are worth sharing. Or you can share thoughts about
-how the development of ideas in class relates to the textbook by Shumway
-and Stoffer, or any other online resource.</p>
-<p>Participation is graded according to the <a href="../rubric_participation.html">participation rubric</a>. The
-expectation is that you should have at least one constructive
-contribution to the class community each reporting period. Participation
-is not evaluated on whether it is right or wrong, indeed it is an
-opportunity to obtain feedback on your thoughts when you don’t know if
-they are correct or not.</p>
-<p>The usual rules for scholarship apply to Piazza posts and responses.
-You are encouraged to use sources; even GenAI can supply useful
-material. However, you should cite sources. You should not put your own
-name to material that was not written by you.</p>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The report has clear motivation and data analysis leading to well
+written conclusions. Most codes are concise and have informative naming
+convention. In addition, the project conducts a successful prediction
+that matches the motivation well. The report contains an extensive
+reference section.</p>
+</div>
+<div id="points-for-consideration" class="section level3">
+<h3>Points for consideration</h3>
+<ol style="list-style-type: decimal">
+<li><p>Plotting a histogram of the raw data may be less insightful than
+looking at residuals. The raw data is a mix of trend and noise, so the
+marginal distribution of the data may be uninformative.</p></li>
+<li><p>Incorrect interpretation in “The gradual decline of the ACF bars
+as the lag increases suggests that the time series data is likely
+non-stationary, as the correlation with past values slowly diminishes
+rather than cutting off sharply.” Cutting off sharply distinguishes MA
+models from AR models.</p></li>
+<li><p>Finding non-stationarity via ADF may not be the best way to see
+if there is evidence for a trend (rather than for a random walk).
+Formally, the ADF test checks A against B; you find there is evidence to
+support doing A rather than B so you proceed to do C. Here, A is a unit
+root AR model; B is a stationary ARMA model; C is a nonlinear trend plus
+stationary noise. Nevertheless, it is reasonable to carry out subsequent
+SARMA modeling on detrended data.</p></li>
+<li><p>The STL procedure used is well described.</p></li>
+<li><p>Nice presentation with different versions of the plots, toggled
+by a button.</p></li>
+<li><p>For the <span class="math inline">\(SARIMA(1,0,0)\times(3,0,2)_{12}\)</span>, many of
+the roots lie very close to the unit circle. This is somewhat
+problematic and should be discussed. The seasonal P, Q choices in the
+model may be too big.</p></li>
+<li><p>It is an empty statement to notice that “The residuals are
+centered around 0, so the constant mean function assumption is valid.”
+Residuals are centered because of the mathematical consequences of
+fitting to the data, regardless of how well the model fits.</p></li>
+<li><p>Seasonality plot, showing all years superimposed in different
+colors, is an effective way to visualize seasonality.</p></li>
+</ol>
+</div>
 
 
 
