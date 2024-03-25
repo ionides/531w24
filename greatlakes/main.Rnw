@@ -65,7 +65,7 @@ We follow \link{https://arc-ts.umich.edu/greatlakes/user-guide/\#document-3}{Sec
 \begin{frame}{Connecting to greatlakes with macOS or Linux}
   \begin{enumerate}
   \item Open a Terminal window (recall that, on a Mac, this can be done using Control-Spacebar and typing Terminal) and type
-<<,echo=T,eval=F>>=
+<<f1,echo=T,eval=F>>=
 ssh uniqname@greatlakes.arc-ts.umich.edu
 @
 where \code{uniqname} is your uniqname.
@@ -97,19 +97,19 @@ This creates a remote terminal shell on greatlakes.
 On Mac or Linux, you can use \code{scp} which has similar syntax to \code{cp}.
 
 To copy \code{myfile} on your laptop to a subdirectory \code{mydir} of your home directory on greatlakes:
-<<,echo=T,eval=F>>=
+<<f2,echo=T,eval=F>>=
 scp myfile uniqname@greatlakes-xfer.arc-ts.umich.edu:mydir
 @
 To copy an entire directory, use the \code{-r} flag for recursive copy:
-<<,echo=T,eval=F>>=
+<<f3,echo=T,eval=F>>=
 scp -r mydir uniqname@greatlakes-xfer.arc-ts.umich.edu:
 @
 These commands can also be reversed to copy files from greatlakes to your machine. The following copies \code{mydir} back to the current working directory:
-<<,echo=T,eval=F>>=
+<<f4,echo=T,eval=F>>=
 scp -r uniqname@greatlakes-xfer.arc-ts.umich.edu:mydir .
 @
 You will need to authenticate via Duo to complete the file transfer.
-On Windows, you can use WinSCP or FileZilla. 
+On Mac or Windows, \link{https://filezilla-project.org}{FileZilla} provides a file system user interface.
 \end{frame}
 
 \section{Working with batch jobs}
@@ -134,21 +134,21 @@ or delete it if it's not doing what you want
 \begin{frame}[fragile]{Useful batch commands}
 
 Submit a job
-<<,echo=T,eval=F>>=
+<<f5,echo=T,eval=F>>=
 sbatch sample.sbat
 @
 
 Query job status
-<<,echo=T,eval=F>>=
+<<f6,echo=T,eval=F>>=
 squeue -j jobid
 squeue -u uniqname
 @
 Delete a job
-<<,echo=T,eval=F>>=
+<<f7,echo=T,eval=F>>=
 scancel jobid
 @
 Check a job script and estimate its start time
-<<,echo=T,eval=F>>=
+<<f8,echo=T,eval=F>>=
 sbatch --test-only sample.sbat
 @
 \end{frame}
@@ -173,11 +173,11 @@ sbatch --test-only sample.sbat
 \begin{frame}[fragile]{R modules on greatlakes}
 
 Sotware on greatlakes is packaged in modules which must be loaded
-<<,echo=T,eval=F>>=
+<<f9,echo=T,eval=F>>=
 module load R
 @
 Other versions of R are available:
-<<,echo=T,eval=F>>=
+<<f10,echo=T,eval=F>>=
 module avail R
 @
 \bi
@@ -197,7 +197,7 @@ We see that R4.3.1 is currently the default. For simple multicore computing, sen
 The \texttt{greatlakes} subdirectory of the \texttt{531w24} git repository has a file \texttt{test.sbat} which submits a batch job running the parallel \texttt{foreach} test in \texttt{test.R}.
 \item
 A basic Linux exercise is to set up a directory on greatlakes with these files, at which point you can run
-<<,echo=T,eval=F>>=
+<<f11,echo=T,eval=F>>=
 sbatch test.sbat
 @
 to submit the job. If you have little or no experience with Linux or Unix, this is a nontrivial task. You could ask for help or read \link{https://ubuntu.com/tutorials/command-line-for-beginners}{https://ubuntu.com/tutorials/command-line-for-beginners}.
@@ -215,7 +215,7 @@ git clone https://github.com/ionides/531w24.git
 
 \begin{itemize}
 \item Inspect the text file \texttt{test.sbat}, for example by
-<<,echo=T,eval=F>>=
+<<f12,echo=T,eval=F>>=
 more test.sbat
 @
 Is it fairly self-explanatory?

@@ -1,5 +1,5 @@
 ---
-title: "Modeling and Analysis of Time Series Data<br>STATS/DATASCI 531, Winter 2022<br>Parallel statistical computing in R on greatlakes"
+title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531<br>Parallel statistical computing in R on greatlakes"
 author: "Edward L. Ionides"
 output: html_document
 ---
@@ -16,7 +16,7 @@ output: html_document
 
 [Back to course homepage](../index.html)  
 [Acknowledgements](../acknowledge.html)  
-[Source code for these notes](http://github.com/ionides/531w22/tree/master/greatlakes)
+[Source code for these notes](http://github.com/ionides/531w24/tree/master/greatlakes)
 
 
 ----------------------
