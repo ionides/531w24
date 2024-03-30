@@ -49,9 +49,9 @@ The course outline, course information and grading policies are described in the
 
 13. [Likelihood for POMP models: Theory and practice](13/index.html)
 
-<!--
-
 14. [Likelihood maximization for POMP models](14/index.html)
+
+<!--
 
 15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
 
@@ -113,10 +113,20 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 * [Participation 6](participation/participation6.html), due Sun Mar 24, 11:59pm.
 
+* [Homework 7](hw07/hw07.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
+
 <!--
 
-* [Homework 7](hw07/hw07.html), due Mon Mar 28, 11:59pm.
 [Solution](hw07/sol07.html).
+
+-->
+
+
+* [Participation 7](participation/participation7.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
+
+
+
+<!--
 
 
 
