@@ -9,6 +9,7 @@ We continue using material from the short course [Simulation-Based Inference for
 | | ||
 |:---------------|:---------------|:------------------------:|
 | Slides  | | [pdf](https://kingaa.github.io/sbied/mif/slides.pdf) |
+| Annotated slides  | | [pdf](slides-annotated.pdf) |
 | Notes   | | [pdf](https://kingaa.github.io/sbied/mif/notes.pdf) |
 | **R** script  | | [**R**](https://kingaa.github.io/sbied/mif/main.R) |
 | Recording, Chapter 14, Sections I,II | Classification of inference methods for POMP models | [(16 mins)](https://youtu.be/OaKbivero6I) | 
