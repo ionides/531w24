@@ -1,8 +1,14 @@
 ---
-title: "Homework 7, due 11:59pm Sunday 3/31. Extended due date: Wednesday 4/3"
-author: "DATASCI/STATS 531"
-output:
-  html_document
+title: "Homework 7"
+author: "DATASCI/STATS 531, Liangqi Tang"
+format: 
+  html:
+    toc: TRUE
+    toc-depth: 5
+    code-fold: TRUE
+    code-summary: "Code"
+    code-tools: TRUE
+    embed-resources: TRUE
 ---
 
 \newcommand\prob{\mathbb{P}}
@@ -17,10 +23,7 @@ Please submit your homework report to Canvas as both an Rmarkdown (Rmd) file and
 
 ------------
 
-### Homework questions
-
-
-**<big>Question 7.1</big>. Introduction to the greatlakes cluster.**
+# Question 7.1 Introduction to the greatlakes cluster
 
 The greatlakes cluster is a collection of high-performance Linux machines operated by University of Michigan. Each machine has 36 CPU cores. This facilitates computationally intensive Monte Carlo statistical inference, allowing more thorough investigations than are possible on a laptop. Linux cluster computing is the standard platform for computationally intensive statistics and data science, so learning how to work on greatlakes is worthwhile, if this is new to you. This question may be easy if you are already familiar with greatlakes. It is possible to access Rstudio on greatlakes from a web interface. However, for larger tasks it is better to submit batch jobs, and that is that we practice here. Once you have successfully run a simple parallel R command, following the instructions below, it is fairly straightforward to run any foreach loop in parallel.
 
@@ -28,13 +31,44 @@ Read the [greatlakes notes on the course website](../greatlakes/index.html) and 
 
 (a) Report on any issues you had to overcome to run the test code as a batch job on greatlakes. Did everything go smoothly, or were there problems you had to overcome?
 
+**Answer**:
+
+Generally everything goes smoothly except when I tried to install packages following the guides on the slides, I was told that the directory is not writtable so I needed to choose to create a personal directory in my space to continue. And this installing process took a lot more time compared to that in Rstudio. Besides, it took me much time to copy the remote file to local because I made the mistake that I repeatedly ran `scp tanglq@greatlakes-xfer.arc-ts.umich.edu:531w24/greatlakes/test.csv /Users/liangqi/Desktop/` on ssh session while I should ran it on my local terminal.
+
+****
+
 (b) Have you used a Linux cluster before?
+
+**Answer**:
+
+I have not used a linux cluster before. I have known some basic linux commands and I have also used Great Lakes. However last time I used Great Lakes I basically use the user interface to do tasks and I never tried to use linux a terminal to operate all things.
+
+****
 
 (c) Compare the run times reported by test.R for both greatlakes and your laptop. How do you interpret these results?
 
-----------
+**Answer**:
 
-**<big>Question 7.2</big>. Likelihood maximization for the SEIR model.**
+on laptop:
+
+```{r, message = FALSE}
+require(knitr)
+time1 <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/531/Stats531/greatlakes/test_local.csv", sep = " ")
+kable(time1)
+```
+
+on GreatLakes:
+
+```{r}
+time2 <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/531/Stats531/greatlakes/test_remote.csv", sep = " ")
+kable(time2)
+```
+
+It seems counter-intuitive since the test runs faster on my local machine than on Greatlakes computational clusters. I guess the reason might be that I did not set the CPUs or GPUs that I can use on the remote so the speed is limited?
+
+****
+
+# Question 7.2 Likelihood maximization for the SEIR model
 
 We consider an SEIR model for the Consett measles epidemic, which is the same model and data used for Homework 6. Write a report presenting the following steps. You will need to tailor the intensity of your search to the computational resources at your disposal. In particular, choose the number of starting points, number of particles employed, and the number of IF2 iterations appropriately for the size and speed of your machine. It is okay for this homework if the Monte Carlo error is larger than you would like.
 
@@ -42,13 +76,35 @@ Develop your code to run in parallel on all the cores of your laptop and then ru
 
 (a) Conduct a local search and then a global search using the multi-stage, multi-start method.
 
+**Answer**:
+
+
+
+****
+
 (b) How does the maximized likelihood for the SEIR model compare with what we obtained for the SIR model?
+
+**Answer**:
+
+
+
+****
 
 (c) How do the parameter estimates differ between SIR and SEIR?
 
+**Answer**:
+
+
+
+****
+
 (d) Calculate and plot a profile likelihood over the reporting rate for the SEIR model. Construct a 95% confidence interval for the reporting rate, and discuss how this profile compares with the SIR profile in Chapter 14.
 
-----------
+**Answer**:
+
+
+
+****
 
 ### Acknowledgements
 
