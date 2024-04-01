@@ -51,9 +51,9 @@ The course outline, course information and grading policies are described in the
 
 14. [Likelihood maximization for POMP models](14/index.html)
 
-<!--
-
 15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
+
+<!--
 
 16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
 
