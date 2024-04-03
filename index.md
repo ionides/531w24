@@ -95,21 +95,13 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 * [Participation 4](participation/participation4.html), due Sun Feb 18, 11:59pm.
 
 * [Homework 5](hw05/hw05.html), due Sun Mar 17, 11:59pm.
-
-<!--
 [Solution](hw05/sol05.html).
--->
 
 * [Participation 5](participation/participation5.html), due Sun Mar 17, 11:59pm.
 
 
 * [Homework 6](hw06/hw06.html), due Sun Mar 24, 11:59pm. 
-
-<!--
-
 [Solution](hw06/sol06.html).
-
--->
 
 * [Participation 6](participation/participation6.html), due Sun Mar 24, 11:59pm.
 
