@@ -1,0 +1,158 @@
+---
+title: "Solution to Homework 5"
+author: "STATS/DATASCI 531, Winter 2022"
+output:
+  html_document:
+    toc: no
+bibliography: ../bib531.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+
+--------
+
+```{r knitr-opts,include=FALSE,cache=FALSE,purl=FALSE}
+library(pomp)
+library(knitr)
+prefix <- "HW4"
+opts_chunk$set(
+  progress=TRUE,
+  prompt=FALSE,tidy=FALSE,highlight=TRUE,
+  strip.white=TRUE,
+  warning=FALSE,
+  message=FALSE,
+  error=FALSE,
+  echo=TRUE,
+  cache=TRUE,
+  cache_extra=rand_seed,
+  results='markup',
+  fig.show='asis',
+  size='small',
+  fig.lp="fig:",
+  fig.path=paste0("figure/",prefix,"-"),
+  cache.path=paste0("cache/",prefix,"-"),
+  fig.pos="h!",
+  fig.align='center',
+  fig.height=4,fig.width=6.83,
+  dpi=300,
+  dev='png',
+  dev.args=list(bg='transparent')
+)
+
+set.seed(2050320976)
+```
+```{r opts,include=FALSE,cache=FALSE}
+options(
+  keep.source=TRUE,
+  encoding="UTF-8"
+)
+```
+
+We start with the following facts: (1,2,4) are basic properties of probability; (3,6) are definitions of a POMP model; (5,7) come from the class notes [@notes531] using the hint in Chapter 10, slide 20.
+
+$$\begin{array}{lrcl}
+(1)& f_{X|Y}\left(x|y\right)&=&\frac{f_{XY}\left(x,y\right)}{f_{Y}\left(y\right)}\\
+(2)& f_{X|YZ}\left(x|y,z\right)&=&\frac{f_{XY|Z}\left(x,y|z\right)}{f_{Y|Z}\left(y|z\right)}\\
+(3)& f_{X_{n}|X_{1:n-1}}\left(x_{n}|x_{1:n-1}\right)&=&f_{X_{n}|X_{n-1}}\left(x_{n}|x_{n-1}\right).\\
+(4) & f_{X|Y}\left(x|y\right)&=&\int f_{XZ|Y}\left(x,z|y\right)dz\\
+(5) & f_{XZ|Y}\left(x,z|y\right)&=&f_{Z|Y}\left(z|y\right)f_{X|ZY}\left(x|y,z\right)\\
+(6) & \hspace{3mm} f_{Y_{n}|X_{0:N},Y_{1:n-1},Y_{n+1:N}}\left(y_{n}|x_{0:N},y_{1:n-1},y_{n+1:N}\right)&=&f_{Y_{n}|X_{n}}\left(y_{n}|x_{n}\right)\\
+(7) & f_{X|YZ}\left(x|y,z\right)&=&\frac{f_{Y|XZ}\left(y|x,z\right)f_{X|Z}\left(x|z\right)}{f_{Y|Z}\left(y|z\right)}
+\end{array}$$
+
+--------
+
+**<big>Question 5.1</big>**. Derive the identity [MP2].
+
+$$\begin{eqnarray}
+f_{X_{0:N}}\left(x_{0:N}\right)&=&f_{X_{1:N}|X_{0}}\left(x_{1:N}|x_{0}\right)f_{X_{0}}\left(x_{0}\right)
+&\mbox{by (1)}\\
+&=&f_{X_{2:N}|X_{0:1}}\left(x_{2:N}|x_{0:1}\right)f_{X_{1}|X_{0}}\left(x_{1}|x_{0}\right)f_{X_{0}}\left(x_{0}\right) &\mbox{by (2)} \\
+&=&f_{X_{2:N}|X_{1}}\left(x_{2:N}|x_{1}\right)f_{X_{1}|X_{0}}\left(x_{1}|x_{0}\right)f_{X_{0}}\left(x_{0}\right) &\mbox{by (3)}\\
+&=&\dots& & \\
+&=&f_{X_{0}}\left(x_{0}\right)\prod_{n=1}^{N}f_{X_{n}|X_{n-1}}\left(x_{n}|x_{n-1}\right)& \mbox{by iteration, or formally by induction}
+\end{eqnarray}$$
+
+-----------
+
+**<big>Question 5.2</big>**. Derive the prediction formula, [MP4].
+
+$$\begin{eqnarray}
+&&\int f_{X_{\mathrm{n}-1}|Y_{1:\mathrm{n}-1}}(x_{n-1}|y_{1:n-1}^{*})f_{X_{\mathrm{n}}|X_{\mathrm{n}-1}}(x_{n}|x_{n-1})dx_{n-1}&\\
+&=&\int f_{X_{\mathrm{n}-1}|Y_{1:\mathrm{n}-1}}(x_{n-1}|y_{1:n-1}^{*})f_{X_{\mathrm{n}}|X_{\mathrm{n}-1}Y_{1:n-1}}(x_{n}|x_{n-1},y_{1:n-1}^{*})dx_{n-1}\quad &\mbox{(see below)} \\
+&=&\int f_{X_{n}X_{\mathrm{n}-1}|Y_{1:\mathrm{n}-1}}(x_{n},x_{n-1}|y_{1:n-1}^{*})dx_{n-1}\quad&\mbox{by (5)}\\
+&=&f_{X_{n}|Y_{1:\mathrm{n}-1}}(x_{n}|y_{1:n-1}^{*})\quad &\mbox{by (4)}
+\end{eqnarray}$$
+
+The second step is related to (6), but is not directly given. Specifically, the role of $X$ and $Y$ in this relation is reversed. This step is justified partly by: 
+
+$$\begin{eqnarray}
+&&f_{X_{\mathrm{n}}|X_{\mathrm{n}-1}Y_{1:n-1}}(x_{n}|x_{n-1}, y^*_{1:n-1})&\\ &=&\frac{f_{Y_{1:n-1}|X_{n}X_{n-1}}(y^*_{1:n-1}|x_n, x_{n - 1})f_{X_n|X_{n-1}}(x_n | x_{n - 1})}{f_{Y_{1:n-1}|X_{n-1}}(y^*_{1:n-1}|x_{n-1})}\quad&\mbox{by (7)}\\
+&=& \frac{f_{Y_{1:n-1}|X_{n-1}}(y^*_{1:n-1}|x_{n-1})f_{X_n|X_{n-1}}(x_n | x_{n-1})}{f_{Y_{1:n-1}|X_{n-1}}(y_{1:n-1}^*|x_{n-1})}\quad&\mbox{by an extension of (6)}\\
+&=& f_{X_n | X_{n -1 }}(x_n | x_{n-1}).
+\end{eqnarray}$$
+
+Note that it is still left to be shown how (6) can be extended to the joint density of $Y_{1:n-1}$, enabling us to drop the condition on the future observation $X_n$. This is left as a future exercise. 
+
+------------
+
+**<big>Question 5.3</big>**. Derive the filtering formulas [MP5] and [MP6].
+
+To show [MP5],
+$$\begin{eqnarray}
+f_{X_{\mathrm{n}}|Y_{1:\mathrm{n}}}(x_{n}|y_{1:n}^{*})&=&f_{X_{\mathrm{n}}|Y_{n}Y_{1:\mathrm{n-1}}}(x_{n}|y_{n}^{*}y_{1:n-1}^{*})&\\
+&=&\frac{f_{Y_{\mathrm{n}}|X_{n}Y_{1:\mathrm{n-1}}}(y_{n}^{*}|x_{n},y_{1:n-1}^{*})f_{X_{\mathrm{n}}|Y_{1:\mathrm{n-1}}}(x_{n}|y_{1:n-1}^{*})}{f_{Y_{n}|Y_{1:\mathrm{n-1}}}(y_{n}^{*}|y_{1:n-1}^{*})}\quad &\mbox{by (6)}\\
+&=&\frac{f_{Y_{\mathrm{n}}|X_{n}}(y_{n}^{*}|x_{n})f_{X_{\mathrm{n}}|Y_{1:\mathrm{n-1}}}(x_{n}|y_{1:n-1}^{*})}{f_{Y_{n}|Y_{1:\mathrm{n-1}}}(y_{n}^{*}|y_{1:n-1}^{*})}\quad &\mbox{by (7)}
+\end{eqnarray}$$
+
+
+To show [MP6],
+$$\begin{eqnarray}
+f_{Y_{\mathrm{n}}|Y_{1:\mathrm{n}-1}}(y_{n}^{*}|y_{1:n-1}^{*})&=&\int f_{Y_{\mathrm{n}}X_{n}|Y_{1:\mathrm{n}-1}}({\displaystyle y_{n}^{*},x_{n}|y_{1:n-1}^{*})}dx_{n}\quad &\mbox{by (4)}\\
+&=&\int f_{X_{n}|Y_{1:\mathrm{n}-1}}({\displaystyle x_{n}|y_{1:n-1}^{*})}f_{Y_{\mathrm{n}}|X_{n}Y_{1:\mathrm{n}-1}}({\displaystyle y_{n}^{*}|x_{n},y_{1:n-1}^{*})}dx_{n}\quad &\mbox{by (5)}\\
+&=&\int f_{X_{\mathrm{n}}|Y_{1:\mathrm{n}-1}}(x_{n}|y_{1:n-1}^{*})f_{Y_{\mathrm{n}}|X_{\mathrm{n}}}(y_{n}^{*}|x_{n})dx_{n}\quad &\mbox{by (6)}
+\end{eqnarray}$$
+
+-----------------
+
+**<big>Question 5.4</big>**. Derive the backward recursion formulas [MP8] and [MP9].
+
+For [MP8],
+$$\begin{eqnarray}
+f_{Y_{\mathrm{n}:N}|X_{\mathrm{n}}}(y_{n:N}^{*}|x_{n})&=&f_{Y_{\mathrm{n}}|X_{\mathrm{n}}}(y_{n}^{*}|x_{n})f_{Y_{\mathrm{n}+1:N}|Y_{n}X_{\mathrm{n}}}(y_{n+1:N}^{*}|y_{n}^{*},x_{n})\quad &\mbox{by (5)}\\
+&=&f_{Y_{\mathrm{n}}|X_{\mathrm{n}}}(y_{n}^{*}|x_{n})f_{Y_{\mathrm{n}+1:N}|X_{\mathrm{n}}}(y_{n+1:N}^{*}|x_{n})\quad &\mbox{by (6)}
+\end{eqnarray}$$
+
+
+For [MP9],
+$$\begin{eqnarray}
+f_{Y_{\mathrm{n}+1:N}|X_{\mathrm{n}}}(y_{n+1:N}^{*}|x_{n})&=&\int f_{Y_{\mathrm{n}+1:N}X_{\mathrm{n}+1}|X_{n}}(y_{n+1:N}^{*},x_{n+1}|x_{n})dx_{n+1}\quad &\mbox{by (4)}\\
+&=&\int f_{X_{\mathrm{n}+1}|X_{n}}(x_{n+1}|x_{n})f_{Y_{\mathrm{n}+1:N}|X_{\mathrm{n}+1}X_{n}}(y_{n+1:N}^{*}|x_{n+1},x_{n})dx_{n+1}\quad &\mbox{by (5)}\\
+&=&\int f_{X_{\mathrm{n}+1}|X_{\mathrm{n}}}(x_{n+1}|x_{n})f_{Y_{\mathrm{n}+1:N}|X_{\mathrm{n}+1}}(y_{n+1:N}^{*}|x_{n+1})dx_{n+1}\quad &\mbox{by (6)}
+\end{eqnarray}$$
+
+------------
+
+**<big>Question 5.5</big>**. Derive the smoothing formula [MP10].
+
+$$\begin{eqnarray}
+f_{X_{\mathrm{n}}|Y_{1:N}}(x_{n}|y_{1:N}^{*})&=&f_{X_{\mathrm{n}}|Y_{1:n-1}Y_{n:N}}(x_{n}|y_{1:n-1}^{*},y_{n:N}^{*})&\\
+&=&{\displaystyle \frac{f_{X_{\mathrm{n}}|Y_{1:\mathrm{n}-\mathrm{l}}}(x_{n}|y_{1:n-1}^{*})f_{Y_{\mathrm{n}:N}|X_{\mathrm{n}}Y_{1:n-1}}(y_{n:N}^{*}|x_{n},y_{1:n-1}^{*})}{f_{Y_{\mathrm{n}:N}|Y_{1:\mathrm{n}-1}}(y_{n:N}^{*}|y_{1:n-1}^{*})}}\quad &\mbox{by (7)} \\
+&=&{\displaystyle \frac{f_{X_{\mathrm{n}}|Y_{1:\mathrm{n}-\mathrm{l}}}(x_{n}|y_{1:n-1}^{*})f_{Y_{\mathrm{n}:N}|X_{\mathrm{n}}}(y_{n:N}^{*}|x_{n})}{f_{Y_{\mathrm{n}:N}|Y_{1:\mathrm{n}-1}}(y_{n:N}^{*}|y_{1:n-1}^{*})}}\quad &\mbox{by (6)}
+\end{eqnarray}$$
+
+
+----------------------
+
+### Acknowledgements
+
+Parts of this solution are adapted from a previous homework submission by Xiang Gao [@gao16].
+
+---------------------
+
+### References
