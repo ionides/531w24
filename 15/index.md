@@ -21,6 +21,7 @@ Sections VI and VII follow the same route we took for the Consett measles analys
 | | ||
 |:---------------|:---------------|:------------------------:|
 | Slides  | | [pdf](https://kingaa.github.io/sbied/polio/slides.pdf) |
+| Annotated slides  | | [pdf](slides-annotated.pdf) |
 | Notes   | | [pdf](https://kingaa.github.io/sbied/polio/notes.pdf) |
 | **R** script  | | [**R**](https://kingaa.github.io/sbied/polio/main.R) |
 | discussion question | | [html](discussion.html) |
