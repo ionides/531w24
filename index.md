@@ -104,12 +104,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 
 * [Homework 6](hw06/hw06.html), due Sun Mar 24, 11:59pm. 
-
-<!--
-
 [Solution](hw06/sol06.html).
-
--->
 
 * [Participation 6](participation/participation6.html), due Sun Mar 24, 11:59pm.
 
