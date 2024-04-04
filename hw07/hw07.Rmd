@@ -59,7 +59,7 @@ In this question, I used some guidance of linux commands on slides and Great Lak
 
 on laptop:
 
-```{r, message = FALSE}
+```{r, message = FALSE, cache = TRUE}
 require(knitr)
 time1 <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/531/Stats531/greatlakes/test_local.csv", sep = " ")
 kable(time1)
@@ -67,7 +67,7 @@ kable(time1)
 
 on GreatLakes:
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 time2 <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/531/Stats531/greatlakes/test_remote.csv", sep = " ")
 kable(time2)
 ```
@@ -87,7 +87,7 @@ Develop your code to run in parallel on all the cores of your laptop and then ru
 First we need to load the data, pomp and the stochastic SEIR model we constructed in Homework 6:
 (cite: [codes in HW6](https://github.com/LiangqiTang/Stats-531/blob/main/hw06/hw06.Rmd))
 
-```{r, message = FALSE}
+```{r, message = FALSE, cache = TRUE}
 # load the data
 library(tidyverse)
 library(ggplot2)
@@ -145,7 +145,7 @@ meas |>
 
 Then test the codes: filtering:
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 measSEIR |>
   pfilter(Np = 1000) -> pf
 
@@ -154,14 +154,14 @@ plot(pf)
 
 We can see that a single filtering can work. Now we fix N, mu_IR and k as the [slides14](https://ionides.github.io/531w24/14/slides-annotated.pdf) do.
 
-```{r, warning = FALSE}
+```{r, message = FALSE, cache = TRUE}
 fixed_params <- c(N=38000, mu_EI=1.5, mu_IR=2, k=10) # here I additionally fix mu_EI=1.5
 coef(measSEIR, names(fixed_params)) <- fixed_params
 ```
 
 Then set parallel computing.
 
-```{r, message = FALSE}
+```{r, message = FALSE, cache = TRUE}
 library(foreach)
 library(doFuture)
 plan(multisession)
@@ -169,7 +169,7 @@ plan(multisession)
 
 Now we proceed to estimate $\beta, \eta, \rho$ and mu_EI. First here we run a particle filter and store the starting point in csv:
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 # running a particle filter
 foreach(i=1:10,.combine=c,
 .options.future=list(seed=TRUE)
@@ -180,7 +180,7 @@ pf |> logLik() |> logmeanexp(se=TRUE) -> L_pf
 L_pf
 ```
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 pf[[1]] |> coef() |> bind_rows() |>
 bind_cols(loglik=L_pf[1],loglik.se=L_pf[2]) |>
 write_csv("measles_params.csv")
@@ -198,7 +198,7 @@ cite: [slides14](https://ionides.github.io/531w24/14/slides-annotated.pdf)
 
 ### local search
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 # do local search
 foreach(i=1:20,.combine=c,
 .options.future=list(seed=482947940)
@@ -216,7 +216,7 @@ paramnames=c("Beta","rho","eta")
 
 **Iterated filtering diagnostics**
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 # Iterated filtering diagnostics
 mifs_local |>
 traces() |>
@@ -229,7 +229,7 @@ facet_wrap(~name,scales="free_y")
 
 **Estimating the likelihood**
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 # estimating the likelihood
 foreach(mf=mifs_local,.combine=rbind,
 .options.future=list(seed=900242057)
@@ -238,17 +238,17 @@ evals <- replicate(10, logLik(pfilter(mf,Np=5000)))
 ll <- logmeanexp(evals,se=TRUE)
 mf |> coef() |> bind_rows() |>
 bind_cols(loglik=ll[1],loglik.se=ll[2])
-} -> results
+} -> results_local
 
 pairs(~loglik+Beta+eta+rho,data=results,pch=16)
 ```
 
 **Build up a picture of the likelihood surface**
 
-```{r, message = FALSE}
+```{r, message = FALSE, cache = TRUE}
 # build up a picture of the likelihood surface
 read_csv("measles_params.csv") |>
-bind_rows(results) |>
+bind_rows(results_local) |>
 arrange(-loglik) |>
 write_csv("measles_params.csv")
 ```
@@ -257,17 +257,17 @@ write_csv("measles_params.csv")
 
 We use $\beta \in (5,80), \rho \in (0.2,0.9), \eta\in(0,1)$ as [slides14](https://ionides.github.io/531w24/14/slides-annotated.pdf).
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 set.seed(2062379496)
 runif_design(
 lower=c(Beta=5,rho=0.2,eta=0),
 upper=c(Beta=80,rho=0.9,eta=1),
-nseq=100 # change start points from 400 to 100
+nseq=200 # change start points from 400 to 200
 ) -> guesses
 mf1 <- mifs_local[[1]]
 ```
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 library(iterators)
 
 foreach(guess=iter(guesses,"row"), .combine=rbind,
@@ -275,33 +275,42 @@ foreach(guess=iter(guesses,"row"), .combine=rbind,
 ) %dofuture% {
 mf1 |>
 mif2(params=c(guess,fixed_params)) |>
-mif2(Nmif=50) -> mf # change Nmif from 100 to 50
+mif2(Nmif=100) -> mf 
 replicate(
 10,
-mf |> pfilter(Np=1500) |> logLik() # change Np from 5000 to 2000
+mf |> pfilter(Np=1500) |> logLik() # change Np from 5000 to 1500
 ) |>
 logmeanexp(se=TRUE) -> ll
 mf |> coef() |> bind_rows() |>
 bind_cols(loglik=ll[1],loglik.se=ll[2])
-} -> results
+} -> results_global
 ```
 
 **Show scatter plot matrix**
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
+# build up a picture of the likelihood surface
+read_csv("measles_params.csv") |>
+bind_rows(results_global) |>
+arrange(-loglik) |>
+write_csv("measles_params.csv")
+```
+
+```{r, message = FALSE, cache = TRUE}
 # show scatter plot matrix
 read_csv("measles_params.csv") |>
-filter(loglik>max(loglik)-50) |>
+#filter(loglik>max(loglik)-50) |> # can't not filt, otherwise no data
 bind_rows(guesses) |>
 mutate(type=if_else(is.na(loglik),"guess","result")) |>
 arrange(type) -> all
+
 pairs(~loglik+Beta+eta+rho, data=all, pch=16, cex=0.3,
 col=ifelse(all$type=="guess",grey(0.5),"red"))
 ```
 
 **Poor man's profile likelihood**
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 # poor man's profile likelihood
 all |>
 filter(type=="result") |>
@@ -314,7 +323,6 @@ title="poor man’s profile likelihood"
 )
 ```
 
-
 ****
 
 ## (b) 
@@ -323,7 +331,12 @@ How does the maximized likelihood for the SEIR model compare with what we obtain
 
 **Answer**:
 
+```{r, message = FALSE, cache = TRUE}
+local_global <- read_csv("measles_params.csv")
+local_global[which.max(local_global$loglik[!is.na(local_global$loglik)]), c("loglik","loglik.se")]
+```
 
+Compared with -104.3 we got in SIR model, SEIR model improve the best result likelihood a little.
 
 ****
 
@@ -333,7 +346,11 @@ How do the parameter estimates differ between SIR and SEIR?
 
 **Answer**:
 
+```{r, message = FALSE, cache = TRUE}
+local_global[which.max(local_global$loglik),c("Beta","rho","eta")]
+```
 
+The result is not very close to parameter estimates in SIR. And the trend of loglikelihood against parameter is not very similar.
 
 ****
 
@@ -343,73 +360,73 @@ Calculate and plot a profile likelihood over the reporting rate for the SEIR mod
 
 **Answer**:
 
-**Profile Likelihood over** $\eta$
+**Profile Likelihood over** $\rho$
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 read_csv("measles_params.csv") |>
-filter(loglik>max(loglik)-20,loglik.se<2) |>
+#filter(loglik>max(loglik)-20,loglik.se<2) |>
 sapply(range) -> box
 box
 ```
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 freeze(seed=1196696958,
 profile_design(
-eta=seq(0.01,0.95,length=40),
-lower=box[1,c("Beta","rho")],
-upper=box[2,c("Beta","rho")],
+rho=seq(0.01,0.95,length=40),
+lower=box[1,c("Beta","eta")],
+upper=box[2,c("Beta","eta")],
 nprof=15, type="runif"
 )) -> guesses
 plot(guesses)
 ```
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 foreach(guess=iter(guesses,"row"), .combine=rbind,
 .options.future=list(seed=830007657)
 ) %dofuture% {
 mf1 |>
 mif2(params=c(guess,fixed_params),
-rw.sd=rw_sd(Beta=0.02,rho=0.02)) |>
-mif2(Nmif=50,cooling.fraction.50=0.3) -> mf # change Nmif from 100 to 50
+rw.sd=rw_sd(Beta=0.02,eta=0.02)) |>
+mif2(Nmif=30,cooling.fraction.50=0.3) -> mf # change Nmif from 100 to 30
 replicate(
 10,
-mf |> pfilter(Np=2000) |> logLik()) |> # change Np from 5000 to 2000
+mf |> pfilter(Np=1000) |> logLik()) |> # change Np from 5000 to 1000
 logmeanexp(se=TRUE) -> ll
 mf |> coef() |> bind_rows() |>
 bind_cols(loglik=ll[1],loglik.se=ll[2])
-} -> results
+} -> results_profile
 ```
 
-**Visulizing Profile Likelihood**
+**Visualizing Profile Likelihood**
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 read_csv("measles_params.csv") |>
-bind_rows(results) |>
+bind_rows(results_profile) |>
 filter(is.finite(loglik)) |>
 arrange(-loglik) |>
 write_csv("measles_params.csv")
 ```
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 read_csv("measles_params.csv") |>
 filter(loglik>max(loglik)-10) -> all
 pairs(~loglik+Beta+eta+rho,data=all,pch=16)
 ```
 
-```{r}
-results |>
+```{r, message = FALSE, cache = TRUE}
+results_profile |>
 filter(is.finite(loglik)) |>
-group_by(round(eta,5)) |>
+group_by(round(rho,5)) |>
 filter(rank(-loglik)<3) |>
 ungroup() |>
 filter(loglik>max(loglik)-20) |>
-ggplot(aes(x=eta,y=loglik))+
+ggplot(aes(x=rho,y=loglik))+
 geom_point()
 ```
 
 **Confidence Interval**
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 maxloglik <- max(results$loglik,na.rm=TRUE)
 ci.cutoff <- maxloglik-0.5*qchisq(df=1,p=0.95)
 results |>
@@ -424,7 +441,7 @@ geom_hline(color="red",yintercept=ci.cutoff)+
 lims(y=maxloglik-c(5,0))
 ```
 
-```{r}
+```{r, message = FALSE, cache = TRUE}
 results |>
 filter(is.finite(loglik)) |>
 group_by(round(eta,5)) |>
