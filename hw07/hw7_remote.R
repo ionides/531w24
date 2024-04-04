@@ -69,14 +69,14 @@ coef(measSEIR, names(fixed_params)) <- fixed_params
 
 library(foreach)
 library(doParallel)
-plan(multisession)
+library(doRNG)
 
-
+registerDoParallel(36)
+registerDoRNG(123456)
 
 
 # running a particle filter
-foreach(i=1:10,.combine=c,
-        .options.future=list(seed=TRUE)
+foreach(i=1:10,.combine=c
 ) %dopar% {
   measSEIR |> pfilter(Np=5000)
 } -> pf
@@ -94,8 +94,7 @@ pf[[1]] |> coef() |> bind_rows() |>
 
 
 # do local search
-foreach(i=1:20,.combine=c,
-        .options.future=list(seed=482947940)
+system.time(foreach(i=1:20,.combine=c
 ) %dopar% {
   measSEIR |>
     mif2(
@@ -105,7 +104,7 @@ foreach(i=1:20,.combine=c,
       partrans=parameter_trans(log="Beta",logit=c("rho","eta")),
       paramnames=c("Beta","rho","eta")
     )
-} -> mifs_local
+} -> mifs_local) -> time1
 
 
 
@@ -121,8 +120,7 @@ mifs_local |>
 
 
 # estimating the likelihood
-foreach(mf=mifs_local,.combine=rbind,
-        .options.future=list(seed=900242057)
+foreach(mf=mifs_local,.combine=rbind
 ) %dopar% {
   evals <- replicate(10, logLik(pfilter(mf,Np=5000)))
   ll <- logmeanexp(evals,se=TRUE)
@@ -157,8 +155,7 @@ mf1 <- mifs_local[[1]]
 
 library(iterators)
 
-foreach(guess=iter(guesses,"row"), .combine=rbind,
-        .options.future=list(seed=1270401374)
+system.time(foreach(guess=iter(guesses,"row"), .combine=rbind
 ) %dopar% {
   mf1 |>
     mif2(params=c(guess,fixed_params)) |>
@@ -170,7 +167,7 @@ foreach(guess=iter(guesses,"row"), .combine=rbind,
     logmeanexp(se=TRUE) -> ll
   mf |> coef() |> bind_rows() |>
     bind_cols(loglik=ll[1],loglik.se=ll[2])
-} -> results_global
+} -> results_global) -> time2
 
 
 
@@ -241,8 +238,7 @@ plot(guesses)
 
 
 
-foreach(guess=iter(guesses,"row"), .combine=rbind,
-        .options.future=list(seed=830007657)
+system.time(foreach(guess=iter(guesses,"row"), .combine=rbind
 ) %dopar% {
   mf1 |>
     mif2(params=c(guess,fixed_params),
@@ -254,7 +250,7 @@ foreach(guess=iter(guesses,"row"), .combine=rbind,
     logmeanexp(se=TRUE) -> ll
   mf |> coef() |> bind_rows() |>
     bind_cols(loglik=ll[1],loglik.se=ll[2])
-} -> results_profile
+} -> results_profile) -> time3
 
 
 
@@ -263,5 +259,40 @@ read_csv("measles_params.csv") |>
   filter(is.finite(loglik)) |>
   arrange(-loglik) |>
   write_csv("measles_params.csv")
+
+
+read_csv("measles_params.csv") |>
+  filter(loglik>max(loglik)-10) -> all
+pairs(~loglik+Beta+eta+rho,data=all,pch=16)
+
+
+results_profile |>
+  filter(is.finite(loglik)) |>
+  group_by(round(rho,5)) |>
+  filter(rank(-loglik)<3) |>
+  ungroup() |>
+  filter(loglik>max(loglik)-20) |>
+  ggplot(aes(x=rho,y=loglik))+
+  geom_point()
+
+
+
+maxloglik <- max(results_profile$loglik,na.rm=TRUE)
+ci.cutoff <- maxloglik-0.5*qchisq(df=1,p=0.95)
+results_profile |>
+  filter(is.finite(loglik)) |>
+  group_by(round(rho,5)) |>
+  filter(rank(-loglik)<3) |>
+  ungroup() |>
+  ggplot(aes(x=rho,y=loglik))+
+  geom_point()+
+  geom_smooth(method="loess",span=0.25)+
+  geom_hline(color="red",yintercept=ci.cutoff)+
+  lims(y=maxloglik-c(5,0))
+
+
+
+write.table(file="remote_time.csv",
+            rbind(time1,time2,time3))
 
 

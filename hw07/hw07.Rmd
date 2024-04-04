@@ -154,7 +154,7 @@ plot(pf)
 
 We can see that a single filtering can work. Now we fix N, mu_IR and k as the [slides14](https://ionides.github.io/531w24/14/slides-annotated.pdf) do.
 
-```{r, message = FALSE, cache = TRUE}
+```{r, message = FALSE, cache = TRUE, warning = FALSE}
 fixed_params <- c(N=38000, mu_EI=1.5, mu_IR=2, k=10) # here I additionally fix mu_EI=1.5
 coef(measSEIR, names(fixed_params)) <- fixed_params
 ```
@@ -240,7 +240,7 @@ mf |> coef() |> bind_rows() |>
 bind_cols(loglik=ll[1],loglik.se=ll[2])
 } -> results_local
 
-pairs(~loglik+Beta+eta+rho,data=results,pch=16)
+pairs(~loglik+Beta+eta+rho,data=results_local,pch=16)
 ```
 
 **Build up a picture of the likelihood surface**
@@ -426,37 +426,23 @@ geom_point()
 
 **Confidence Interval**
 
-```{r, message = FALSE, cache = TRUE}
-maxloglik <- max(results$loglik,na.rm=TRUE)
+```{r, message = FALSE, warning= FALSE, cache = TRUE}
+maxloglik <- max(results_profile$loglik,na.rm=TRUE)
 ci.cutoff <- maxloglik-0.5*qchisq(df=1,p=0.95)
-results |>
+results_profile |>
 filter(is.finite(loglik)) |>
-group_by(round(eta,5)) |>
+group_by(round(rho,5)) |>
 filter(rank(-loglik)<3) |>
 ungroup() |>
-ggplot(aes(x=eta,y=loglik))+
+ggplot(aes(x=rho,y=loglik))+
 geom_point()+
 geom_smooth(method="loess",span=0.25)+
 geom_hline(color="red",yintercept=ci.cutoff)+
 lims(y=maxloglik-c(5,0))
 ```
 
-```{r, message = FALSE, cache = TRUE}
-results |>
-filter(is.finite(loglik)) |>
-group_by(round(eta,5)) |>
-filter(rank(-loglik)<3) |>
-ungroup() |>
-mutate(in_ci=loglik>max(loglik)-1.92) |>
-ggplot(aes(x=eta,y=rho,color=in_ci))+
-geom_point()+
-labs(
-color="inside 95% CI?",
-x=expression(eta),
-y=expression(rho),
-title="profile trace"
-)
-```
+compared with the profile likelihood plot on $\rho$ of SIR, the profile likelihood of SEIR has larger optimal $\rho$ and wider confidence interval in [0,1].
+
 
 ****
 
@@ -464,7 +450,7 @@ title="profile trace"
 
 **Answer**:
 
-
+Here I especially write down the time used for local search, global search and profile likelihood search.
 
 ****
 
