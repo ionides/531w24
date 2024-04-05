@@ -60,19 +60,21 @@ In this question, I used some guidance of linux commands on slides and Great Lak
 on laptop:
 
 ```{r, message = FALSE, cache = TRUE}
-require(knitr)
-time1 <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/531/Stats531/greatlakes/test_local.csv", sep = " ")
+library(knitr)
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/531/Stats531/hw07")
+
+time1 <- read.csv("test_local.csv", sep = " ")
 kable(time1)
 ```
 
 on GreatLakes:
 
 ```{r, message = FALSE, cache = TRUE}
-time2 <- read.csv("~/Library/Mobile Documents/com~apple~CloudDocs/531/Stats531/greatlakes/test_remote.csv", sep = " ")
+time2 <- read.csv("test_remote.csv", sep = " ")
 kable(time2)
 ```
 
-It seems counter-intuitive since the test runs faster on my local machine than on Greatlakes computational clusters. I guess the reason might be that I did not set the CPUs or GPUs that I can use on the remote so the speed is limited?
+It seems counter-intuitive since the test runs faster on my local machine than on Greatlakes computational clusters. I guess the reason might be that I did not set the CPUs or GPUs that I can use on the remote so the speed is limited? Another possible reason is that the test example runs too fast that we can not make the full use of Great Lakes.
 
 ****
 
@@ -451,6 +453,21 @@ compared with the profile likelihood plot on $\rho$ of SIR, the profile likeliho
 **Answer**:
 
 Here I especially write down the time used for local search, global search and profile likelihood search.
+
+**local laptop**:
+
+```{r}
+time3 <- read.csv("local_time.csv", sep = " ")
+kable(time3)
+```
+
+**remote GreatLakes**
+```{r}
+time4 <- read.csv("remote_time.csv", sep = " ")
+kable(time4)
+```
+
+Comparing the results we can find that Great Lakes runs much faster than local laptop on time-consuming tasks.
 
 ****
 

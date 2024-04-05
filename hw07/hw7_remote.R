@@ -76,7 +76,7 @@ registerDoRNG(123456)
 
 
 # running a particle filter
-foreach(i=1:10,.combine=c
+foreach(i=1:10,.combine=c,.packages = c("pomp")
 ) %dopar% {
   measSEIR |> pfilter(Np=5000)
 } -> pf
@@ -94,7 +94,7 @@ pf[[1]] |> coef() |> bind_rows() |>
 
 
 # do local search
-system.time(foreach(i=1:20,.combine=c
+foreach(i=1:20,.combine=c,.packages = c("pomp")
 ) %dopar% {
   measSEIR |>
     mif2(
@@ -104,7 +104,7 @@ system.time(foreach(i=1:20,.combine=c
       partrans=parameter_trans(log="Beta",logit=c("rho","eta")),
       paramnames=c("Beta","rho","eta")
     )
-} -> mifs_local) -> time1
+} -> mifs_local
 
 
 
@@ -120,13 +120,13 @@ mifs_local |>
 
 
 # estimating the likelihood
-foreach(mf=mifs_local,.combine=rbind
+system.time(foreach(mf=mifs_local,.combine=rbind,.packages = c("pomp")
 ) %dopar% {
   evals <- replicate(10, logLik(pfilter(mf,Np=5000)))
   ll <- logmeanexp(evals,se=TRUE)
   mf |> coef() |> bind_rows() |>
     bind_cols(loglik=ll[1],loglik.se=ll[2])
-} -> results_local
+} -> results_local) -> time1
 
 pairs(~loglik+Beta+eta+rho,data=results,pch=16)
 
@@ -155,7 +155,7 @@ mf1 <- mifs_local[[1]]
 
 library(iterators)
 
-system.time(foreach(guess=iter(guesses,"row"), .combine=rbind
+system.time(foreach(guess=iter(guesses,"row"), .combine=rbind,.packages = c("pomp")
 ) %dopar% {
   mf1 |>
     mif2(params=c(guess,fixed_params)) |>
@@ -238,15 +238,15 @@ plot(guesses)
 
 
 
-system.time(foreach(guess=iter(guesses,"row"), .combine=rbind
+system.time(foreach(guess=iter(guesses,"row"), .combine=rbind,.packages = c("pomp")
 ) %dopar% {
   mf1 |>
     mif2(params=c(guess,fixed_params),
          rw.sd=rw_sd(Beta=0.02,rho=0.02)) |>
-    mif2(Nmif=100,cooling.fraction.50=0.3) -> mf
+    mif2(Nmif=30,cooling.fraction.50=0.3) -> mf
   replicate(
     10,
-    mf |> pfilter(Np=1500) |> logLik()) |> # change Np from 5000 to 1500
+    mf |> pfilter(Np=1000) |> logLik()) |> # change Np from 5000 to 1500
     logmeanexp(se=TRUE) -> ll
   mf |> coef() |> bind_rows() |>
     bind_cols(loglik=ll[1],loglik.se=ll[2])

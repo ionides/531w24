@@ -86,7 +86,7 @@ pf[[1]] |> coef() |> bind_rows() |>
 
 
 # do local search
-system.time(foreach(i=1:20,.combine=c,
+foreach(i=1:20,.combine=c,
         .options.future=list(seed=482947940)
 ) %dofuture% {
   measSEIR |>
@@ -97,7 +97,7 @@ system.time(foreach(i=1:20,.combine=c,
       partrans=parameter_trans(log="Beta",logit=c("rho","eta")),
       paramnames=c("Beta","rho","eta")
     )
-} -> mifs_local) -> time1
+} -> mifs_local
 
 
 
@@ -113,14 +113,14 @@ mifs_local |>
 
 
 # estimating the likelihood
-foreach(mf=mifs_local,.combine=rbind,
+system.time(foreach(mf=mifs_local,.combine=rbind,
         .options.future=list(seed=900242057)
 ) %dofuture% {
   evals <- replicate(10, logLik(pfilter(mf,Np=5000)))
   ll <- logmeanexp(evals,se=TRUE)
   mf |> coef() |> bind_rows() |>
     bind_cols(loglik=ll[1],loglik.se=ll[2])
-} -> results_local
+} -> results_local) -> time1
 
 pairs(~loglik+Beta+eta+rho,data=results_local,pch=16)
 
