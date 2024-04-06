@@ -1,0 +1,203 @@
+---
+title: "Solution to Homework 6"
+author: "STATS/DATASCI 531, Winter 2022"
+output:
+  html_document:
+    toc: no
+bibliography: ../bib531.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+---
+
+* Various difficulties were encountered with installing Xcode and Fortran compilers for Mac and R-tools for Windows. However, with persistence and some problem-solving on Piazza, these were all resolved.
+
+* The following code is adapted from the notes for Simulation-Based Inference for Epidemiological Dynamics [@sismid].
+
+## Question 6.1: Simulating an SIR process 
+
+```{r read_data, include=FALSE}
+library(tidyverse)
+library(pomp)
+set.seed(70982)
+meas = read.csv(paste0("https://kingaa.github.io/sbied/stochsim/",
+                       "Measles_Consett_1948.csv")) 
+
+# The following chunk is written by Aaron King, Carles Bretó and
+# Edward Ionides, and is adapted from the lecture file.
+
+sir_step <- Csnippet("
+double dN_SI = rbinom(S,1-exp(-Beta*I/N*dt));
+double dN_IR = rbinom(I,1-exp(-mu_IR*dt));
+S -= dN_SI;
+I += dN_SI - dN_IR;
+R += dN_IR;
+H += dN_IR;
+")
+
+sir_init <- Csnippet("
+S = nearbyint(eta*N);
+I = 1;
+R = nearbyint((1-eta)*N);
+H = 0;
+")
+
+dmeas <- Csnippet("
+lik = dbinom(reports,H,rho,give_log);
+")
+
+rmeas <- Csnippet("
+reports = rbinom(H,rho);
+")
+
+measSIR = meas %>%
+  select(week,reports=cases) %>%
+  filter(week<=42) %>%
+  pomp(
+    times="week",t0=0,
+    rprocess=euler(sir_step,delta.t=1/7),
+    rinit=sir_init,
+    rmeasure=rmeas,
+    dmeasure=dmeas,
+    accumvars="H",
+    statenames=c("S","I","R","H"),
+    paramnames=c("Beta","mu_IR","eta","rho","N")
+  )
+
+# End of the adapted chunk 
+
+```
+
+In the simulated outbreaks, the overall incidence is much too low, and the outbreak dies out after only a few weeks. To attempt to simulate data for which the observed data is a more plausible realization, we might try increasing the force of infection.
+
+```{r initial_plot, echo=FALSE}
+# From source [1]
+measSIR %>%
+  simulate(params=c(Beta=20,mu_IR=0.5,rho=0.5,eta=0.03,N=38000),
+    nsim=20,format="data.frame",include.data=TRUE) %>%
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")
+```
+
+Taking it farther....
+
+```{r, echo=FALSE}
+measSIR %>%
+  simulate(params=c(Beta=40,mu_IR=0.5,rho=0.5,eta=0.03,N=38000),
+    nsim=20,format="data.frame",include.data=TRUE) %>%
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")
+```
+
+While this increases the overall incidence, the epidemic is now peaking too quickly. To counteract this, we might try reducing the recovery rate
+
+```{r, echo=FALSE}
+measSIR %>%
+  simulate(params=c(Beta=40,mu_IR=0.2,rho=0.5,eta=0.03,N=38000),
+    nsim=20,format="data.frame",include.data=TRUE) %>%
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")
+```
+
+Additionally, we might have a look at the effects of changing the initial susceptible fraction, η. It's possible to get something not too awful to contemplate by just manipulating $\eta$, in fact:
+
+```{r, echo=FALSE}
+measSIR %>%
+  simulate(params=c(Beta=15,mu_IR=0.5,rho=0.5,eta=0.06,N=38000),
+    nsim=20,format="data.frame",include.data=TRUE) %>%
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")
+```
+
+## Question 6.2: Simulating an SEIR process  
+
+The existing code may be modified as follows:
+
+```{r SEIR_building, include=FALSE}
+seir_step <- Csnippet("
+  double dN_SE = rbinom(S,1-exp(-Beta*I/N*dt));
+  double dN_EI = rbinom(E,1-exp(-mu_EI*dt));
+  double dN_IR = rbinom(I,1-exp(-mu_IR*dt));
+  S -= dN_SE;
+  E += dN_SE - dN_EI;
+  I += dN_EI - dN_IR;
+  R += dN_IR;
+  H += dN_IR;
+")
+
+
+seir_init <- Csnippet("
+  S = nearbyint(eta*N);
+  E = 0;
+  I = 1;
+  R = nearbyint((1-eta)*N);
+  H = 0;
+")
+
+measSIR %>%
+  pomp(
+    rprocess=euler(seir_step,delta.t=1/7),
+    rinit=seir_init,
+    paramnames=c("N","Beta","mu_EI","mu_IR","rho","eta"),
+    statenames=c("S","E","I","R","H")
+  ) -> measSEIR
+```
+
+Using the rough estimate that the latent period in measles is $8-10$ days, we take $\mu_{EI} \sim 0.8 wk^{-1}$ and $\mu_{IR} \sim 1.3 wk^{-1}$ (so as to have roughly the same generation time as before).
+
+```{r mod1, echo=FALSE}
+measSEIR %>%
+  simulate(params=c(Beta=15,mu_EI=0.8,mu_IR=1.3,rho=0.5,eta=0.06,N=38000),
+    nsim=20,format="data.frame",include.data=TRUE) %>%
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")
+```
+
+Again one can increase the force of infection:
+
+```{r mod2, echo=FALSE}
+measSEIR %>% 
+  simulate(params=c(Beta=40,mu_EI=0.8,mu_IR=1.3,rho=0.5,eta=0.06,N=38000),
+  nsim=20,format="data.frame",include.data=TRUE) %>%
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")
+```
+
+Now increase \(\beta\) to, by trial and error, 37. 
+
+```{r mod3, echo=FALSE}
+measSEIR %>%
+simulate(
+params=c(Beta=37,mu_EI=0.6,mu_IR=1,rho=0.7,eta=0.05,N=38000),
+nsim=20,format="data.frame",include.data=TRUE
+) -> sims
+sims %>%
+ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+geom_line()+
+guides(color="none")
+```
+
+Notice that it seems that the simulated time series peak too late. We can decrease \(\eta\) back to 0.03, and increase \(\beta\) to 73.
+
+```{r mod4, echo=FALSE}
+measSEIR %>%
+simulate(
+params=c(Beta=73,mu_EI=0.6,mu_IR=1,rho=0.7,eta=0.03,N=38000),
+nsim=20,format="data.frame",include.data=TRUE
+) -> sims
+sims %>%
+ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+geom_line()+
+guides(color="none")
+```
+
+Despite some uncertainties, this seems like a reasonable model for the time series. So we can choose \(\beta=73, \mu_{EI}=0.6,\mu_{IR}=1, \rho=0.7, \eta=0.03\) for the SEIR model.
+
+----------------
+
+### References
+
