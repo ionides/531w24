@@ -147,15 +147,21 @@ DATASCI/STATS 531
 \end{center}
 
 
-You are welcome to collaborate with your final project group for this homework. Nevertheless, you will submit individual solutions and you should take individual responsibility for the work that you submit under your own name. From the perspective of scholarship, it is appropriate to give credit to specific group members for helpful suggestions. If you can explain in your own words why you found this advice helpful, and why you think the advice is correct, then you can satisfy both the scholarship and individual contribution requirements for the grading scheme.
+You are welcome to collaborate with your final project group for this homework.
+Nevertheless, you will submit individual solutions and you should take individual responsibility for the work that you submit under your own name.
+From the perspective of scholarship, it is appropriate to give credit to specific group members for helpful suggestions.
+If you can explain in your own words why you found this advice helpful, and why you think the advice is correct, then you can satisfy both the scholarship and individual contribution requirements for the grading scheme.
+If you poke around, you will find that solutions to these questions exist online. It may be simplest for you if you do not look for online solutions.
+If you are reluctant to give full and transparent credit to what you have borrowed from sources, that may be a sign you have borrowed too much.
 
-The course rules on scholarship can be summarized as follows. If there is any information about how your report was produced which would diminish your own contribution then you have an obligation to share that information with the reader, so you do not claim credit for something you have not done yourself. Put another way, you have an obligation to help the reader quickly and fairly evaluate your individual contribution.
+In case it is helpful, here is a different way to summarize the course rules on scholarship, which is based on the rules of modern science:
+
+{\bf If there is any information about how your report was produced which would diminish your own contribution then you have an obligation to share that information with the reader, so you do not claim credit for something you have not done yourself. Put another way, you have an obligation to help the reader quickly and fairly evaluate your individual contribution.}
 
 Your report should be written in Rmd, and you should submit both the Rmd source and a version compiled to HTML. For each question, you should give an answer (a letter or true/false claims) followed by some text explaining your answer. Most of the questions do not need any coding, but you should show your code when appropriate.
 
 The goal is to think about some issues that might arise in final projects, and indeed some of the questions alert you to common issues arising in previous 531 final projects.
 
-If you poke around, you may find solutions to these questions. It may be simplest if you do not look for online solutions, though it is not against the rules, following the usual source attribution requirements for the course that all sources are acceptable as long as they are properly acknowledged. If you are reluctant to give full and transparent credit to what you have borrowed from sources, that may be a sign you have borrowed too much.
 
 These questions are based on material developed for a course on \link{https://kingaa.github.io/sbied}{Simulation-based Inference for Epidemiological Dynamics}. Note that this vague ackowledgement of a large but unspecified intellectual debt is not intended as a role model for homework reports; it is okay in this context but insufficient to explain your own contribution in a course assignment.
 

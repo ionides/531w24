@@ -53,9 +53,9 @@ The course outline, course information and grading policies are described in the
 
 15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
 
-<!--
+16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html). With [notes on how to run the code on the Great Lakes Linux cluster](16/README.html).
 
-16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
+<!--
 
 17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
 
@@ -117,15 +117,15 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 * [Participation 7](participation/participation7.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
 
 
+* [Homework 8](hw08/hw08.pdf), due Sun Apr 14, 11:59pm.
 
 <!--
-
-
-
-* [Homework 8](hw08/hw08.pdf), due Mon Apr 4, 11:59pm.
 [Solution](hw08/sol08.pdf).
+-->
 
-* [Participation 7](participation/participation7.html), due Mon Apr 18, 11:59pm.
+* [Participation 8](participation/participation8.html), due Sun Apr 14, 11:59pm.
+
+<!--
 
 * There is no assigned homework for the last two weeks of the semester. You should work on your final project. The remaining lectures contain material that will be useful for your final projects.
 

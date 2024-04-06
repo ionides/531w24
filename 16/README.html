@@ -9,10 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Instructor: Edward L. Ionides" />
+<meta name="author" content="Edward L. Ionides" />
 
 
-<title>DATASCI/STATS 531 (Winter 2024)  ‘Modeling and Analysis of Time Series Data’</title>
+<title>Modeling and Analysis of Time Series Data DATASCI/STATS 531 Running the Chapter 16 notes on greatlakes</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -349,219 +349,78 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 (Winter 2024)
-<br>‘Modeling and Analysis of Time Series Data’</h1>
-<h4 class="author">Instructor: Edward L. Ionides</h4>
+<h1 class="title toc-ignore">Modeling and Analysis of Time Series
+Data<br>DATASCI/STATS 531<br>Running the Chapter 16 notes on
+greatlakes</h1>
+<h4 class="author">Edward L. Ionides</h4>
 
 </div>
 
-<div id="TOC">
-<ul>
-<li><a href="#course-description" id="toc-course-description">Course
-description</a></li>
-<li><a href="#class-notes-and-recorded-lectures" id="toc-class-notes-and-recorded-lectures">Class notes and recorded
-lectures</a></li>
-<li><a href="#homework-and-participation-assignments" id="toc-homework-and-participation-assignments">Homework and
-participation assignments</a></li>
-<li><a href="#midterm-project" id="toc-midterm-project">Midterm
-project</a></li>
-<li><a href="#final-project" id="toc-final-project">Final
-project</a></li>
-<li><a href="#using-the-great-lakes-cluster" id="toc-using-the-great-lakes-cluster">Using the Great Lakes
-cluster</a></li>
-<li><a href="#acknowledgements-and-license" id="toc-acknowledgements-and-license">Acknowledgements and
-License</a></li>
-</ul>
-</div>
 
-<hr />
-<div id="course-description" class="section level2">
-<h2>Course description</h2>
-<p>This course gives an introduction to time series analysis using time
-domain methods and frequency domain methods. The goal is to acquire the
-theoretical and computational skills required to investigate data
-collected as a time series. The first half of the course will develop
-classical time series methodology, including auto-regressive moving
-average (ARMA) models, regression with ARMA errors, and estimation of
-the spectral density. The second half of the course will focus on state
-space model techniques for fitting structured dynamic models to time
-series data. We will progress from fitting linear, Gaussian dynamic
-models to fitting nonlinear models for which Monte Carlo methods are
-required. Examples will be drawn from ecology, economics, epidemiology,
-finance and elsewhere.</p>
-<p>The course outline, course information and grading policies are
-described in the <a href="syllabus.html">syllabus</a>.</p>
-<hr />
-</div>
-<div id="class-notes-and-recorded-lectures" class="section level2">
-<h2>Class notes and recorded lectures</h2>
+<p>This provides an example for the more general task of running pomp
+analysis on a Linux cluster using Slurm scheduling. This is an example
+of the even more general task of organizing reproducible and
+computationally intensive statistical data analysis.</p>
 <ol style="list-style-type: decimal">
-<li><p><a href="01/index.html">Introduction</a></p></li>
-<li><p><a href="02/index.html">Estimating trend and
-autocovariance</a></p></li>
-<li><p><a href="03/index.html">Stationarity, white noise, and some basic
-time series models</a></p></li>
-<li><p><a href="04/index.html">Linear time series models and the algebra
-of ARMA models</a></p></li>
-<li><p><a href="05/index.html">Parameter estimation and model
-identification for ARMA models</a></p></li>
-<li><p><a href="06/index.html">Extending the ARMA model: Seasonality,
-integration and trend</a></p></li>
-<li><p><a href="07/index.html">Introduction to time series analysis in
-the frequency domain</a></p></li>
-<li><p><a href="08/index.html">Smoothing in the time and frequency
-domains</a></p></li>
-<li><p><a href="09/index.html">Case study: An association between
-unemployment and mortality?</a></p></li>
-<li><p><a href="10/index.html">Introduction to partially observed Markov
-process models</a></p></li>
-<li><p><a href="11/index.html">Introduction to simulation-based
-inference for epidemiological dynamics via the pomp R
-package</a></p></li>
-<li><p><a href="12/index.html">Simulation of stochastic dynamic
-models</a></p></li>
-<li><p><a href="13/index.html">Likelihood for POMP models: Theory and
-practice</a></p></li>
-<li><p><a href="14/index.html">Likelihood maximization for POMP
-models</a></p></li>
-<li><p><a href="15/index.html">A case study of polio including
-covariates, seasonality &amp; over-dispersion</a></p></li>
+<li><p>Copy the files to greatlakes. For moving the chapter 16 code to
+greatlakes, I cloned the 531w24 git repository from GitHub. I could also
+have used scp.</p></li>
+<li><p>Check the code is running, via an interactive session at run
+level 1</p>
+<ol style="list-style-type: lower-alpha">
+<li>edit main.Rnw to make sure run level is set to 1, e.g., using</li>
 </ol>
-<!--
-
-16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
-
-17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
-
-There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).
-
--->
-<hr />
-</div>
-<div id="homework-and-participation-assignments" class="section level2">
-<h2>Homework and participation assignments</h2>
-<p>Please read the <a href="rubric_homework.html">grading rubric</a>
-before submitting homework.</p>
-<ul>
-<li><p><a href="hw00/hw00.html">Homework 0</a>. Setting up your
-computational environment. Nothing to submit.</p></li>
-<li><p><a href="hw01/hw01.html">Homework 1</a>, due Sun Jan 21, 11:59pm.
-<a href="hw01/sol01.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation1.html">Participation 1</a>,
-due Sun Jan 21, 11:59pm.</p></li>
-<li><p><a href="hw02/hw02.html">Homework 2</a>, due Tue Jan 30, 11:59pm.
-<a href="hw02/sol02.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation2.html">Participation 2</a>,
-due Tue Jan 30, 11:59pm.</p></li>
-<li><p><a href="hw03/hw03.html">Homework 3</a>, due Sun Feb 11, 11:59pm.
-<a href="hw03/sol03.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation3.html">Participation 3</a>,
-due Sun Feb 11, 11:59pm.</p></li>
-<li><p><a href="hw04/hw04.html">Homework 4</a>, due Sun Feb 18, 11:59pm.
-<a href="hw04/sol04.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation4.html">Participation 4</a>,
-due Sun Feb 18, 11:59pm.</p></li>
-<li><p><a href="hw05/hw05.html">Homework 5</a>, due Sun Mar 17, 11:59pm.
-<a href="hw05/sol05.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation5.html">Participation 5</a>,
-due Sun Mar 17, 11:59pm.</p></li>
-<li><p><a href="hw06/hw06.html">Homework 6</a>, due Sun Mar 24, 11:59pm.
-<a href="hw06/sol06.html">Solution</a>.</p></li>
-<li><p><a href="participation/participation6.html">Participation 6</a>,
-due Sun Mar 24, 11:59pm.</p></li>
-<li><p><a href="hw07/hw07.html">Homework 7</a>, due Sun Mar 31, 11:59pm.
-Extended to Wed Apr 3.</p></li>
-</ul>
-<!--
-
-[Solution](hw07/sol07.html).
-
--->
-<ul>
-<li><p><a href="participation/participation7.html">Participation 7</a>,
-due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.</p></li>
-<li><p><a href="hw08/hw08.pdf">Homework 8</a>, due Sun Apr 14,
-11:59pm.</p></li>
-</ul>
-<!--
-[Solution](hw08/sol08.pdf).
--->
-<ul>
-<li><a href="participation/participation8.html">Participation 8</a>, due
-Sun Apr 14, 11:59pm.</li>
-</ul>
-<!--
-
-* There is no assigned homework for the last two weeks of the semester. You should work on your final project. The remaining lectures contain material that will be useful for your final projects.
-
--->
-<hr />
-</div>
-<div id="midterm-project" class="section level2">
-<h2>Midterm project</h2>
-<ul>
-<li><p><a href="midterm_project/midterm_project_info.html">Information</a>.</p></li>
-<li><p><a href="midterm_project/midterm_review.html">Midterm peer review
-report instructions</a></p></li>
-<li><p><a href="midterm_project/index.html">2024 midterm
-projects</a></p></li>
-<li><p>You are welcome to browse previous midterm projects. The <a href="http://ionides.github.io/531w22/midterm_project/">2022 midterm
-projects</a> and <a href="http://ionides.github.io/531w21/midterm_project/">2021 midterm
-projects</a> have a posted summary of peer review comments. Earlier
-projects are also available, from <a href="http://ionides.github.io/531w16/midterm_project/">2016</a>, <a href="http://ionides.github.io/531w18/midterm_project/">2018</a> and <a href="http://ionides.github.io/531w20/midterm_project/">2020</a>.</p></li>
-</ul>
-<hr />
-</div>
-<div id="final-project" class="section level2">
-<h2>Final project</h2>
-<ul>
-<li><p><a href="final_project/final_project_info.html">Information</a></p></li>
-<li><p><a href="final_project/final_review.html">Final peer review
-report instructions</a></p></li>
-</ul>
-<!--
-* [2024 final projects](final_project/index.html)
--->
-<ul>
-<li>You’re welcome to browse previous final projects. The <a href="http://ionides.github.io/531w21/final_project/">2021</a> and <a href="http://ionides.github.io/531w22/final_project/">2022</a> final
-projects have a posted summary of peer review comments. Earlier projects
-from <a href="http://ionides.github.io/531w16/final_project/">2016</a>,
-<a href="http://ionides.github.io/531w18/final_project/">2018</a>, <a href="http://ionides.github.io/531w20/final_project/">2020</a> may also
-be useful.</li>
-</ul>
-<p>If building on old source code, note that there are some differences
-between versions of the software package <strong>pomp</strong>. The <a href="https://kingaa.github.io/pomp/vignettes/upgrade_guide.html"><strong>pomp</strong>
-version 2 upgrade guide</a> can be helpful. There are various smaller
-changes between <strong>pomp 2.0</strong> and the current <strong>pomp
-5.6</strong>.</p>
-<hr />
-</div>
-<div id="using-the-great-lakes-cluster" class="section level2">
-<h2>Using the Great Lakes cluster</h2>
-<ul>
-<li><p>Great Lakes access will be set up after the midterm project and
-used for the second half of the course.</p></li>
-<li><p><a href="greatlakes/index.html">Introductory notes</a> for using
-our class account on the greatlakes cluster. This is optional but may be
-helpful for your final project.</p></li>
-<li><p>If you are already familiar with using R on Great Lakes, all you
-need to know is the class account:
-<code>stats531w24_class</code>.</p></li>
-<li><p>You are expected to use our class account only for computations
-related to DATASCI/STATS 531.</p></li>
-<li><p>Please share knowledge about cluster computing between group
-members, and/or on piazza, to help everyone who wants to learn these
-skills.</p></li>
-<li><p>Cluster-related questions can also be emailed to <a href="mailto:arc-support@umich.edu" class="email">arc-support@umich.edu</a>.</p></li>
-</ul>
-<hr />
-</div>
-<div id="acknowledgements-and-license" class="section level2">
-<h2>Acknowledgements and License</h2>
-<p>This course and the code involved are made available with an <a href="LICENSE">MIT license</a>. Some components follow a Creative
-Commons Attribution non-commercial license. A longer list of
-acknowledgments is <a href="acknowledge.html">available</a>.</p>
-</div>
+<pre><code>nano main.Rnw</code></pre>
+<ol start="2" style="list-style-type: lower-alpha">
+<li>start an interactive session on greatlakes, e.g., by</li>
+</ol>
+<pre><code>srun --nodes=1 --account=stats531w22_class --ntasks-per-node=2 --pty /bin/bash</code></pre>
+<ol start="3" style="list-style-type: lower-alpha">
+<li>load a current version of R</li>
+</ol>
+<pre><code>module load R</code></pre>
+<ol start="4" style="list-style-type: lower-alpha">
+<li>start R in the 531w24/16 directory</li>
+</ol>
+<pre><code>R</code></pre>
+<ol start="5" style="list-style-type: lower-alpha">
+<li>within R, we try knitting the source file. Here, it is Rnw, but Rmd
+would work the same way.</li>
+</ol>
+<pre><code>knitr::knit(&quot;main.Rnw&quot;)</code></pre>
+<ol start="6" style="list-style-type: lower-alpha">
+<li><p>likely, you will be missing some packages and you will have to
+run install.packages in your R session.</p></li>
+<li><p>when step (e) is working for you, it will produce main.tex (or a
+md file from Rmd). It will also produce all the rda files saving the
+output of the computations.</p></li>
+</ol></li>
+<li><p>Try running the code as a batch file. 531w24/16 has three sbat
+files corresponding to the three run levels: r-1.sbat, r-2.sbat,
+r-3.sbat. Try the batch job at run level 1 first. Note that if your
+knitr/rmarkdown file is using cache, you will have to remove all the
+cache files. For Chapter 16, the cache is put in a subdirectory called
+tmp, so we can delete all the cache by</p></li>
+</ol>
+<pre><code>rm -rf tmp</code></pre>
+<p>Then, having set run_level to 1 in main.Rnw, run</p>
+<pre><code>sbatch r-1.sbat</code></pre>
+<p>Also, if you need to re-run all the code at run level 1, you can
+do</p>
+<pre><code>rm -rf *1.rda</code></pre>
+<p>to remove all the rda files for run level 1.</p>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Once this is debugged, you can move on to run levels 2 and 3. The
+only differences between r-1.sbat, r-2.sbat and r-3.sbat is the number
+of cores requested and the wall time. Setting these no larger than
+needed may lead to shorter queue times, and perhaps fewer billing
+minutes. Again, you may have to remove cached files, both the
+knitr/rmarkdown cache and the .rda files if you want to reconstruct
+them.</p></li>
+<li><p>Once the rda files are computed, you can move them to wherever
+you are most comfortable for further editing of text and
+figures.</p></li>
+</ol>
 
 
 

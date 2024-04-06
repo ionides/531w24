@@ -1,0 +1,27 @@
+#!/bin/bash
+
+#SBATCH --job-name=ch16_level_1
+#SBATCH --mail-user=ionides@umich.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+ 
+#SBATCH --account=stats531w22_class
+#SBATCH --partition=standard
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=2GB
+#SBATCH --time=1:00:00
+
+###   Load software modules
+
+module load R
+module list
+
+####  Commands your job should run follow this line
+
+echo "Running on $SLURM_JOB_NODELIST"
+echo "Running in $(pwd)"
+
+Rscript --vanilla -e "knitr::knit(\"main.Rnw\")"
+
