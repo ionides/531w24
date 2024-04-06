@@ -36,11 +36,11 @@ Read the [greatlakes notes on the course website](../greatlakes/index.html) and 
 
 **<big>Question 7.2</big>. Likelihood maximization for the SEIR model.**
 
-We consider an SEIR model for the Consett measles epidemic, which is the same model and data used for Homework 6. Write a report presenting the following steps. You will need to tailor the intensity of your search to the computational resources at your disposal. In particular, choose the number of starting points, number of particles employed, and the number of IF2 iterations appropriately for the size and speed of your machine. It is okay for this homework if the Monte Carlo error is larger than you would like.
+We consider an SEIR model for the Consett measles epidemic, which is the same model and data used for Homework 6. Write a report presenting the following steps. You will need to tailor the intensity of your search to the computational resources at your disposal. In particular, choose the number of starting points, number of particles employed, and the number of IF2 iterations appropriately for the size and speed of your machine. Test your code on smaller tasks before moving to larger numbers of particles and search iterations. It is okay for this homework if the Monte Carlo error is larger than you would like.
 
 Develop your code to run in parallel on all the cores of your laptop and then run the same code on greatlakes. Report on the change in computing time.
 
-(a) Conduct a local search and then a global search using the multi-stage, multi-start method.
+(a) Conduct a local search and then a global search using the multi-stage, multi-start approach demonstrated in the notes. 
 
 (b) How does the maximized likelihood for the SEIR model compare with what we obtained for the SIR model?
 
