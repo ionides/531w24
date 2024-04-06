@@ -1,0 +1,30 @@
+---
+title: "Chapter 15 discussion question"
+author: "STATS/DATASCI 531, Winter 2022"
+output:
+  html_document:
+    toc: yes
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+-----------
+
+1. **Interpreting a benchmark likelihood**. Two models are fitted to case counts on an epidemic. Model 1 is an SIR POMP model with a negative binomial measurement model, and model 2 is a linear regression model estimating a cubic trend.  The log likelihoods are $\ell_1 = −2037.91$ and $\ell_2 = −2031.28$ respectively. Which of the following assessments do you agree with most? Note that we can view the linear model as a benchmark, in the sense of Chapter 15.
+
+(A) We should not compare the models using these likelihoods. They correspond to different model structures, so it is an apples-to-oranges comparison.
+
+(B) We can compare them, but the difference is in the 4th significant figure, so the likelihoods are statistically indistinguishable.
+
+(C) The linear model has a noticeably higher likelihood. Our mechanistic model needs to be updated to beat this benchmark before we can responsibly interpret the fitted model. If a simple regression model has higher likelihood than a more complex mechanistic model, one should prefer the simpler model.
+
+(D) The linear model has a noticeably higher likelihood. The mechanistic model is somewhat validated by being not too far behind the simple regression model. We are justified in cautiously interpreting the mechanistic model, while continuing to look for further improvements.
+
+(E) The log likelihoods cannot properly be compared as presented, but could be if we used a Gaussian measurement model for the POMP (or a negative binomial generalized linear model instead of least squares for the regression).
+
+
+
+---------------

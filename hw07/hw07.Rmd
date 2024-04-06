@@ -1,5 +1,5 @@
 ---
-title: "Homework 7, due 11:59pm Sunday 3/31"
+title: "Homework 7, due 11:59pm Sunday 3/31. Extended due date: Wednesday 4/3"
 author: "DATASCI/STATS 531"
 output:
   html_document

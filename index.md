@@ -51,9 +51,9 @@ The course outline, course information and grading policies are described in the
 
 14. [Likelihood maximization for POMP models](14/index.html)
 
-<!--
-
 15. [A case study of polio including covariates, seasonality & over-dispersion](15/index.html)
+
+<!--
 
 16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html)
 
@@ -95,25 +95,17 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 * [Participation 4](participation/participation4.html), due Sun Feb 18, 11:59pm.
 
 * [Homework 5](hw05/hw05.html), due Sun Mar 17, 11:59pm.
-
-<!--
 [Solution](hw05/sol05.html).
--->
 
 * [Participation 5](participation/participation5.html), due Sun Mar 17, 11:59pm.
 
 
 * [Homework 6](hw06/hw06.html), due Sun Mar 24, 11:59pm. 
-
-<!--
-
 [Solution](hw06/sol06.html).
-
--->
 
 * [Participation 6](participation/participation6.html), due Sun Mar 24, 11:59pm.
 
-* [Homework 7](hw07/hw07.html), due Sun Mar 31, 11:59pm.
+* [Homework 7](hw07/hw07.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
 
 <!--
 
@@ -122,7 +114,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 -->
 
 
-* [Participation 7](participation/participation7.html), due Sun Mar 31, 11:59pm.
+* [Participation 7](participation/participation7.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
 
 
 
