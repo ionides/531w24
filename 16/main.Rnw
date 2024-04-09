@@ -195,19 +195,18 @@ and $\epsilon_{1:N}$ is white noise.
 \vspace{-2mm}
 
 <<garch>>=
-require(tseries)
-fit.garch <- garch(sp500.ret.demeaned,grad = "numerical",
-  trace = FALSE)
+fit.garch <- tseries::garch(sp500.ret.demeaned,
+  grad = "numerical", trace = FALSE)
 L.garch <- tseries:::logLik.garch(fit.garch)
 @
 
 \bi
 
-\item This 3-parameter model has a maximized log likelihood of $\Sexpr{myround(L.garch,1)}$.
+\item This 3-parameter model has a maximized log-likelihood of $\Sexpr{myround(L.garch,1)}$.
 
-\item It appears that a bug in this version of \code{tseries} means that simply \code{logLik(fit.garch)} does not work.
+\item From \code{?garch} we learn this is actually a conditional log-likelihood given the first $\max(p,q)$ values.
 
-\item From \code{?garch} we learn this is actually a conditional log likelihood given the first $\max(p,q)$ values.
+\item Due to a bug, perhaps involving a conflict with another package, \code{logLik(fit.garch)} did not work, so the \code{logLik} method is called directly from the \code{tseries} package.
 
 \ei
 
@@ -550,7 +549,6 @@ sim1.filt <- pomp(sim1.sim,
     step.fun=Csnippet(sp500_rproc.filt),delta.t=1)
 )
 
-
 @
 
 \end{frame}
@@ -568,12 +566,12 @@ sim1.filt <- pomp(sim1.sim,
 \ei
 
 <<run_level>>=
-run_level <- 3
-sp500_Np <-           switch(run_level, 100, 1e3, 2e3)
-sp500_Nmif <-         switch(run_level,  10, 100, 200)
+run_level <- 1
+sp500_Np <-           switch(run_level,  50, 1e3, 2e3)
+sp500_Nmif <-         switch(run_level,   5, 100, 200)
 sp500_Nreps_eval <-   switch(run_level,   4,  10,  20)
-sp500_Nreps_local <-  switch(run_level,  10,  20,  20)
-sp500_Nreps_global <- switch(run_level,  10,  20, 100)
+sp500_Nreps_local <-  switch(run_level,   5,  20,  20)
+sp500_Nreps_global <- switch(run_level,   5,  20, 100)
 @
 
 \end{frame}
@@ -588,14 +586,14 @@ sp500_Nreps_global <- switch(run_level,  10,  20, 100)
 
 <<parallel-setup,cache=FALSE>>=
 library(doParallel)
-cores <-  as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE', unset=NA))
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE',unset=NA))
 if(is.na(cores)) cores <- detectCores()  
 registerDoParallel(cores)
 library(doRNG)
 registerDoRNG(34118892)
 @
 <<pf1>>=
-stew(file=sprintf("pf1-%d.rda",run_level),{
+stew(file=paste0("pf1_",run_level,".rda"),{
   t.pf1 <- system.time(
     pf1 <- foreach(i=1:sp500_Nreps_eval,
       .packages='pomp') %dopar% pfilter(sim1.filt,Np=sp500_Np))
@@ -638,7 +636,7 @@ stew(file=sprintf("pf1-%d.rda",run_level),{
 sp500_rw.sd_rp <- 0.02
 sp500_rw.sd_ivp <- 0.1
 sp500_cooling.fraction.50 <- 0.5
-sp500_rw.sd <- rw.sd(
+sp500_rw.sd <- rw_sd(
   sigma_nu  = sp500_rw.sd_rp,
   mu_h      = sp500_rw.sd_rp,
   phi       = sp500_rw.sd_rp,
@@ -652,7 +650,7 @@ sp500_rw.sd <- rw.sd(
 
 \begin{frame}[fragile]
 <<mif>>=
-stew(file=sprintf("mif1-%d.rda",run_level),{
+stew(file=paste0("mif1_",run_level,".rda"),{
   t.if1 <- system.time({
   if1 <- foreach(i=1:sp500_Nreps_local,
     .packages='pomp', .combine=c) %dopar% mif2(sp500.filt,
@@ -729,18 +727,17 @@ sp500_box <- rbind(
 \vspace{-2mm}
 
 <<box_eval>>=
-stew(file=sprintf("box_eval-%d.rda",run_level),{
-  t.box <- system.time({
-    if.box <- foreach(i=1:sp500_Nreps_global,
-      .packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
-        params=apply(sp500_box,1,function(x)runif(1,x)))
-    L.box <- foreach(i=1:sp500_Nreps_global,
-      .packages='pomp',.combine=rbind) %dopar% {
-         logmeanexp(replicate(sp500_Nreps_eval, logLik(pfilter(
-	   sp500.filt,params=coef(if.box[[i]]),Np=sp500_Np))), 
-           se=TRUE)}
-  })
+stew(file=paste0("box_eval_",run_level,".rda"),{
+  if.box <- foreach(i=1:sp500_Nreps_global,
+    .packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
+      params=apply(sp500_box,1,function(x)runif(1,x)))
+  L.box <- foreach(i=1:sp500_Nreps_global,
+    .packages='pomp',.combine=rbind) %dopar% {
+       logmeanexp(replicate(sp500_Nreps_eval, logLik(pfilter(
+         sp500.filt,params=coef(if.box[[i]]),Np=sp500_Np))), 
+         se=TRUE)}
 })
+timing.box <- .system.time["elapsed"]
 r.box <- data.frame(logLik=L.box[,1],logLik_se=L.box[,2],
   t(sapply(if.box,coef)))
 if(run_level>1) write.table(r.box,file="sp500_params.csv",
@@ -754,7 +751,7 @@ summary(r.box$logLik,digits=5)
 
 \bi
 
-\item This search took  \Sexpr{round(t.box["elapsed"]/60,1)} minutes. 
+\item This search took  \Sexpr{round(timing.box/60,1)} minutes. 
 
 \item The best likelihood found was \Sexpr{round(max(r.box$logLik),1)} with a standard error of \Sexpr{round(r.box$logLik_se[which.max(r.box$logLik)],1)}. 
 

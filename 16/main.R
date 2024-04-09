@@ -22,9 +22,8 @@ load(file="sp500-2002-2012.rda")
 plot(sp500.ret.demeaned, type="l",
   xlab="business day (2002-2012)",ylab="demeaned S&P 500 return")
 
-require(tseries)
-fit.garch <- garch(sp500.ret.demeaned,grad = "numerical",
-  trace = FALSE)
+fit.garch <- tseries::garch(sp500.ret.demeaned,
+  grad = "numerical", trace = FALSE)
 L.garch <- tseries:::logLik.garch(fit.garch)
 
 sp500_statenames <- c("H","G","Y_state")
@@ -121,21 +120,20 @@ sim1.filt <- pomp(sim1.sim,
 )
 
 
-
-run_level <- 3
-sp500_Np <-           switch(run_level, 100, 1e3, 2e3)
-sp500_Nmif <-         switch(run_level,  10, 100, 200)
+run_level <- 1
+sp500_Np <-           switch(run_level,  50, 1e3, 2e3)
+sp500_Nmif <-         switch(run_level,   5, 100, 200)
 sp500_Nreps_eval <-   switch(run_level,   4,  10,  20)
-sp500_Nreps_local <-  switch(run_level,  10,  20,  20)
-sp500_Nreps_global <- switch(run_level,  10,  20, 100)
+sp500_Nreps_local <-  switch(run_level,   5,  20,  20)
+sp500_Nreps_global <- switch(run_level,   5,  20, 100)
 
 library(doParallel)
-cores <-  as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE', unset=NA))
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE',unset=NA))
 if(is.na(cores)) cores <- detectCores()  
 registerDoParallel(cores)
 library(doRNG)
 registerDoRNG(34118892)
-stew(file=sprintf("pf1-%d.rda",run_level),{
+stew(file=paste0("pf1_",run_level,".rda"),{
   t.pf1 <- system.time(
     pf1 <- foreach(i=1:sp500_Nreps_eval,
       .packages='pomp') %dopar% pfilter(sim1.filt,Np=sp500_Np))
@@ -145,7 +143,7 @@ stew(file=sprintf("pf1-%d.rda",run_level),{
 sp500_rw.sd_rp <- 0.02
 sp500_rw.sd_ivp <- 0.1
 sp500_cooling.fraction.50 <- 0.5
-sp500_rw.sd <- rw.sd(
+sp500_rw.sd <- rw_sd(
   sigma_nu  = sp500_rw.sd_rp,
   mu_h      = sp500_rw.sd_rp,
   phi       = sp500_rw.sd_rp,
@@ -154,7 +152,7 @@ sp500_rw.sd <- rw.sd(
   H_0       = ivp(sp500_rw.sd_ivp)
 )	 
 
-stew(file=sprintf("mif1-%d.rda",run_level),{
+stew(file=paste0("mif1_",run_level,".rda"),{
   t.if1 <- system.time({
   if1 <- foreach(i=1:sp500_Nreps_local,
     .packages='pomp', .combine=c) %dopar% mif2(sp500.filt,
@@ -189,18 +187,17 @@ sp500_box <- rbind(
  H_0 = c(-1,1)
 )
 
-stew(file=sprintf("box_eval-%d.rda",run_level),{
-  t.box <- system.time({
-    if.box <- foreach(i=1:sp500_Nreps_global,
-      .packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
-        params=apply(sp500_box,1,function(x)runif(1,x)))
-    L.box <- foreach(i=1:sp500_Nreps_global,
-      .packages='pomp',.combine=rbind) %dopar% {
-         logmeanexp(replicate(sp500_Nreps_eval, logLik(pfilter(
-	   sp500.filt,params=coef(if.box[[i]]),Np=sp500_Np))), 
-           se=TRUE)}
-  })
+stew(file=paste0("box_eval_",run_level,".rda"),{
+  if.box <- foreach(i=1:sp500_Nreps_global,
+    .packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
+      params=apply(sp500_box,1,function(x)runif(1,x)))
+  L.box <- foreach(i=1:sp500_Nreps_global,
+    .packages='pomp',.combine=rbind) %dopar% {
+       logmeanexp(replicate(sp500_Nreps_eval, logLik(pfilter(
+         sp500.filt,params=coef(if.box[[i]]),Np=sp500_Np))), 
+         se=TRUE)}
 })
+timing.box <- .system.time["elapsed"]
 r.box <- data.frame(logLik=L.box[,1],logLik_se=L.box[,2],
   t(sapply(if.box,coef)))
 if(run_level>1) write.table(r.box,file="sp500_params.csv",

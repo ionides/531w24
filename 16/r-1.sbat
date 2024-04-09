@@ -4,7 +4,7 @@
 #SBATCH --mail-user=ionides@umich.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
  
-#SBATCH --account=stats531w22_class
+#SBATCH --account=stats531w24_class
 #SBATCH --partition=standard
 
 #SBATCH --nodes=1
