@@ -44,7 +44,8 @@ This provides an example for the more general task of running pomp analysis on a
 ```
 rm -rf tmp
 ```
-Then, having set run_level to 1 in main.Rnw, run
+Then, having set run_level to 1 in main.Rnw, edit r-1.sbat to replace `ionides@umich.edu` with your own email address.
+You are now ready to run
 ```
 sbatch r-1.sbat
 ```
