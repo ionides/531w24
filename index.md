@@ -55,9 +55,9 @@ The course outline, course information and grading policies are described in the
 
 16. [A case study of financial volatility and a POMP model with observations driving latent dynamics](16/index.html). With [notes on how to run the code on the Great Lakes Linux cluster](16/README.html).
 
-<!--
-
 17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
+
+<!--
 
 There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).
 

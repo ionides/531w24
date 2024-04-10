@@ -1,13 +1,13 @@
 ---
-title: "Modeling and Analysis of Time Series Data<br>STATS/DATASCI 531, Winter 2022<br>Chapter 16: A case study of financial volatility and a POMP model with observations driving latent dynamics"
+title: "Modeling and Analysis of Time Series Data<br>DATASCI/STATS 531<br>Chapter 16: A case study of financial volatility and a POMP model with observations driving latent dynamics"
 author: "Edward L. Ionides"
 output: html_document
 ---
 
 ----------------------
 
-| &nbsp;          | &nbsp;                                                                            |
-|:----------------|:---------------------------------------------------------------------------------:|
+| &nbsp;       | &nbsp;      |
+|:-------------|:-----------:|
 | slides  | [pdf](slides.pdf) |
 | Annotated slides   | [pdf](slides-annotated.pdf) |
 | notes   | [pdf](notes.pdf) |
@@ -22,18 +22,12 @@ output: html_document
 | annotated slides | [pdf](slides-annotated.pdf) |
 -->
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/cDcPny96Gcs" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/TAUDn2RkUWU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/XvM991mISJs" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
 
 ----------------------
 
 [Back to course homepage](../index.html)  
 [Acknowledgements](../acknowledge.html)  
-[Source code for these notes](http://github.com/ionides/531w22/tree/master/16/)
+[Source code for these notes](http://github.com/ionides/531w24/tree/master/16/)
 
 
 ----------------------
