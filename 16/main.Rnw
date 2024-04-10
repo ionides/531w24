@@ -677,7 +677,7 @@ if (run_level>1) write.table(r.if1,file="sp500_params.csv",
 
 \bi
 
-\item This investigation took  \Sexpr{round(t.if1["elapsed"]/60,1)} minutes. 
+\item This investigation took  \Sexpr{round(t.if1["elapsed"]/60,1)} minutes on \Sexpr{cores} cores. 
 
 \item The repeated stochastic maximizations can also show us the geometry of the likelihood surface in a neighborhood of this point estimate:
 
@@ -751,7 +751,7 @@ summary(r.box$logLik,digits=5)
 
 \bi
 
-\item This search took  \Sexpr{round(timing.box/60,1)} minutes. 
+\item This search took  \Sexpr{round(timing.box/60,1)} minutes on \Sexpr{cores} cores.
 
 \item The best likelihood found was \Sexpr{round(max(r.box$logLik),1)} with a standard error of \Sexpr{round(r.box$logLik_se[which.max(r.box$logLik)],1)}. 
 

@@ -120,7 +120,7 @@ sim1.filt <- pomp(sim1.sim,
 )
 
 
-run_level <- 1
+run_level <- 3
 sp500_Np <-           switch(run_level,  50, 1e3, 2e3)
 sp500_Nmif <-         switch(run_level,   5, 100, 200)
 sp500_Nreps_eval <-   switch(run_level,   4,  10,  20)
