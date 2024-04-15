@@ -57,6 +57,8 @@ The course outline, course information and grading policies are described in the
 
 17. [A case study of measles: Dynamics revealed in long time series](17/index.html)
 
+18. [A case study of ebola: Model criticism and forecasting](18/index.html)
+
 <!--
 
 There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).

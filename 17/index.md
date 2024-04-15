@@ -15,6 +15,7 @@ We will focus on two new topics arising in the case study:
 | | ||
 |:---------------|:---------------|:------------------------:|
 | Slides  | | [pdf](https://kingaa.github.io/sbied/measles/slides.pdf) |
+| Annotated slides  | | [pdf](slides-annotated.pdf) |
 | Notes   | | [pdf](https://kingaa.github.io/sbied/measles/notes.pdf) |
 | **R** script  | | [**R**](https://kingaa.github.io/sbied/measles/main.R) |
 | Recording, Chapter 17, Part I  | Model development | [(40 min)](https://youtu.be/x4bL3efTVhI) |
