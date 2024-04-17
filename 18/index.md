@@ -14,6 +14,7 @@ We will focus on two new topics arising in the case study:
 |  ||
 |:-------------|:--------------:|
 | Slides   | [pdf](https://kingaa.github.io/sbied/ebola/slides.pdf) |
+| Annotated slides  | | [pdf](slides-annotated.pdf) |
 | Notes    | [pdf](https://kingaa.github.io/sbied/measles/notes.pdf) |
 | **R** script   | [**R**](https://kingaa.github.io/sbied/measles/main.R) |
 | Recording, Chapter 18   |  [(40 min)](https://www.youtube.com/playlist?list=PLluGwj6FGt2QuMxA6ZM4MGAMqE3r022Dd) |
