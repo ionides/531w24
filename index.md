@@ -108,12 +108,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 * [Participation 6](participation/participation6.html), due Sun Mar 24, 11:59pm.
 
 * [Homework 7](hw07/hw07.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
-
-<!--
-
 [Solution](hw07/sol07.html).
-
--->
 
 
 * [Participation 7](participation/participation7.html), due Sun Mar 31, 11:59pm. Extended to Wed Apr 3.
