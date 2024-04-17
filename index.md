@@ -115,10 +115,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 
 * [Homework 8](hw08/hw08.pdf), due Sun Apr 14, 11:59pm.
-
-<!--
 [Solution](hw08/sol08.pdf).
--->
 
 * [Participation 8](participation/participation8.html), due Sun Apr 14, 11:59pm.
 
