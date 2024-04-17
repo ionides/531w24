@@ -9,7 +9,7 @@ We will focus on two new topics arising in the case study:
 
 * Non-likelihood model criticism. So far, we have emphasized likelihood-based tools both for model fitting and diagnostic criticism. Here, we consider other statistics.
 
-* POMP models can combine uncertainty due to stochasticity in the latent process, the measurement noise, and unknown parameters. We see how this plays out in an example.
+* Forecasts using POMP models can combine uncertainty due to stochasticity in the latent process, the measurement noise, and unknown parameters. We see how this plays out in an example.
 
 |  ||
 |:-------------|:--------------:|
