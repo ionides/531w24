@@ -1,0 +1,377 @@
+---
+title: "Solution to Homework 7"
+author: "STATS/DATASCI 531, Winter 2022"
+output:
+  html_document:
+    toc: no
+bibliography: ../bib531.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+\newcommand\data[1]{#1^*}
+
+
+## Question 7.1. Introduction to the greatlakes cluster.
+
+* Some Windows users had difficulties with PuTTY. Another way to access a terminal on greatlakes is to connect to https://greatlakes.arc-ts.umich.edu/ and follow the menu option to `Clusters` $\rightarrow$ `Great Lakes login node`.
+
+* On my MacBook Air laptop, times from running `Rscript test.R`, or equivalently `source(test.R)` within an R session, are
+```{r laptop,echo=F}
+read.csv("test-laptop.csv",header=T,sep=" ")
+```
+
+* On greatlakes, from running `sbatch test.sbat`, you get
+```{r greatlakes,echo=F}
+read.csv("test-greatlakes.csv",header=T,sep=" ")
+```
+
+* For this task, using 36 cores does not speed up the computing by a factor of 36. Best results from parallelization are obtained when each task in the for loop is relatively large, reducing the overhead required to set up the parallel tasks and communicate between them. In this particular example, each task is small and so the overhead can be considerable. For a 4 core laptop, we see little or no advantage of parallelization in this particular case. 
+
+## Question 7.2. Likelihood maximization for the SEIR model.
+
+### (a). Developing the model and the likelihood maximization procedure
+
+We follow the solutions from Simulation-Based Inference for Epidemiological Dynamics [@sismid] Lesson 4 .
+We start by building a pomp object for the SEIR model from [Homework 6](../hw06/hw06.html), using as a starting point the SIR code from the notes.
+
+```{r seir_pomp_libs,echo=T,results="hide",message=F,warning=F}
+library(pomp)
+library(tidyverse)
+library(doParallel)
+library(doRNG)
+source("https://kingaa.github.io/sbied/pfilter/model.R")
+start_time <- Sys.time()
+```
+
+```{r seir_pomp}
+seir_step <- Csnippet("
+  double dN_SE = rbinom(S,1-exp(-Beta*I/N*dt));
+  double dN_EI = rbinom(E,1-exp(-mu_EI*dt));
+  double dN_IR = rbinom(I,1-exp(-mu_IR*dt));
+  S -= dN_SE;
+  E += dN_SE - dN_EI;
+  I += dN_EI - dN_IR;
+  R += dN_IR;
+  H += dN_IR;
+")
+
+seir_rinit <- Csnippet("
+  S = nearbyint(eta*N);
+  E = 0;
+  I = 1;
+  R = nearbyint((1-eta)*N);
+  H = 0;
+")
+
+measSEIR <- pomp(measSIR,
+  rprocess=euler(seir_step,delta.t=1/7),
+  rinit=seir_rinit,
+  paramnames=c("N","Beta","mu_EI","mu_IR","eta","k","rho"),
+  partrans=parameter_trans(
+        log=c("Beta","mu_EI","mu_IR","k"),
+        logit=c("eta","rho")
+  ),
+  statenames=c("S","E","I","R","H")
+)
+```
+
+Now, we'll start by considering the best parameters we've found so far, for the regime where $\mu_{IR}=2\mathrm{wk}^{-1}$. We extract these from the database used for the notes.
+
+```{r set_params,warning=TRUE,message=FALSE}
+read_csv("https://kingaa.github.io/sbied/mif/measles_params.csv") %>%
+  filter(
+    loglik==max(loglik),
+    abs(mu_IR-2)<0.001
+    ) %>%
+  select(-loglik,-loglik.se) -> coef(measSEIR)
+
+coef(measSEIR,"mu_EI") <- 0.8
+fixed_params <- coef(measSEIR,c("N","mu_IR","k"))
+coef(measSEIR)
+```
+The warning tells us that `mu_EI` is a new parameter, which of course, we knew.
+
+To debug the model and provide a sanity check on our parameter guesses, we first explore via simulation.
+Some simulations die out, but others lead to epidemics.
+```{r simulate}
+set.seed(1014406)
+measSEIR %>%
+  simulate(nsim=20,format="data.frame",include=TRUE) %>%
+  ggplot(aes(x=week,y=reports,group=.id,color=(.id=="data")))+
+  geom_line()+
+  guides(color="none")+
+  theme_bw()
+```
+
+The next prerequisite is that we can successfully filter:
+```{r pfilter}
+pf1 <- pfilter(measSEIR,1000)
+plot(pf1)
+logLik(pf1)
+```
+The minimum effective sample size is `r round(min(pf1@eff.sample.size),0)`, which is not a complete disaster, and we should bear in mind that this is likely to improve when we fit the parameters.
+
+We now carry out a local search, estimating only 4 parameters for simplicity.
+For a thorough scientific analysis, one would also want to consider the evidence in the data concerning the other parameters that are fixed here.
+
+* The computation time depends on how many profile points to calculate, how many replicated searches to do at each point. Here, we use the run level approach described in Chapter 15 of [@notes531].
+
+```{r run_level}
+  run_level <- 3
+  Np <-              switch(run_level,100, 1e3, 2e3)
+  Nlocal <-          switch(run_level,  2,   5,  20)
+  Nglobal <-         switch(run_level,  2,   5, 100)
+  Npoints_profile <- switch(run_level,  4,  10,  50)
+  Nreps_profile   <- switch(run_level,  2,   4,  15)
+  Nmif <-            switch(run_level, 10,  50, 100)
+  Nreps_eval <-      switch(run_level,  2,   5,  10)
+```
+
+* We set up a directory for saving cached results, and an environment for parallel computation which is set up to run on either a single machine or a single node of a slurm cluster.
+
+```{r parallel-setup}
+library(doParallel)
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE',unset=NA))  
+if(is.na(cores)) cores <- detectCores()  
+registerDoParallel(cores)
+results_dir <- paste0("laptop_",run_level,"/")
+#results_dir <- paste0("greatlakes_",run_level,"/")
+if(!dir.exists(results_dir)) dir.create(results_dir)
+bake(file=paste0(results_dir,"cores.rds"),cores) -> cores
+```
+
+* We set up a parallel random number generator and set a seed for reproducibility.
+
+```{r}
+library(doRNG)
+registerDoRNG(482947940)
+```
+
+```{r local_search_eval,include=FALSE}
+bake(file=paste0(results_dir,"local_search.rds"),{
+  foreach(i=1:Nlocal,.combine=c) %dopar% {
+    library(pomp)
+    library(tidyverse)
+    measSEIR %>%
+      mif2(
+        Np=Np, Nmif=Nmif,
+        cooling.fraction.50=0.5,
+       rw.sd=rw.sd(Beta=0.02, rho=0.02, eta=ivp(0.02),mu_EI=0.02)
+      )
+  } -> mifs_local
+}) -> mifs_local
+```
+
+This consistently obtains log likelihoods around -104, similar to those found with the SIR model:
+```{r}
+sapply(mifs_local,logLik)
+```
+
+As usual, we should evaluate the likelihoods using a particle filter, rather than relying on the likelihood from the last filtering iteration of the perturbed model used by `mif2`.
+```{r local_search_evaluations,eval=FALSE}
+registerDoRNG(900242057)
+foreach(mf=mifs_local,.combine=rbind) %dopar% {
+  library(pomp)
+  library(tidyverse)
+  evals <- replicate(Nreps_eval, logLik(pfilter(mf,Np=Np)))
+  ll <- logmeanexp(evals,se=TRUE)
+  mf %>% coef() %>% bind_rows() %>%
+    bind_cols(loglik=ll[1],loglik.se=ll[2])
+} -> local_logliks
+```
+```{r local_search_evaluations_eval,include=FALSE}
+bake(file=paste0(results_dir,"lik_local.rds"),{
+  <<local_search_evaluations>>
+}) -> local_logliks
+```
+
+In this case, there is not much discrepancy between the perturbed and unperturbed likelihoods. The small improvement (rather than disadvantage) from filtering with fixed parameters supports a hypothesis that the constant parameter model is reasonable here.
+```{r}
+local_logliks$loglik
+```
+
+```{r global_search_design}
+set.seed(2062379496)
+
+runif_design(
+  lower=c(Beta=5,rho=0.2,eta=0,mu_EI=1/3),
+  upper=c(Beta=80,rho=0.9,eta=1,mu_EI=3),
+  nseq=Nglobal
+) -> guesses
+mf1 <- mifs_local[[1]]
+```
+  
+
+```{r global_search_eval}
+bake(file=paste0(results_dir,"global_search.rds"),{
+registerDoRNG(1270401374)
+foreach(guess=iter(guesses,"row"), .combine=rbind) %dopar% {
+  library(pomp)
+  library(tidyverse)
+  mf1 %>%
+    mif2(params=c(unlist(guess),fixed_params),Np=Np) %>%
+    mif2() -> mf
+  replicate(
+    Nreps_eval,
+    mf %>% pfilter(Np=Np) %>% logLik()
+  ) %>%
+    logmeanexp(se=TRUE) -> ll
+  mf %>% coef() %>% bind_rows() %>%
+    bind_cols(loglik=ll[1],loglik.se=ll[2])
+} -> results
+}) %>%
+  filter(is.finite(loglik)) -> results
+```
+
+### (b). Comparison of SEIR and SIR likelihoods
+
+The maximum log likelihood discovered is `r round(max(results$loglik),1)`.
+This small improvement of around one log unit is not compelling evidence by itself for the need of an extra parameter.
+
+### (c). Interpretation of the SEIR fitted model
+
+The fitted model has some interesting features, which can be seen from a scatter plot.
+
+```{r scatter_plot}
+pairs(~loglik+Beta+eta+rho+mu_EI,
+      data=filter(results,loglik>max(loglik)-10))
+```
+
+When including an latent period, the MLE has intermediate values of $\rho$ and $\eta$ that match epidemiological expectations for endemic measles in the pre-vaccine era, while remaining consistent with a mean infectious period of 0.5 wk.
+This is substantially different from the results in Section 5 of Lesson 4.
+Thus, adding a latent period to the model can substantially change the interpretation of the fitted model without substantially changing the overall fit measured by maximized likelihood.
+The profile likelihood calculations below help to clarify this finding.
+
+The likelihood surface here is fairly flat: the y-axis range is just 2 log units.
+Data on a single epidemic cannot readily distinguish whether the disease has a high susceptible fraction and low reporting rate, or low susceptible fraction and high reporting rate.
+Longer time series could resolve this question.
+
+### (d). Calculating and plotting a profile likelihood for reporting rate.
+
+Here, we follow the profile code in Chapter 14 of the course notes [@notes531] which draws on [@sismid]. 
+
+* Recall that profiling means determining, for each value of $\rho$, the best likelihood that the model can achieve.
+
+* To do this, we'll first bound the uncertainty by putting a box around the highest-likelihood estimates we've found so far.
+
+* Within this box, we'll choose some random starting points, for each of several values of $\rho$.
+
+
+```{r rho_profile1a}
+  filter(results,loglik>max(loglik)-20) %>%
+    sapply(range) -> box
+  box
+```
+  
+```{r guesses}
+  freeze(seed=1196696958,
+    profile_design(
+      rho =seq(0.01,0.95,length=Npoints_profile),
+      lower=box[1,c("Beta","eta","mu_EI")],
+      upper=box[2,c("Beta","eta","mu_EI")],
+      nprof=Nreps_profile, type="runif"
+    )) -> guesses
+  plot(guesses)
+  fixed_params <- c(N=38000, mu_IR=2, k=10)
+```
+
+```{r rho_profile}
+bake(file=paste0(results_dir,"rho_profile.rds"),dependson=guesses,{
+  registerDoRNG(2105684752)
+  foreach(guess=iter(guesses,"row"), .combine=rbind) %dopar% {
+    library(pomp)
+    library(tidyverse)
+    mf1 %>% mif2(params=c(guess,fixed_params),Nmif=Nmif,
+      rw.sd=rw.sd(Beta=0.02,eta=ivp(0.02),mu_EI=0.02)) %>%
+      mif2(Nmif=Nmif,Np=Np,cooling.fraction.50=0.3) -> mf
+    replicate(
+      Nreps_eval,
+      mf %>% pfilter(Np=Np) %>% logLik()) %>%
+      logmeanexp(se=TRUE) -> ll
+    mf %>% coef() %>% bind_rows() %>%
+      bind_cols(loglik=ll[1],loglik.se=ll[2])
+  } -> prof_results
+  attr(prof_results,"ncpu") <- getDoParWorkers()
+  prof_results
+}) -> profile_results
+
+t_rho <- attr(profile_results,"system.time")
+ncpu_rho <- attr(profile_results,"ncpu")
+```
+
+The profile took `r signif(t_rho["elapsed"]/60,2)` min to run on `r cores` cores.
+
+```{r profile_pairs}
+  profile_results %>%
+    filter(is.finite(loglik)) -> profile_results
+
+  pairs(~loglik+Beta+eta+rho+mu_EI,data=profile_results,pch=16)
+```
+
+```{r plot_profile}
+  profile_results %>%
+    filter(loglik>max(loglik)-10) %>%
+    group_by(round(rho,2)) %>%
+    filter(rank(-loglik)<3) %>%
+    ungroup() %>%
+    ggplot(aes(x=rho,y=loglik))+
+    geom_point()+
+    geom_hline(
+      color="red",
+      yintercept=max(results$loglik)-0.5*qchisq(df=1,p=0.95)
+    )
+```
+
+```{r rho_ci}
+  profile_results %>%
+    filter(loglik>max(loglik)-0.5*qchisq(df=1,p=0.95)) %>%
+    summarize(min=min(rho),max=max(rho)) -> rho_ci
+```
+  
+According to this model, the data are consistent with reporting efficiencies in the `r signif(100*rho_ci$min,2)` -- `r signif(100*rho_ci$max,2)` percent range (95% CI)`.
+
+We can compare to the profile over $\rho$ on [@notes531] Chapter 14, slide 75, which obtains an approximate confidence interval of 3--17% for $\rho$ when there is no latent period.
+
+Including the latent period therefore allows us to fit the data with a model matching our anticipation that infectious period should be around 3.5 days and reporting rate around 60%.
+
+### (e). Run time.
+
+```{r run_time}
+end_time <- Sys.time()
+bake(file=paste0(results_dir,"run_time.rds"),difftime(end_time,start_time,units="secs")) -> run_time
+```
+
+* On a MacBook Air laptop, the SEIR computations took
+`r signif(as.numeric(readRDS("laptop_2/run_time.rds"))/60,2)`
+min at run level 2,  with `r readRDS("laptop_2/cores.rds")` cores.
+
+* At run level 3, the laptop took
+`r signif(as.numeric(readRDS("laptop_3/run_time.rds"))/60/60,2)` hr.
+This included a delay when the machine powered down over night! The actual calculation time was about 5 hr. 
+
+* For running long jobs on a laptop, it can be useful to use `nohup` and `&` to run the job in the background, regardless of the fate of the terminal where it was started. 
+
+```
+nohup Rscript --vanilla -e "rmarkdown::render(\"sol07.Rmd\")" &
+```
+
+* However, you also have to stop your laptop powering down. Even then, it is not very practical. Time to use a cluster.
+
+* On greatlakes, the computation time was
+`r signif(as.numeric(readRDS("greatlakes_2/run_time.rds")),2)`
+sec at run level 2, and
+`r signif(as.numeric(readRDS("greatlakes_3/run_time.rds")),2)`
+min at run level 3, with `r readRDS("greatlakes_3/cores.rds")` cores.
+
+* The sbat files used to run the code on greatlakes are `run1.sbat`, `run2.sbat`, `run3.sbat` in the source directory. They compile the document using `knitr::knit()` rather than `rmarkdown::render()`` since the latter needs an additional program (`pandoc`) to convert the results to HTML. `knit` will run the code and save the results of the computations, which can then be copied back to your laptop for compilation to HTML.
+
+---------------
+
+## References
+
+
+
