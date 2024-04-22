@@ -17,10 +17,10 @@ We will focus on two new topics arising in the case study:
 | Slides  | | [pdf](https://kingaa.github.io/sbied/measles/slides.pdf) |
 | Annotated slides  | | [pdf](slides-annotated.pdf) |
 | Notes   | | [pdf](https://kingaa.github.io/sbied/measles/notes.pdf) |
-| **R** script  | | [**R**](https://kingaa.github.io/sbied/measles/main.R) |
+| **R** script  | | [**R**](https://kingaa.github.io/sbied/measles/codes.R) |
 | Recording, Chapter 17, Part I  | Model development | [(40 min)](https://youtu.be/x4bL3efTVhI) |
 | Recording, Chapter 17, Part II  | Interpreting the results | [(40 min)](https://youtu.be/w4LgFR5ibw8) |
-| Model construction script                  | | [**R**](https://kingaa.github.io/sbied/measles/codes.R)                                                                           |
+| Model construction and analysis script                  | | [**Rnw**](https://kingaa.github.io/sbied/measles/main.Rnw)                                                                           |
 | Supplement: profile likelihood calculation | | [HTML](https://kingaa.github.io/sbied/measles/profile.html)                                                                       |
 ----------------------
 
