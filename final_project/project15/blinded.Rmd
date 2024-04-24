@@ -379,7 +379,7 @@ R_{t+\Delta t} &= R_{t} + \Delta N_{IR} - \Delta N_{RS} - \Delta N_R
 For primary cases, we have a compartment $C$ which represents the number of primary cases caused by the infectious camels to human. It is modeled as:
 
 \begin{align}
-Z_i &= \int_{{week}_i} \rho_{CH}\mu_{IR}I dt
+Z_i &= \int_{\text{week}_i} \rho_{CH}\mu_{IR}I dt
 \\
 C_i &= \text{Negative Binomial}(mean=Z_i\rho, variance=Z_i\rho+\frac{Z_i\rho}{k})
 \end{align}
