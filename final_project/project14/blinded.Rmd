@@ -1,0 +1,774 @@
+---
+output:
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+      smooth_scroll: true
+    toc_depth: 4
+    code_folding: hide
+    df_print: paged
+---
+
+### STATS:531 - Final Project
+
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = FALSE)
+#knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Background
+
+Tuberculosis (TB) is a serious infectious disease, caused by the bacterium Mycobacterium tuberculosis. Notably, it is one of the top causes of death worldwide, affecting the respiratory system. This disease has attracted many people' attention due to its impact on public health and its ability to spread rapidly in the crowd. TB spreads through the air when individuals with active TB cough, speak, or sneeze. It primarily harms the lungs, but it can also affect other parts of the body, including the kidneys, spine, and brain. While the incidence of TB in the U.S. is lower compared to global averages, the disease still plays a significant role in causing deaths among Americans.
+
+The U.S. Centers for Disease Control and Prevention (CDC) actively monitors TB incidence, which is the source of the data for our report. The goal of this report is to analyze the incidence of TB in the U.S. to discover trends and patterns of the disease, including its progression, spread. It aims to enhance public understanding of TB, aiding people to take measures to prevent its transmission.
+
+### Dataset
+
+Taken from [1]. 
+
+- Year: The year TB cases reported.        
+
+**Tuberculosis Cases:**       
+
+- Number: The total number of TB cases reported in that year.         
+- Rate: The incidence rate of TB cases per 100,000 people in the population.       
+- Number.1: The percentage change in the number of TB cases from the previous year.        
+- Rate.1: The percentage change in the incidence rate of TB cases per 100,000 people from the previous year.     
+
+**Tuberculosis Deaths:**                  
+
+- Number1: The total number of deaths due to tuberculosis in that year.         
+- Rate1: The death rate due to tuberculosis per 100,000 people in the population.      
+- Number.2: The percentage change in the number of tuberculosis deaths from the previous year.    
+- Rate.2: The percentage change in the death rate from the previous y
+
+```{r, include = FALSE}
+set.seed(73800112)
+require(pomp)
+require(foreach)
+require(ggplot2)
+```
+
+```{r, include = FALSE}
+library(pomp)
+library(foreach)
+library(ggplot2)
+# library(deSolve)
+```
+
+```{r, include = FALSE}
+library(tidyverse)
+
+# Read CSV file
+tb_data <- read.csv("TB_data_usa.csv")
+head(tb_data)
+data <- read_csv("TB_data_usa.csv") %>% select(1:3)
+colnames(data) <- c("Year", "Number", "Rate")
+# View the first few rows of the data
+head(data)
+tb_num = tb_data$Number
+```
+
+```{r,  include = FALSE}
+library(dplyr)
+tb_data <- tb_data %>%
+  mutate(
+    Year = as.integer(Year),  
+    Number = as.numeric(gsub(",", "", Number)),  # Remove commas 
+    Rate = as.numeric(Rate),  
+    Number.1 = as.numeric(gsub("[^0-9.-]", "", Number.1)),  # Remove non-numeric characters
+    Rate.1 = as.numeric(gsub("[^0-9.-]", "", Rate.1)), 
+    Number1 = as.numeric(gsub(",", "", Number1)),  
+    Rate1 = as.numeric(gsub("[^0-9.]", "", Rate1)),  
+    Number.2 = as.numeric(gsub("[^0-9.-]", "", Number.2)),  
+    Rate.2 = as.numeric(gsub("[^0-9.-]", "", Rate.2))  
+  )
+str(tb_data)
+```
+
+
+### Summary of the data
+
+```{r BasicStatistics, include = FALSE}
+summary(tb_data)
+```
+
+```{r, warning = FALSE}
+library(ggplot2)
+# Plot for number of TB cases and deaths
+ggplot(tb_data, aes(x = Year)) +
+  geom_line(aes(y = Number, colour = "TB Cases"), size = 1) +
+  geom_point(aes(y = Number, colour = "TB Cases")) +
+  geom_line(aes(y = Number1, colour = "TB Deaths"), size = 1) +
+  geom_point(aes(y = Number1, colour = "TB Deaths")) +
+  scale_color_manual(values = c("TB Cases" = "blue", "TB Deaths" = "red")) +
+  theme_minimal() +
+  labs(title = "TB Cases and Deaths over Years",
+       x = "Year",
+       y = "Number",
+       caption = "Data: TB_data_usa.csv") +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank()) 
+```
+Figure 1: TB Cases and Deaths over years
+
+**TB cases(Blue Line):**   
+
+- From 1953 to the 1980s, there was a sharp decline in TB cases, indicating that control over the disease improved over the years.       
+- After the 1980s, the decline in TB cases slowed down, and the trend line showed minor peaks and troughs.     
+- Toward the end of 2020, the number of TB cases did not decrease to zero, indicating that TB still remains a concern.     
+
+**TB deaths(Red Line)** 
+
+- The general trend in TB deaths is declining.       
+- The reduction in deaths appears to be proportional to the decrease in TB incidence. This proportionality suggests a consistent death ratio over time, which may indicate the effectiveness in treatments.    
+
+
+```{r, warning = FALSE}
+# plot for Incidence Rate of TB and Death Rate
+ggplot(tb_data, aes(x = Year)) +
+  geom_line(aes(y = Rate, colour = "Incidence Rate"), size = 1) +
+  geom_point(aes(y = Rate, colour = "Incidence Rate")) +
+  geom_line(aes(y = Rate1, colour = "Death Rate"), size = 1) +
+  geom_point(aes(y = Rate1, colour = "Death Rate")) +
+  scale_color_manual(values = c("Incidence Rate" = "blue", "Death Rate" = "red")) +
+  theme_minimal() +
+  labs(title = "TB Incidence and Death Rates per 100,000 People",
+       x = "Year",
+       y = "Rate",
+       caption = "Data: TB_data_usa.csv") +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank())
+```
+Figure 2: TB Cases and Deaths over years
+
+- Both the incidence and death rates of TB decline steadily.
+- The red line(death rate) closely follows the trend of the blue line(incidence rate) at a lower scale. Similar to the plot for number of TB cases and deaths, this may suggest that as fewer people get TB, fewer people die from it.
+
+```{r}
+# Plot for percentage changes in Number and Rate
+ggplot(tb_data, aes(x = Year)) +
+  geom_line(aes(y = Number.1, colour = "Number Change"), na.rm = TRUE) +
+  geom_line(aes(y = Rate.1, colour = "Rate Change"), na.rm = TRUE) +
+  geom_point(aes(y = Number.1, colour = "Number Change"), na.rm = TRUE) +
+  geom_point(aes(y = Rate.1, colour = "Rate Change"), na.rm = TRUE) +
+  scale_color_manual(values = c("Number Change" = "red", "Rate Change" = "green")) +
+  theme_minimal() +
+  labs(title = "Percentage Change in TB Cases and Rates",
+       x = "Year",
+       y = "Percentage Change",
+       color = "Legend",
+       caption = "Data: TB_data_usa.csv") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Figure 3: Percentage Change in TB Cases and Rates 
+
+
+- The red line (number change) and the green line (rate change) follow a similar pattern, suggesting that changes in the number of TB cases are closely related to changes in the TB rate.
+- Most percentage changes are between -10% and +10%, indicating there were not very drastic year-over-year changes.
+- There is a large drop in both the number change and rate change around the year 2020, where rate change drops just below -20%. It is possibly due to the impact of the COVID-19.
+
+```{r}
+# Plot for percentage changes in Deaths number and Death Rate
+ggplot(tb_data, aes(x = Year)) +
+  geom_line(aes(y = Number.2, colour = "Deaths Change"), na.rm = TRUE) +
+  geom_line(aes(y = Rate.2, colour = "Death Rate Change"), na.rm = TRUE) +
+  geom_point(aes(y = Number.2, colour = "Deaths Change"), na.rm = TRUE) +
+  geom_point(aes(y = Rate.2, colour = "Death Rate Change"), na.rm = TRUE) +
+  scale_color_manual(values = c("Deaths Change" = "red", "Death Rate Change" = "green")) +
+  theme_minimal() +
+  labs(title = "Percentage Change in TB Deaths number and Death Rates",
+       x = "Year",
+       y = "Percentage Change",
+       color = "Legend",
+       caption = "Data: TB_data_usa.csv") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Figure 4: Percentage Change in TB Deaths Number and Death Rates
+
+- The percentage change ranges from about -30% to +10%.        
+- Both deaths change (red line) and death rate change (green line) show significant year-to-year variability.  
+
+
+## ARMA 
+
+### Explore periods {.unnumbered}
+
+```{r, include = FALSE}
+tb_num = as.numeric(gsub(",", "", tb_num))
+```
+
+
+```{r decompose}
+par(mar=c(6, 4, 4, 2))
+pc_spectrum_smooth <- spectrum(tb_num, spans = c(5, 7, 5), 
+                       main = "Smoothed periodogram")
+
+mtext(text = expression(bold("Figure 5:") ~ "incidence rate for tuberculosis cases with max density frequency point."), side = 1, line = 5,cex = 0.75,  adj = 0.5)
+
+max_density_freq = round(pc_spectrum_smooth$freq[which.max(pc_spectrum_smooth$spec)], 3)
+
+abline(v = max_density_freq, lty = "dashed", col = "red", lwd = 2)
+
+text(x = 0.09, y = 5e+1, labels = sprintf("Max: %.3f", max_density_freq), col = "red")
+```
+
+- The plot shows no periodicity for our data, so SARIMA model should be excluded for analysis. Instead, ARIMA model should be considered given that our data clearly have a decreasing trend.
+
+```{r select_arima__module, warning=FALSE}
+model_selection_table <- function(tbdata, 
+                                  max_p, d, max_q, 
+                                  P = 0, D = 0, Q = 0, period = 0,
+                                  simulation_times = 100) {
+  aic_table <- matrix(NA, max_p + 1, max_q + 1)
+  smallest_root_table <- matrix(NA, max_p + 1, max_q + 1)
+  fisher_ci_cover_0_table <- matrix(NA, max_p + 1, max_q + 1)
+  simulated_ci_cover_0_table <- matrix(NA, max_p + 1, max_q + 1)
+  residual_normal_test_table <- matrix(NA, max_p + 1, max_q + 1)
+  residual_acf_outlier_table <- matrix(NA, max_p + 1, max_q + 1)
+  
+  dimnames(aic_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(smallest_root_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(fisher_ci_cover_0_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(simulated_ci_cover_0_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(residual_normal_test_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  dimnames(residual_acf_outlier_table) <- list(paste("AR", 0:max_p, sep = ""),
+                            paste("MA", 0:max_q, sep = ""))
+  
+  is_sarima_model <- any(c(P, D, Q) != 0)
+  has_intercept <- (d == 0) && (D == 0)
+  for (p in 0:max_p) {
+    for (q in 0:max_q) {
+      has_at_least_one_param <- ((p + q + P + Q) > 0)
+       
+      if (is_sarima_model) {
+        pc_model <- try(arima(tbdata, order = c(p, d, q),
+                           seasonal = list(order = c(P, D, Q), period = period)),
+                        silent = TRUE)
+      } else {
+        pc_model <- try(arima(tbdata, order = c(p, d, q)),
+                        silent = TRUE)
+      }
+      
+      if (inherits(pc_model, "try-error")) {
+          next
+      }
+      
+      # aic
+      aic_table[p + 1, q + 1] <- pc_model$aic
+      
+      # smallest root
+      if (p != 0) {
+        pc_model_ar_root <- polyroot(c(1, -coef(pc_model)[paste0("ar", 1:p)]))
+        pc_model_ar_root_mod <- Mod(pc_model_ar_root)
+      } else {
+        pc_model_ar_root <- NA
+        pc_model_ar_root_mod <- NA
+      }
+      
+      if (q != 0) {
+        pc_model_ma_root <- polyroot(c(1, coef(pc_model)[paste0("ma", 1:q)]))
+        pc_model_ma_root_mod <- Mod(pc_model_ma_root)
+      } else {
+        pc_model_ma_root <- NA
+        pc_model_ma_root_mod <- NA
+      }
+      
+      if (P != 0) {
+        pc_model_sar_root <- polyroot(c(1, -coef(pc_model)[paste0("sar", 1:P)]))
+        pc_model_sar_root_mod <- Mod(pc_model_sar_root)
+      } else {
+        pc_model_sar_root <- NA
+        pc_model_sar_root_mod <- NA
+      }
+      
+      if (Q != 0) {
+        pc_model_sma_root <- polyroot(c(1, coef(pc_model)[paste0("sma", 1:Q)]))
+        pc_model_sma_root_mod <- Mod(pc_model_sma_root)
+      } else {
+        pc_model_sma_root <- NA
+        pc_model_sma_root_mod <- NA
+      }
+      
+      if (any(c(p, q, P, Q) != 0)) {
+        smallest_root_table[p + 1, q + 1] <- min(c(pc_model_ar_root_mod,
+                                                 pc_model_ma_root_mod,
+                                                 pc_model_sar_root_mod,
+                                                 pc_model_sma_root_mod), na.rm = TRUE)
+      }
+      
+      # fisher ci
+      if (any(c(p, q, P, Q) != 0)) {
+        fisher_ci_low <- pc_model$coef - 1.96 * diag(pc_model$var.coef)
+        fisher_ci_high <- pc_model$coef + 1.96 * diag(pc_model$var.coef)
+        
+        if (has_intercept) {
+          fisher_ci_low <- fisher_ci_low[1:(length(fisher_ci_low) - 1)]
+          fisher_ci_high <- fisher_ci_high[1:(length(fisher_ci_high) - 1)]
+        }
+        
+        if (any(fisher_ci_low <= 0 & fisher_ci_high >= 0)) {
+          fisher_ci_cover_0_table[p + 1, q + 1] <- TRUE
+        } else {
+          fisher_ci_cover_0_table[p + 1, q + 1] <- FALSE
+        }
+      }
+      
+      # simulated ci
+      if (has_at_least_one_param && (simulation_times > 0)) {
+        if (!is_sarima_model) {
+          simulated_ci <- simulation_arima(pc_model, c(p, d, q), 
+                                           has_intercept, simulation_times, length(tbdata))
+        } else {
+          simulated_ci <- simulation_sarima(pc_model, c(p, d, q), c(P, D, Q), period,
+                                            has_intercept, simulation_times, length(tbdata))
+        }
+        
+        if (!any(is.na(simulated_ci))) {
+          simulated_ci_low <- simulated_ci[1, ]
+          simulated_ci_high <- simulated_ci[2, ]
+          if (has_intercept) {
+            simulated_ci_low <- simulated_ci_low[1:(length(simulated_ci_low) - 1)]
+            simulated_ci_high <- simulated_ci_high[1:(length(simulated_ci_high) - 1)]
+          }
+          
+          if (any(simulated_ci_low <= 0 & simulated_ci_high >= 0)) {
+            simulated_ci_cover_0_table[p + 1, q + 1] <- TRUE
+          } else {
+            simulated_ci_cover_0_table[p + 1, q + 1] <- FALSE
+          }
+        }
+      }
+     
+      # residual normal test
+      shapiro_test_result <- shapiro.test(pc_model$residuals)
+      if (shapiro_test_result$p.value < 0.05) {
+        residual_normal_test_table[p + 1, q + 1] <- FALSE
+      } else {
+        residual_normal_test_table[p + 1, q + 1] <- TRUE
+      }
+      
+      # residual acf test
+      residual_acf <- acf(pc_model$residuals, plot = FALSE, lag.max = 30)
+      acf_ci_high <- qnorm((1 + 0.95) / 2) / sqrt(residual_acf$n.used)
+      acf_ci_low <- -acf_ci_high
+      residual_acf_outlier_table[p + 1, q + 1] <- sum((residual_acf$acf < acf_ci_low) |
+                                                  (residual_acf$acf > acf_ci_high)) - 1
+    }
+  }
+  
+  result_table_list <- list(aic_table = aic_table, 
+                            smllest_root_table = smallest_root_table,
+                            fisher_ci_cover_0_table = fisher_ci_cover_0_table, 
+                            simulated_ci_cover_0_table = simulated_ci_cover_0_table,
+                            residual_normal_test_table = residual_normal_test_table, 
+                            residual_acf_outlier_table = residual_acf_outlier_table)
+  
+  return(result_table_list)
+}
+
+```
+
+```{r, warning=FALSE}
+select_arima_case <- model_selection_table(tb_num,
+                                           max_p = 5, d = 1, max_q = 5,
+                                           P = 0, D = 0, Q = 0, period = 0,
+                                           simulation_times = 0)
+```
+
+
+```{r,warning=FALSE}
+build_and_diagnose_model <- function(tbdata, model_name, 
+                                     arima_order, 
+                                     seasonal = FALSE, 
+                                     seasonal_order = c(0, 0, 0), period = NULL,
+                                     xreg = NULL,
+                                     without_summary = FALSE,
+                                     without_plot = FALSE) {
+  if (seasonal) {
+    pc_model <- arima(tbdata, order = arima_order, 
+                           seasonal = list(order = seasonal_order, period = period),
+                      xreg = xreg)
+  } else {
+    pc_model <- arima(tbdata, order = arima_order, xreg = xreg)
+  }
+  
+  if (!without_summary) {
+    print(pc_model)
+  }
+  
+  p <- arima_order[1]
+  d <- arima_order[2]
+  q <- arima_order[3]
+  P <- seasonal_order[1]
+  D <- seasonal_order[2]
+  Q <- seasonal_order[3]
+  
+  if (p > 0) {
+    pc_model_ar_roots <- polyroot(c(1, -coef(pc_model)[paste0("ar", 1:p)]))
+    cat("AR roots:", round(pc_model_ar_roots, 4), "\n")
+    cat("Mod of AR roots:", round(Mod(pc_model_ar_roots), 4), "\n")
+  }
+  
+  if (q > 0) {
+    pc_model_ma_roots <- polyroot(c(1, coef(pc_model)[paste0("ma", 1:q)]))
+    cat("MA roots:", round(pc_model_ma_roots, 4), "\n")
+    cat("Mod of MA roots:", round(Mod(pc_model_ma_roots), 4), "\n")
+  }
+  
+  if (P > 0) {
+    pc_model_sar_roots <- polyroot(c(1, -coef(pc_model)[paste0("sar", 1:P)]))
+    cat("SAR roots:", round(pc_model_sar_roots, 4), "\n")
+    cat("Mod of SAR roots:", round(Mod(pc_model_sar_roots), 4), "\n")
+  }
+  
+  if (Q > 0) {
+    pc_model_sma_roots <- polyroot(c(1, coef(pc_model)[paste0("sma", 1:Q)]))
+    cat("SMA roots:", round(pc_model_sma_roots, 4), "\n")
+    cat("Mod of SMA roots:", round(Mod(pc_model_sma_roots), 4), "\n")
+  }
+  
+  if (!without_plot) {
+     par(mfrow = c(2, 2))
+     plot(pc_model$residuals, ylab = "Residuals", main = "Residual Plot")
+     qqnorm(pc_model$residuals, ylab = "Residuals", main = "QQ Plot")
+     qqline(pc_model$residuals)
+     acf(pc_model$residuals, type = "correlation",
+          lag.max = 40, main = "Autocorrelation Function")
+  }
+ 
+  return(invisible(pc_model))
+}
+```
+
+### ARIMA model building and model diagnostics {.unnumbered}
+
+based on the AIC and smallest root, the relatively suitable model we choose is ARIMA(0,1,5) with smallest root as 1.05
+
+```{r,warning=FALSE}
+library(knitr)
+kable(select_arima_case$aic_table, digits = 3, caption = "AIC of some ARIMA models (incidence number)")
+kable(select_arima_case$smllest_root_table, digits = 4, caption = "Smallest roots of ARIMA models (incidence rate)")
+```
+
+```{r, include = FALSE}
+data <- as.data.frame(data)
+data$Year <- as.numeric(data$Year)
+```
+
+```{r, include = FALSE}
+# Check for non-numeric values
+non_numeric_values <- data[!grepl("^\\d+$", data$Year), "Year"]
+print(non_numeric_values)
+
+# Check for missing values
+missing_values <- is.na(data$Year)
+print(missing_values)
+```
+
+```{r, include = FALSE}
+data <- na.omit(data)
+```
+
+
+```{r, include = FALSE}
+str(data)
+```
+
+
+## POMP 
+
+We now build a Partially Observed Markov Process (POMP) model to take into account that the TB case data is partially observed. We consider SEIRS model. the SEIRS model is an extension of the classic SIR (Susceptible, Infectious, Recovered) model that incorporates additional compartments to capture more details of the disease dynamics. Specifically, SEIRS stands for:
+
+
+<img src="/Users/shreya/Desktop/Winter/stats_531/PROJECT2/seirs_draw.png" alt="image" style="display: block; margin: 0 auto;" />
+
+
+### Model Components
+
+- Susceptible: individuals not yet infected with the disease but who can catch it if they come into contact with an infected individual.
+- Exposed: individuals who have been exposed to the disease and are in a latency period. They are not yet infectious but will progress to the infectious state after a certain period.
+- Infectious: individuals who are currently able to transmit the disease to susceptible individuals.
+- Recovered: individuals who have recovered from the disease and have gained immunity, thus they cannot immediately catch the disease again.
+
+In the SEIRS model, there is a S to indicate that recovered individuals may lose their immunity over time and return to the susceptible state. 
+
+### Model Parameters
+Model parameters:
+
+- `N` is the total population size.
+- `Beta (β)` is the transmission rate, which defines how often a susceptible-infected contact results in a new exposure.
+- `mu_EI (μ_EI)` is the rate at which exposed individuals become infectious.
+- `mu_IR (μ_IR)` is the recovery rate, or the rate at which infectious individuals recover and become immune.
+- `mu_RS (μ_RS)` is the loss of immunity rate, or the rate at which recovered individuals become susceptible again.
+- `Beta_t (β_t)` is a time-dependent component of the transmission rate, allowing for changes in β over time, potentially reflecting intervention measures or changes in behavior.
+- `sigmaSE (σ_SE)` is a level of stochasticity or environmental variation in the transmission rate.
+- `rho` is the reporting rate, indicating what fraction of the new infections (H) are reported/measured.
+- `k` is the dispersion parameter of the negative binomial distribution.
+-`S_0, E_0, I_0, R_0` represent the initial proportions of the population that are susceptible, exposed, infectious, and recovered, respectively.
+
+
+```{r, warning = FALSE}
+library(tidyverse)
+data |>
+  ggplot(aes(x=Year,y=Number))+
+  geom_line()+
+  geom_point()
+```
+#### Image 6: Year Vs Number Trend 
+
+
+### Process
+
+1. In this case, we encounter situations where the spread of the disease is more downwards than what would be predicted by traditional deterministic or even stochastic models that assume homogeneous mixing of the population. This phenomenon, known as overdispersion, is characterized by variances that exceed the mean number of new infections. To accurately represent the overdispersion observed in empirical data within a model, we can introduce a stochastic component into the force of infection term. In the standard SEIR framework, the force of infection is defined as $\mu_{IR} = \frac{\beta .I.S}{N}$ In the presence of overdispersion, the force of infection can be modified by introducing a multiplicative gamma-distributed white-noise term, leading to a new expression: $\mu_{IR} = \frac{\beta .I.S}{N} . \frac{d \gamma (t)}{dt}$. Here, \(\frac{d \gamma}{dt}\) symbolizes gamma white-noise, which introduces random fluctuations to the rate at which susceptible individuals become infected. The variance of this gamma-distributed noise is governed by the parameter \(SigmaSE\) (σ_SE). The inclusion of this term adjusts the force of infection at every time step to mimic the irregular pattern in transmission rates reflective of real-world data. 
+
+2. The original equation for the transmission rate $\mu_{IR}$ is given by: $\mu_{IR} = \frac{B.I.S}{N}. \frac{d\gamma(t)}{dt}$
+
+Here, $\frac{d\gamma(t)}{dt}$ represents the rate of change of a gamma-distributed white-noise term, which introduces random fluctuations to the transmission rate. But as we see the constant decrease in the number of TuborCulosis cases in plot[1] which is because of advancement in healthcare treatments and medicine, we modify the equation to introduce a linear trend in the transmission coefficient $\beta$ over time. It adjusts the transmission rate $\mu_{IR}$ based on a linear trend in $\beta$ the transmission rate coefficient: $\mu_{IR}(t) = \frac{(\beta - (\beta_t.(t-1952))) I.S}{N} . \frac{d\gamma (t)}{dt}$ Here, $\beta_{t}$ represents the time-dependent component of the transmission rate coefficient. The term $(\beta - (\beta_{t}.(t-1952))) $ represents the linear trend over time. $(t - 1952)$ is used to make the trend start from a initial year, indicating a linear change in the transmission coefficient starting from that year.
+
+The modified equation allows for the transmission rate to vary linearly over time based on the values of $\beta$ and $\beta_t$, providing a more flexible and realistic representation of how transmission dynamics may change over time due to various factors. 
+
+### Stochastic Model 
+
+$$
+\begin{align*} 
+&\frac{dS}{dt} = \mu_{RS} R - \beta(t) \frac{S I}{N} - dw(t) \beta \frac{S I}{N}\\[30pt]
+&\frac{dE}{dt} = \beta(t) \frac{S I}{N} + dw(t) \beta \frac{S I}{N} - \mu_{EI} E\\[30pt]
+&\frac{dI}{dt} = \mu_{EI} E - \mu_{IR} I\\[30pt]
+&\frac{dR}{dt} = \mu_{IR} I - \mu_{RS} R\\[30pt]
+&\frac{dH}{dt} = \mu_{IR} I 
+\end{align*}
+$$
+
+### Adding stochasticity to compartment transitions
+
+$$
+\begin{align*}
+\tilde{S}(t + \delta) &= \tilde{S}(t) - \text{Binomial}(\tilde{S}(t), 1 - \text{exp}(-\text{dw}(t) \cdot \beta \cdot \frac{I(t)}{N(t)} \delta)) \\[10pt]
+\tilde{E}(t + \delta) &= \tilde{E}(t) + \text{Binomial}(\tilde{S}(t), 1 - \text{exp}(-\mu_{EI} \delta)) \\[10pt]
+\tilde{I}(t + \delta) &= \tilde{I}(t) + \text{Binomial}(\tilde{I}(t), 1 - \text{exp}(-\mu_{IR} \delta)) \\[10pt]
+\tilde{R}(t + \delta) &= \tilde{R}(t) + \text{Binomial}(\tilde{R}(t), 1 - \text{exp}(-\mu_{RS} \delta)) \\[10pt]
+\tilde{H}(t + \delta) &= \tilde{H}(t) + \text{Binomial}(\tilde{I}(t), 1 - \text{exp}(-\mu_{IR} \delta))
+\end{align*}
+$$
+
+$dw(t)$ is a gamma white-noise, introducing random fluctuations to the rate at which susceptible individuals become infected. The variance of this gamma-distributed noise is governed by the parameter $\sigma_{SE}$
+
+
+### Model
+
+```{r}
+seir_step <- function (S, E, I, R, N, Beta, mu_EI, mu_IR, delta.t, ...)
+{
+  dN_SE <- rbinom(n=1, size = S, prob = 1 - exp(-Beta * I / N * delta.t))
+  dN_EI <- rbinom(n=1, size = E, prob = 1 - exp(-mu_EI * delta.t))
+  dN_IR <- rbinom(n=1, size = I, prob = 1 - exp(-mu_IR * delta.t))
+  S <- S - dN_SE
+  E <- E + dN_SE - dN_EI
+  I <- I + dN_EI - dN_IR
+  R <- R + dN_IR
+  
+  c(S = S, E = E, I = I, R = R)
+}
+
+seir_rinit <- function (N, eta, ...) {
+  c(S = round(N * eta), E = 0, I = 1, R = round(N * (1 - eta)))
+}
+```
+
+```{r}
+library(pomp)
+
+# Define SEIR step function with H compartment
+seir_step <- function (S, E, I, R, H, N, Beta, mu_EI, mu_IR, delta.t, ...) {
+  dN_SE <- rbinom(n = 1, size = S, prob = 1 - exp(-Beta * I / N * delta.t))
+  dN_EI <- rbinom(n = 1, size = E, prob = 1 - exp(-mu_EI * delta.t))
+  dN_IR <- rbinom(n = 1, size = I, prob = 1 - exp(-mu_IR * delta.t))
+  
+  S <- S - dN_SE
+  E <- E + dN_SE - dN_EI
+  I <- I + dN_EI - dN_IR
+  R <- R + dN_IR
+  H <- H + dN_IR
+  
+  c(S = S, E = E, I = I, R = R, H = H)
+}
+
+# Define SEIR initial conditions function with H compartment
+seir_rinit <- function (N, eta, ...) {
+  c(S = round(N * eta), E = 0, I = 1, R = round(N * (1 - eta)), H = 0)
+}
+
+# Create pomp object for SEIR model
+data |> 
+  pomp(
+    times = "Year",
+    t0 = 0,
+    rprocess = euler(seir_step, delta.t = 1 / 52),
+    rinit = seir_rinit
+  ) -> TBseir
+
+# Define SEIR measurement density function
+seir_dmeas <- function (Rate, H, rho, k, log, ...) {
+  dnbinom(x = Rate, size = k, mu = rho * H, log = log)
+}
+
+# Define SEIR measurement function
+seir_rmeas <- function (H, rho, k, ...) {
+  c(Rate = rnbinom(n = 1, size = k, mu = rho * H))
+}
+
+# Update the pomp object with SEIR measurement functions
+TBseir |> 
+  pomp(
+    rmeasure = seir_rmeas,
+    dmeasure = seir_dmeas
+  ) -> TBseir
+
+```
+
+
+```{r}
+seir_step <- Csnippet("
+  double foi = (Beta - Beta_t * (t - 1952)) * I / N;
+  double dw = rgammawn(sigmaSE, dt);
+  double dN_SE = rbinom(S, 1 - exp(-dw * foi * dt));
+  double dN_EI = rbinom(E, 1 - exp(-mu_EI * dt));
+  double dN_IR = rbinom(I, 1 - exp(-mu_IR * dt));
+  double dN_RS = rbinom(R, 1 - exp(-mu_RS * dt));
+  S += dN_RS - fmin(dN_SE, S);
+  E += dN_SE - fmin(dN_EI, E);
+  I += dN_EI - fmin(dN_IR, I);
+  R += dN_IR - fmin(dN_RS, R);
+  H += dN_IR;
+  
+  S = fmax(0.0, S);
+  E = fmax(0.0, E);
+  I = fmax(0.0, I);
+  R = fmax(0.0, R);
+  H = fmax(0.0, H);
+")
+
+seir_init <- Csnippet("
+  S = nearbyint(S_0 * N);
+  E = nearbyint(E_0 * N);
+  I = nearbyint(I_0 * N);
+  R = nearbyint(R_0 * N);
+  H = 0;
+")
+
+seir_dmeas <- Csnippet("
+  lik = dnbinom_mu(Number, k, rho*H, give_log);
+")
+
+seir_rmeas <- Csnippet("
+  Number = rnbinom_mu(k, rho*H);
+")
+
+data |> 
+  pomp(
+    times = "Year",
+    t0 = 1952,
+    rprocess = euler(seir_step, delta.t = 1/52),
+    rinit = seir_init,
+    paramnames = c("N", "Beta", "mu_EI", "mu_IR", "mu_RS", "rho", 'k', "sigmaSE", "Beta_t", "S_0", "E_0", "I_0", "R_0"),
+    statenames = c("S", "E", "I", "R", "H"),
+    dmeasure = seir_dmeas,
+    rmeasure = seir_rmeas,
+    partrans = parameter_trans(log = c("Beta", "mu_EI", "mu_IR", "k", "mu_RS", "sigmaSE", "Beta_t"),
+                               logit = c('rho'),
+                               barycentric = c("S_0", "E_0", "I_0", "R_0")),
+    accumvars = 'H',
+    obsnames = 'Number'
+  ) -> TBseir_C
+```
+
+
+```{r}
+TBseir_C |> 
+  simulate(
+    params = c(Beta = 4.342608e+01, Beta_t = 2.631072e-05, mu_EI = 1.293220e+02, mu_IR = 8.155015e-01, rho = 5.941820e-01, k = 4.208512e+00, sigmaSE = 3.896112e-01, N = 333000000, mu_RS = 3.384936e+01, S_0 = 7.542048e-01, I_0 = 1.755303e-04, E_0 = 2.474361e-04, R_0 = 2.453723e-01),
+    #params = coef(mif_out),
+    nsim = 5,
+    format = "data.frame",
+    include.data = TRUE) |> 
+  ggplot(aes(x = Year, y = Number, group = .id, color = .id == "data")) +
+  geom_line() +
+  guides(color = "none")
+```
+
+- The simulation runs display variability around certain points in time, specifically around the 1960s to 1980s, indicating periods of higher uncertainty or variability in the model’s predictions. After the peak around the 1980s, there is a general downward trend in the number of cases.
+
+-  cyan line represents the actual observed data over the years, against which the model simulations are being compared. The simulations seem to capture the overall trend of the data well, though there are periods where the simulation runs diverge significantly from the actual data.
+
+Initially, we began with a simple SEIRS model, which divides a population into compartments representing the stages of the disease: as described previously. However, when comparing the output from a model with these basic components to actual TB case data, it did not capture the observed trends. Among the discrepancies one could be the overdispersion in case counts and trends in the data that reflect changes in transmission over time due to factors such as public health interventions or behavior changes. 
+
+Therefore, to improve the fit, we introduce additional features to the model (also as described while introducing POMP Model):
+
+1. Overdispersion: The actual TB data may show more variability than what a Poisson process would predict, known as overdispersion. To account for this, we added an additional parameter, 'k', which controls the dispersion of the model.
+
+2. Linear time trend in transmission: Instead of a constant transmission rate (β), we include a time-dependent component (β_t) that allows the transmission rate to decrease linearly over time, which better reflects the actual decrease in TB cases due to advancements in healthcare.
+
+3. Stochasticity: To further capture the random fluctuations in transmission, we add stochasticity to the force of infection term. This is done by introducing a gamma-distributed white-noise term governed by the parameter σ_SE. 
+
+After these enhancements, we re-fit the model to the TB data and perform simulations. So far, `Beta = 4.342608e+01`, `Beta_t = 2.631072e-05`, `mu_EI = 1.293220e+02`,`mu_IR = 8.155015e-01`, `rho = 5.941820e-01`, `k = 4.208512e+00`, `sigmaSE = 3.896112e-01`, `N = 333000000`, `mu_RS = 3.384936e+01`, `S_0 = 7.542048e-01`, `I_0 = 1.755303e-04`, `E_0 = 2.474361e-04`, `R_0 = 2.453723e-01` are the best parameters we could find with log likelihood of `-628.8447`. As a future scope, we aim to try global search method to find the best parameters. Due to time contraint it was not possible to run global search. 
+
+```{r}
+TBseir_C |> 
+  mif2(
+    params = c(Beta = 4.342608e+01, Beta_t = 2.631072e-05, mu_EI = 1.293220e+02, mu_IR = 8.155015e-01, rho = 5.941820e-01, k = 4.208512e+00, sigmaSE = 3.896112e-01, N = 333000000, mu_RS = 3.384936e+01, S_0 = 7.542048e-01, I_0 = 1.755303e-04, E_0 = 2.474361e-04, R_0 = 2.453723e-01),
+    rw.sd = rw_sd(Beta = 0.02, Beta_t = 0.02, mu_EI = 0.02, mu_IR = 0.02, rho = 0.02, k = 0.02, mu_RS = 0.02,  sigmaSE = 0.02, S_0 = ivp(0.1), I_0 = ivp(0.1), E_0 = ivp(0.1)), 
+    Nmif = 50, Np = 2000, 
+    cooling.fraction.50 = 0.5
+  ) -> mif_out
+```
+
+```{r}
+logLik(mif_out)
+```
+
+```{r}
+plot(mif_out)
+```
+
+
+### Remarks and Conclusion 
+
+The ARIMA model analysis suggested using an ARIMA(0,1,5) model based on minimizing the AIC and having a smallest root close to 1. However, the ARIMA model assumes the data is fully observed, which may not be appropriate for infectious disease cases that are typically under-reported.
+
+In contrast, the POMP model explicitly accounts for partial observability by modeling both the underlying disease process (via a stochastic SEIRS compartmental model) and the observation process (reporting rate). Additional features incorporated into the POMP model include overdispersion in case counts via a negative binomial distribution, and a time-varying transmission rate to capture the decreasing trend likely due to improved healthcare interventions over time.
+
+While finding optimal parameters for the POMP model remained challenging due to time constraints, the POMP model simulations utilizing the estimated parameters were able to reasonably capture the overall declining trend in tuberculosis cases.
+
+In conclusion, the POMP model provides a more comprehensive approach for analyzing partially observed epidemiological data compared to the ARIMA model. However, further investigation into parameter estimation techniques could potentially improve the POMP model fit to the tuberculosis data.
+
+### Further Investigation
+
+- We currently consider the current total population (as of 2023) of USA - 333000000. But this has been changed drastically since 1950. Taking mean of the total populations of the years present in dataset would make more sense. 
+- Running more mifs at more iterations would be helpful.
+- Trying Local/Global search would be helpful to find the best parameters 
+
+(Note: Despite trying global search techniques, these efforts were omitted from the report due to encountered failures and time constraints.)
+
+##### updated compartment model
+
+SIERS model could be updated to SEIQRV in which Q represents Quarantined and V represents Vaccinated as described by [5].  
+
+### References
+
+1) Dataset: https://www.cdc.gov/tb/statistics/reports/2020/table1.htm
+2) Understanding TB: https://www.webmd.com/lung/understanding-tuberculosis-basics
+3) Class Notes and Reference Codes: https://ionides.github.io/531w24/
+4) https://ionides.github.io/531w16/final_project/Project20/Final_Project/stat531finalproject.html
+5) https://www.sciencedirect.com/science/article/pii/S1110256X13000965 
+6) https://ionides.github.io/531w16/final_project/Project02/stats531_final_project.html
+

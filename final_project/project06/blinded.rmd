@@ -1,0 +1,609 @@
+---
+title: "Volatility Analysis of NASDAQ"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Introduction
+
+Financial market is dynamic and full of uncertainty, understanding and predicting financial volatility thus becomes a topic that catches a lot of investors' interest. NASDAQ is a famous stock market index that comprises many companies in the field of information technology.[1] It is a good indicator of the dynamics of financial market volatility. Given its importance, modeling it and making predictions based on the model can be beneficial for understanding the changes in the whole financial market and making wise decisions for the future.
+
+In this project, we intend to figure out the best method to model the volatility of NASDAQ log returns in 5 years. We will fit different models, including ARMA, GARCH, and POMP, to compare their results and identify the most appropriate one.
+
+## Data Preparation and Data Analysis
+
+```{r,warning=FALSE, echo = FALSE}
+library(tseries) # For conducting stationarity tests
+library(tidyverse)  # For data manipulation and visualization
+library(lubridate)  # For date-time manipulation
+library(ggplot2)    # For creating plots
+library(tsibble)    # For handling time series data 
+```
+
+### Load and Convert Data
+
+```{r}
+time_series_data <- read.csv("NDAQ.csv", header = TRUE, stringsAsFactors = FALSE)
+time_series_data <- time_series_data %>%
+  mutate(Log_Return = c(NA, diff(log(Close))))
+ts_data <- ts(time_series_data$Log_Return, start = c(2019, 4), frequency = 1)
+```
+
+### Plot the Time Series
+
+```{r}
+# Plot the time series
+plot(ts_data, main = "Time Series", xlab = "Time", ylab = "Value")
+```
+
+#### Histogram Plot
+
+The following plot is created for visualizing the distribution of the `Log_Return` variable, in the time series.
+
+```{r}
+# Histogram of the time series values
+hist(ts_data, main = "Histogram of Time Series", xlab = "Value", breaks = 30)
+```
+
+#### Boxplot
+
+```{r}
+# Boxplot to check for outliers
+boxplot(ts_data, main = "Boxplot of Time Series")
+```
+
+#### Autocorrelation and Partial Autocorrelation Plot
+
+The ACF measures the correlation between a time series and its lagged values at different time lags. It helps in identifying the presence of seasonality and determining the order of autoregressive (AR) and moving average (MA) terms in time series models. Peaks or significant spikes in the ACF plot indicate potential seasonal patterns or lagged relationships in the data.
+
+On the other hand, the PACF measures the correlation between a time series and its lagged values, while adjusting for the intermediate lags. It helps in identifying the direct relationship between observations at different time lags, thus assisting in determining the order of the AR terms in time series models. Significant spikes in the PACF plot indicate the number of AR terms needed to adequately model the data.
+
+```{r}
+# Autocorrelation function (ACF) and Partial Autocorrelation function (PACF)
+ts_data <- na.omit(ts_data)
+acf(ts_data, main = "ACF of Time Series")
+pacf(ts_data, main = "PACF of Time Series")
+```
+
+The number of significant spikes in the ACF plot is 1, hence, we can assume that the AR term has value 1. Likewise, the number of significant spikes in the PACF plot is 4. Hence, it can be inferred that the MA term is 4.
+
+### ADF Test for Stationarity
+
+In the below provided code, `adf.test(ts_data, alternative = "stationary")` conducts the ADF test on the time series data stored in ts_data. The argument alternative = "stationary" specifies that the null hypothesis of the test is that the series is non-stationary and the alternative hypothesis is that the series is stationary.
+
+```{r, warning=FALSE}
+# Augmented Dickey-Fuller Test for stationarity
+adf_result <- adf.test(ts_data, alternative = "stationary")
+print(adf_result)
+```
+
+The obtained p-value of 0.01 is smaller than the printed p-value, suggesting strong evidence against the null hypothesis. Therefore, we reject the null hypothesis in favor of the alternative, indicating that the time series is stationary.
+
+```{r, warning=FALSE}
+# KPSS test for stationarity
+kpss_result <- kpss.test(ts_data)
+print(kpss_result)
+```
+
+Since the p-value is greater than the significance level, it suggests that there is not enough evidence to reject the null hypothesis. In other words, the data is stationary.
+
+From both the above test results, it can be inferred that the given time series data is stationary. Hence, the data need not be differenced in order to achieve stationarity. 
+
+
+
+## ARMA Model
+
+We first consider constructing an ARMA model on the log returns.
+
+### Model Selection
+
+In order to choose the optimal values of $p$ and $q$ in the ARMA(p,q) model, we use AIC as a selection criterion.
+
+```{r, echo = FALSE, warning = FALSE}
+aic_table <- function(data, P, Q){
+  table <- matrix(NA, (P+1), (Q+1))
+  for (p in 0:P){
+    for (q in 0:Q){
+      table[p+1, q+1] <- arima(data, order = c(p,0,q))$aic
+    }
+  }
+  dimnames(table) <- list(paste('AR',0:P, sep = ''),
+                          paste('MA',0:Q,sep = ''))
+  table
+}
+nasdaq_arma_aic_table <- aic_table(ts_data, 5, 5)
+require(knitr)
+kable(nasdaq_arma_aic_table, digits = 2)
+```
+
+$p$ and $q$ values are searched in $\{0,1,2,3,4,5\} \times \{0,1,2,3,4,5\}$ and AIC values of the corresponding models are calculated. As suggested in the AIC table above, ARMA(4,4) model has the lowest AIC value, and thus should be chosen.
+
+```{r}
+nasdaq_arma44 <- arima(ts_data, order = c(4,0,4))
+nasdaq_arma44
+```
+
+This ARMA(4,4) model has a log likelihood of 3324.91.
+
+### Diagnostics
+
+```{r, echo = FALSE, warning = FALSE}
+arma44_residuals <- nasdaq_arma44$residuals
+par(mfrow = c(1,2))
+acf(arma44_residuals, main = 'ACF plot of ARMA(4,4) residuals')
+qqnorm(arma44_residuals, main = 'Normal QQ-plot of ARMA(4,4) residuals',cex.main = 0.95, cex = 0.7)
+qqline(arma44_residuals)
+```
+
+In the ACF plot, almost all auto-correlation coefficients fall within the confidence boundary. The auto-correlation is only significant at lag 18 and lag 28. The QQ-plot shows that the residuals have significantly heavier tails on both sides than normal distribution. This may suggest that ARMA model is not very suitable for fitting the log returns. Therefore, we should try other models which can give better fit to the data.
+
+## GARCH Model
+
+GARCH model is often employed in the field of finance since it is good at capturing the volatility in financial time series data.[1] Specifically, we say a process $X = \{X_n\}$ is GARCH(p,q) if $$
+X_n = \mu_n + \sigma_n \epsilon_n
+$$ where $\{\epsilon_n\}$ is an iid white noise process with mean 0 and variance of 1, and the model for $\sigma_n$ is 
+$$
+\sigma_n^2 = \alpha_0 + \sum_{i=1}^p \beta_i \sigma_{n-i}^2 + \sum_{j=1}^q \alpha_j (X_{n-j} - \mu_{n-j})^2
+$$
+
+### GARCH Model under Normal White Noise
+
+Firstly, we assume that the white noise process $\{\epsilon_n\}$ in the GARCH model follows normal distribution. Based on this hypothesis, we conduct model selection and model diagnostics to judge whether this assumption is appropriate.
+
+#### Model Selection
+
+In order to obtain the optimal value of $p$ and $q$ in a GARCH(p,q) model under normal white noise, we use AIC value as the criterion here. The model with the smallest AIC value will be considered as the best.
+
+```{r, echo = FALSE, warning = FALSE}
+library(rugarch)
+aic_table_garch <- function(data, P, Q){
+  table <- matrix(NA, P, Q)
+  for (p in 1:P){
+    for (q in 1:Q){
+      spec <- ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(p,q)),
+                         distribution.model = 'norm')
+      fit <- ugarchfit(spec, data = data)
+      table[p,q] <- infocriteria(fit)[1]
+    }
+  }
+  dimnames(table) <- list(paste('p',1:P, sep = '='),
+                          paste('q',1:Q,sep = '='))
+  table
+}
+nasdaq_garch_aic_table <- aic_table_garch(ts_data, 5, 5)
+require(knitr)
+kable(nasdaq_garch_aic_table, digits = 5)
+```
+
+As indicated in the table above, GARCH(4,1) model has the lowest AIC value, and could possibly be the best model.
+
+```{r, echo = FALSE, warning = FALSE}
+spec <- ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(4,1)),
+                         distribution.model = 'norm')
+nasdaq_garch41_normal <- ugarchfit(spec, data = ts_data)
+```
+
+```{r}
+likelihood(nasdaq_garch41_normal)
+log(likelihood(nasdaq_garch41_normal))
+```
+
+This model has a likelihood of 3476.553 and a log likelihood of 8.1538.
+
+#### Model Diagnostics
+
+We further generate a QQ-plot and an ACF plot of the GARCH(4,1) model residuals to observe the distribution and to judge whether the auto-correlations are weak.
+
+```{r, echo = FALSE, warning = FALSE}
+par(mfrow = c(1,2))
+acf_garch41_res <- acf(nasdaq_garch41_normal@fit$residuals / nasdaq_garch41_normal@fit$sigma, plot = FALSE)
+plot(acf_garch41_res, main = NA)
+title(main = 'ACF plot of GARCH(4,1) residuals', cex.main = 0.95)
+qqnorm(nasdaq_garch41_normal@fit$residuals / nasdaq_garch41_normal@fit$sigma, main = 'Normal QQ-plot of GARCH(4,1) residuals', cex.main = 0.95, cex = 0.8)
+qqline(nasdaq_garch41_normal@fit$residuals / nasdaq_garch41_normal@fit$sigma)
+```
+
+Disappointingly, auto-correlations at lag 3, 13, 24, 30 seem to be significant. In addition, the distribution of the residuals still have heavier tails on both sides than the normal distribution. This motivates us to go beyond the normally distributed white noise assumption and study some other distributions that have heavier tails, such as t distribution.
+
+### GARCH Model under t Distributed White Noise
+
+In order to better fit the heavy tails of the log return data, we now assume that the white noise process $\{\epsilon_n\}$ in the GARCH model follows iid t distribution.[2]
+
+#### Model Selection
+
+Based on AIC criterion again, we conduct a selection of $p$ and $q$ value in GARCH(p,q).
+
+```{r, echo = FALSE, warning = FALSE}
+aic_table_garch_t <- function(data, P, Q){
+  table <- matrix(NA, P, Q)
+  for (p in 1:P){
+    for (q in 1:Q){
+      spec <- ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(p,q)),
+                         distribution.model = 'sstd')
+      fit <- ugarchfit(spec, data = data)
+      table[p,q] <- infocriteria(fit)[1]
+    }
+  }
+  dimnames(table) <- list(paste('p',1:P, sep = '='),
+                          paste('q',1:Q,sep = '='))
+  table
+}
+nasdaq_garch_t_aic_table <- aic_table_garch_t(ts_data, 5, 5)
+require(knitr)
+kable(nasdaq_garch_t_aic_table, digits = 5)
+```
+
+According to the table above, GARCH(1,1) model under t-distributed white noise assumption has the smallest AIC value.
+
+```{r, echo = FALSE, warning = FALSE}
+spec <- ugarchspec(variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+                         distribution.model = 'sstd')
+nasdaq_garch11_t <- ugarchfit(spec, data = ts_data)
+```
+
+#### Model Diagnostics
+
+We further use QQ-plot and ACF plot to check whether the residuals of this model satisfy our assumptions.
+
+```{r, echo = FALSE, warning = FALSE}
+library(fGarch)
+par(mfrow = c(1,2))
+l <- length(ts_data)
+t_quantiles <- qstd(c(1:l) / (l+1), nu = nasdaq_garch11_t@fit$coef['shape'])
+plot(t_quantiles, t_quantiles, type = 'l', col = 'red',
+     ylab = 'Sample Quantiles', xlab = 'Theoretical Quantiles',
+     main = 'QQ-plot of GARCH(1,1) residuals (t-dist)',
+     cex.main = 0.92, cex = 0.6)
+points(t_quantiles, sort(nasdaq_garch11_t@fit$residuals / nasdaq_garch11_t@fit$sigma))
+acf_garch11_res <- acf(nasdaq_garch11_t@fit$residuals / nasdaq_garch11_t@fit$sigma, plot = FALSE)
+plot(acf_garch11_res, main = NA)
+title(main = 'ACF plot of GARCH(1,1) residuals (t-dist)', cex.main = 0.9)
+```
+
+In the QQ plot, a majority of points lie on the line, with a few of them forming long tails on left and right side. Although the fit in the tails is not absolutely ideal, it is already a significant improvement over the two previous models. In the ACF plot, auto-correlation coefficients at lag 13, 24 and 30 fall on the dividing line of the confidence band, and others are insignificant.
+
+```{r}
+likelihood(nasdaq_garch11_t)
+log(likelihood(nasdaq_garch11_t))
+```
+
+We may conclude that GARCH (1,1) model with t-distributed white noise is a better fit. This model has a likelihood of 3538.768 and a log likelihood of 8.1715. Compared with the result of ARMA(4,4) model and GARCH(4,1) model under normal white noise assumption, this model has a higher likelihood value.
+
+### ARMA-GARCH Model
+
+To obtain a better maximum likelihood value, we go a step further to combine ARMA model and GARCH model together. In detail, the only difference between this model and the traditional ARMA model is that $\{\epsilon_n\}$ is no longer white noise, but a GARCH model.[3]
+
+Using AIC criterion, we select $p$ and $q$ values in ARMA(p,q) + GARCH(1,1) model under t distribution assumption.
+
+```{r, echo = FALSE, warning = FALSE}
+aic_table_armagarch <- function(data, P, Q){
+  table <- matrix(NA, P+1, Q+1)
+  for (p in 0:P){
+    for (q in 0:Q){
+      spec <- ugarchspec(mean.model = list(armaOrder = c(p,q)),
+                         variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+                         distribution.model = 'sstd')
+      fit <- ugarchfit(spec, data = data)
+      table[p+1,q+1] <- infocriteria(fit)[1]
+    }
+  }
+  dimnames(table) <- list(paste('p',0:P, sep = '='),
+                          paste('q',0:Q,sep = '='))
+  table
+}
+nasdaq_armagarch_aic_table <- aic_table_armagarch(ts_data, 4, 4)
+require(knitr)
+kable(nasdaq_armagarch_aic_table, digits = 5)
+```
+
+As illustrated in the table, ARMA(4,4) + GARCH(1,1) has the lowest AIC value.
+
+```{r, echo = FALSE, warning = FALSE}
+spec <- ugarchspec(mean.model = list(armaOrder = c(4,4)),
+                         variance.model = list(model = 'sGARCH', garchOrder = c(1,1)),
+                         distribution.model = 'sstd')
+arma44garch11 <- ugarchfit(spec, data = ts_data)
+```
+
+```{r}
+likelihood(arma44garch11)
+log(likelihood(arma44garch11))
+```
+
+The corresponding likelihood and log likelihood of this model is 3550.09 and 8.1747, which are higher than GARCH(1,1) model.
+
+## POMP Model
+
+### Model Discription
+
+#### Leverage
+
+The leverage $R_n$ as defined, is the correlation between asset return on day $n-1$ and the increase in the log volatility from day $n-1$ to day $n$. The $R_n$ can be modeled as:
+$$
+R_n = \frac{e^{2G_n}-1}{e^{2G_n}+1}
+$$
+Where $G_n$ is the usual, Gaussian random walk. Denote the demeaned log return as $Y_n$, modeling it with:
+$$
+\begin{aligned}
+Y_n &= e^{\frac{H_n}{2}}\epsilon_n\\
+H_n &= \mu_{h}(1-\phi)+\phi H_{n-1}+\beta R_ne^{-\frac{H_{n-1}}{2}}+\omega_{n}\\
+G_n &= G_{n-1}+\nu_n
+\end{aligned}
+$$
+
+#### Main Model
+
+Where $\beta_n = Y_n\sigma_\eta\sqrt{1-\phi^2}$. $\epsilon_n$ is an iid $N(0,1)$ sequence, $\nu_n$ is an iid $N(0, \sigma_{\nu}^2)$, and $\omega_n$ is $N(0, \sigma_{\omega, n}^2)$ with: $\sigma^2_{\omega, n}=\sigma^2_{\eta}(1-\phi^2)(1-R_n^2)$
+
+```{r, echo = FALSE, warning=FALSE}
+library(pomp)
+set.seed(42)
+```
+
+```{r, echo=FALSE}
+
+demeaned_returns <- as.numeric(ts_data)
+
+```
+
+### Model Fitting
+
+```{r, echo=FALSE}
+NADQ_statenames <- c("H","G","Y_state")
+NADQ_rp_names <- c("sigma_nu","mu_h","phi","sigma_eta")
+NADQ_ivp_names <- c("G_0","H_0")
+NADQ_paramnames <- c(NADQ_rp_names,NADQ_ivp_names)
+```
+
+```{r, echo=FALSE}
+rproc1 <- "
+  double beta,omega,nu;
+omega = rnorm(0,sigma_eta * sqrt( 1- phi*phi ) *
+sqrt(1-tanh(G)*tanh(G)));
+nu = rnorm(0, sigma_nu);
+G += nu;
+beta = Y_state * sigma_eta * sqrt( 1- phi*phi );
+H = mu_h*(1 - phi) + phi*H + beta * tanh( G )
+* exp(-H/2) + omega;"
+rproc2.sim <- "
+  Y_state = rnorm( 0,exp(H/2) );
+"
+rproc2.filt <- "
+Y_state = covaryt;
+"
+NADQ_rproc.sim <- paste(rproc1,rproc2.sim)
+NADQ_rproc.filt <- paste(rproc1,rproc2.filt)
+```
+
+```{r, echo=FALSE}
+NADQ_rinit <- "
+  G = G_0;
+  H = H_0;
+  Y_state = rnorm( 0,exp(H/2) );"
+
+NADQ_rmeasure <- "
+y=Y_state;
+"
+NADQ_dmeasure <- "
+lik=dnorm(y,0,exp(H/2),give_log);
+"
+```
+```{r, echo = FALSE}
+NADQ_partrans <- parameter_trans(
+log=c("sigma_eta","sigma_nu"),
+logit="phi")
+```
+
+```{r,echo=FALSE}
+NADQ.filt <- pomp(data=data.frame(
+y=demeaned_returns,time=1:length(demeaned_returns)),
+statenames=NADQ_statenames,
+paramnames=NADQ_paramnames,
+times="time",
+t0=0,
+covar=covariate_table(
+time=0:length(demeaned_returns),
+covaryt=c(0,demeaned_returns),
+times="time"),
+rmeasure=Csnippet(NADQ_rmeasure),
+dmeasure=Csnippet(NADQ_dmeasure),
+rprocess=discrete_time(step.fun=Csnippet(NADQ_rproc.filt),
+delta.t=1),
+rinit=Csnippet(NADQ_rinit),
+partrans=NADQ_partrans
+)
+```
+
+Firstly, we need to simulate our model based on an initial parameter setup. As we can see below, the model with such parameter doesn't fit well to the observed demeaned log return.
+
+```{r}
+params_test <- c(
+sigma_nu = exp(-3.5),
+mu_h = -0.025,
+phi = expit(4),
+sigma_eta = exp(-0.07),
+G_0 = 0,
+H_0=0
+)
+
+```
+
+```{r, echo=FALSE}
+sim1.sim <- pomp(NADQ.filt, 
+  statenames=NADQ_statenames,
+  paramnames=NADQ_paramnames,
+  rprocess=discrete_time(
+    step.fun=Csnippet(NADQ_rproc.sim),delta.t=1)
+)
+sim1.sim <- simulate(sim1.sim,seed=1,params=params_test)
+plot(Y_state~time, data=sim1.sim, type='l', col='red', main="Observed Demeaned Log Returns and Simulated Demeaned Log returns", ylab="Returns")
+lines(demeaned_returns,col='black')
+legend('topright' , c("Observed Demeanded Returns","Simulated Demeanded Log Returns"), col=c("black","red"), lty=c(1,1))
+```
+
+```{r, echo=FALSE}
+sim1.filt <- pomp(sim1.sim, covar=covariate_table(time=c(timezero(sim1.sim), time(sim1.sim)),
+                                                 covaryt=c(obs(sim1.sim), NA),
+                                                 times="time"),
+      statenames = NADQ_statenames,
+      paramnames = NADQ_paramnames,
+      rprocess = discrete_time(step.fun = Csnippet(NADQ_rproc.filt),delta.t = 1))
+
+```
+
+We will use 3 level parameters to fit our model. 
+
+```{r}
+run_level <- 3
+NADQ_Np <- switch(run_level, 50, 1e3, 2e3)
+NADQ_Nmif <- switch(run_level, 5, 100, 200)
+NADQ_Nreps_eval <- switch(run_level, 4, 10, 20)
+NADQ_Nreps_local <- switch(run_level, 5, 20, 20)
+NADQ_Nreps_global <- switch(run_level, 5, 20, 100)
+```
+
+```{r, warning=FALSE, echo = FALSE}
+library(doParallel)
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE',unset=NA))
+if(is.na(cores)) cores <- detectCores()
+registerDoParallel(cores)
+library(doRNG)
+registerDoRNG(34118892)
+
+```
+```{r,echo=FALSE}
+stew(file=paste0("pf1_",run_level,".rda"),
+     {t.pf1 <- system.time(pf1<-foreach(i=1:NADQ_Nreps_eval, .packages = 'pomp',.export=c('sim1.filt', 'NADQ_Np')) %dopar% {pfilter(sim1.filt, Np=NADQ_Np)})})
+(L.pf1<-logmeanexp(sapply(pf1,logLik), se=TRUE))
+```
+```{r}
+NADQ_rw.sd_rp <- 0.02
+NADQ_rw.sd_ivp <- 0.1
+NADQ_cooling.fraction.50 <- 0.5
+NADQ_rw.sd <- rw_sd(sigma_nu = 0.02,
+mu_h = 0.02,
+phi = 0.02,
+sigma_eta = 0.02,
+G_0 = ivp(0.1),
+H_0 = ivp(0.1)
+)
+
+```
+```{r, echo=FALSE}
+stew(file=paste0("mif1_",run_level,".rda"),{
+t.if1 <- system.time({
+if1 <- foreach(i=1:NADQ_Nreps_local,
+  .packages='pomp', .combine=c, .export=c('NADQ.filt', 'NADQ_Np', 'params_test', 'NADQ_Nmif', 'NADQ_cooling.fraction.50', 'NADQ_rw.sd_rp','NADQ_rw.sd_ivp','NADQ_rw.sd')) %dopar% {mif2(NADQ.filt,
+  params=params_test,
+  Np=NADQ_Np,
+  Nmif=NADQ_Nmif,
+  cooling.fraction.50=NADQ_cooling.fraction.50,
+  rw.sd = NADQ_rw.sd)}
+  L.if1 <- foreach(i=1:NADQ_Nreps_local,
+  .packages='pomp', .combine=rbind, .export = c('NADQ.filt', 'NADQ_Np', 'if1', 'NADQ_Nreps_eval','NADQ_rw.sd_rp')) %dopar% {logmeanexp(
+  replicate(NADQ_Nreps_eval, logLik(pfilter(NADQ.filt,
+  params=coef(if1[[i]]),Np=NADQ_Np))), se=TRUE)}
+  })
+})
+r.if1 <- data.frame(logLik=L.if1[,1],logLik_se=L.if1[,2],
+t(sapply(if1,coef)))
+if (run_level>1) write.table(r.if1,file="NADQ_params.csv",
+append=TRUE,col.names=FALSE,row.names=FALSE)
+```
+```{r}
+summary(r.if1$logLik,digits=5)
+```
+
+The maximum likelihood is 3510. Through such local search, the optimal value of $\sigma_\nu$is roughly between (0, 0.005), the optimal value of $\mu_h$ is around -10, the optimal value of $\phi$is roughly between (0.8, 0.85) and the optimal value of $\sigma_eta$ is roughly between (0, 50). 
+
+By trying different starting point we will be able to find the global optimized parameters for our model.
+
+```{r}
+pairs(~logLik+sigma_nu+mu_h+phi+sigma_eta,
+data=subset(r.if1,logLik>max(logLik)-300))
+```
+
+Create a box to search the best parameters globally.
+
+```{r}
+NADQ_box <- rbind(
+sigma_nu=c(0.005,0.05),
+mu_h =c(-1,0),
+phi = c(0.95,0.99),
+sigma_eta = c(0.5,1),
+G_0 = c(-2,2),
+H_0 = c(-1,1)
+)
+```
+
+```{r}
+stew(file=paste0("box_eval_",run_level,".rda"),{
+if.box <- foreach(i=1:NADQ_Nreps_global,
+.packages='pomp',.combine=c, .export=c('if1', 'NADQ_box')) %dopar% {mif2(if1[[1]],
+params=apply(NADQ_box,1,function(x)runif(1,x)))}
+L.box <- foreach(i=1:NADQ_Nreps_global,
+.packages='pomp',.combine=rbind,.export = c('NADQ_Nreps_eval', 'NADQ.filt', 'if', 'NADQ_Np')) %dopar% {
+logmeanexp(replicate(NADQ_Nreps_eval, logLik(pfilter(
+NADQ.filt,params=coef(if.box[[i]]),Np=NADQ_Np))),
+se=TRUE)}
+})
+timing.box <- .system.time["elapsed"]
+r.box <- data.frame(logLik=L.box[,1],logLik_se=L.box[,2],
+t(sapply(if.box,coef)))
+if(run_level>1) write.table(r.box,file="NADQ_params.csv",
+append=TRUE,col.names=FALSE,row.names=FALSE)
+summary(r.box$logLik,digits=5)
+
+```
+```{r, echo=FALSE}
+pairs(~logLik+log(sigma_nu)+mu_h+logit(phi)+log(sigma_eta), data=subset(r.box,logLik>max(logLik)-300))
+
+```
+
+The iteration shows that the global maximum log likelihood is 3510.
+
+```{r, echo=FALSE}
+plot(if.box)
+```
+
+From the figure shown above, we can see that $\sigma_{\eta}$ converges at near 0.005; $\sigma_{\nu}$ converges at near 0; $G_0$ converges at near 0.5; $\phi$ converges at near 0.8. Meanwhile, $H_0$ and $\mu_h$ do not converge.
+
+
+## Conclusions
+
+Some typical time series models, including ARMA, GARCH, and ARMA+GARCH, are first fit to obtain a benchmark likelihood. Using AIC as a criterion for parameter selection, we find that ARMA(4,4) is the best ARIMA model, with a likelihood of 3324.91. Additionally, GARCH(4,1) with normally distributed white noise has the lowest AIC value and has a likelihood of 3476.553. However, both of these two models have heavy-tailed residuals, indicating inappropriate tail fitting. Therefore, GARCH model with t distributed white noise is tried out subsequently, and among various choices of $p$ and $q$ values, GARCH(1,1) has the lowest AIC value, generating a likelihood of 3538.77. To further improve the likelihood value, we combine ARMA model and GARCH model together, using ARMA to fit the trend and using GARCH to fit the noise. This yields a larger likelihood of 3550.09, which is obtained by ARMA(4,4) + GARCH(1,1) model. 
+
+After this, we use POMP model to fit the NASDAQ data. Through the global searching process, our estimated parameters provide a likelihood of 3510, which performs worse than ARMA+GARCH model, and some of the estimated parameters do not converge. There is definitely something needs to be done to enhance the performance.   
+
+
+### Limitations
+
+1. We did not consider the seasonality when selecting the appropriate model.  
+
+2. Broader parameters selection needs to be considered when conducting global searching of fitting POMP model.  
+
+
+## References
+
+[1] https://en.wikipedia.org/wiki/Nasdaq_Composite
+
+[2] Analysis of Time Series. Chapter 16: A case study of financial volatility and a POMP model with observations driving latent dynamics. https://ionides.github.io/531w24/16/slides.pdf
+
+[3] David, Ruppert, and S. Matteson David. "Statistics and data analysis for financial engineering: with R examples." (2015). Section 14.7
+
+[4] David, Ruppert, and S. Matteson David. "Statistics and data analysis for financial engineering: with R examples." (2015). Section 14.8
+
+[5] Analysis of Time Series. Chapter 16: A case study of financial volatility and a POMP model with observations driving latent dynamics.
+
+
+
+
+
+
+
+
+
+
+
+

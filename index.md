@@ -149,9 +149,7 @@ Please read the [grading rubric](rubric_homework.html) before submitting homewor
 
 * [Final peer review report instructions](final_project/final_review.html)
 
-<!--
 * [2024 final projects](final_project/index.html)
--->
 
 * You're welcome to browse previous final projects. The [2021](http://ionides.github.io/531w21/final_project/) and  [2022](http://ionides.github.io/531w22/final_project/)  final projects have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
 

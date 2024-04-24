@@ -1,0 +1,503 @@
+---
+title: "**A Latent Process of Democratization since 1800**"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    code_folding: show
+    theme: united
+    highlight: pygments
+    number_sections: true
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages(library(pomp))
+suppressPackageStartupMessages(library(democracyData))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(doFuture))
+suppressPackageStartupMessages(library(doParallel))
+suppressPackageStartupMessages(library(iterators))
+suppressPackageStartupMessages(library(doRNG))
+suppressPackageStartupMessages(library(DiagrammeR))
+suppressPackageStartupMessages(library(MASS))
+suppressPackageStartupMessages(library(xtable))
+
+## Data ----
+df_dems <- read.csv('df_dems.csv', sep = ",")[,2:3]
+covar <- read.csv('covar.csv', sep = ",")[,2:3]
+covar_table <- covariate_table(covar, times = "time")
+
+# POMP Model ----
+
+sprn_step <- Csnippet("
+  double dN_SP = rbinom(S,1-exp(-Beta* N/tot_sov*dt));
+  double dN_PR = rbinom(P,1-exp(-mu_PR * dt));
+  double dN_RN = rbinom(R,1-exp(-mu_RN * dt));
+  S -= dN_SP;
+  P += dN_SP - dN_PR;
+  R += dN_PR - dN_RN;
+  N += dN_RN;"
+)
+
+sprn_init <- Csnippet("
+  S = 23;
+  P = 1;
+  R = 2;
+  N = 1;"
+)
+
+dmeas <- Csnippet("
+  lik = dnbinom_mu(democracy,k,rho* N, give_log);"
+)
+
+rmeas <- Csnippet("
+  democracy = rnbinom_mu(k,rho*N);"
+)
+
+emeas <- Csnippet("
+  E_democracy = rho*N;"
+)
+
+df_dems |> pomp(
+    times="time",t0=min(df_dems$time),
+    rprocess=euler(sprn_step,delta.t=1/365.25),
+    rinit=sprn_init,
+    rmeasure=rmeas,
+    dmeasure=dmeas,
+    emeasure=emeas,
+    statenames=c("S","P","R","N"),
+    paramnames=c("Beta","mu_PR","rho", "mu_RN", "k"),
+    covar = covar_table
+  ) -> dems_pomp 
+
+
+
+`Level 2.5` <- readRDS("Level 2.5.rds")
+
+result<- `Level 2.5`
+```
+
+
+
+
+# **Introduction**
+
+Political regimes are a means of society in sovereign states to decide policies and alternate their political leaders. A society is said to have a democratic regime when they can determine a policy in a collective consensus by delegating political representatives through a regular competitive election, while others have autocratic regimes when these methods of policy and leaders selection are absent (e.g. Cheibub, Ghandi, and Vreeland 2010). 
+
+The choice of political regimes have been a great concerned in social science literature. Some argue that a feature in political regimes determine whether a country is more likely to go to a war with other countries (e.g. Weeks 2012) and other suggest that when political leaders can stay in power as much as they want, they would have less incentive to produce policies that generate welfares to the many (e.g. Sen 1999). 
+
+The purpose of this report is to examine a latent process of which a society to choose democracy as the mode of their political regime. The unit of analysis is a society with sovereign states, that is a centralized organization in a specific world's territory that can project internal order and command external respects from other states through the monopolization of military technologies (e. g. Weber [1918] 1946 and Mann 1984). 
+
+In a game-theoretic literature, it is common to model a sovereign state as a political economy with two players: elites and the mass (e. g. Boix 2003; Acemoglu and Robinson 2006). Elites want to defend their privileged and wealth by controlling  the state administrations, hence preferring to establish autocratic regime, while the mass want a redistribution of wealth and power by expanding participation in policy-making process and leadership selection, hence preferring a democracy. According to one of these model (e.g. Acemoglu and Robinson 2006), elite will repress the mass until the cost of repression marginally increase due to a revolutionary threats. At the time of marginal increased in the cost of repression, elites will compromise with the mass and establish a democratic regime.
+
+Exploiting the insights from this literature, in the following report, I will model a democratization, that is a shifting from autocratic regime to democracies, as a partially observed Markov model (POMP) with a discrete compartment. 
+
+The model developed in this report suggests that democracies are a result of negotiation (henceforth $N$) between powerful elites (henceforth $P$) with the mass when the threats of revolution increase (henceforth $R$). This idea describes in the following diagram. Denote that the covariate in this model is $S$, which is the number of sovereign states.
+
+
+```{r, echo = FALSE}
+DiagrammeR::grViz("
+  digraph graph2 {
+  
+  graph [rankdir = LR, fontname = Arial, fontsize=11]
+  
+  # node definitions with substituted label text
+  node [shape = rectangle]
+  a [label = 'S']
+  b [label = 'P']
+  c [label = 'R']
+  d [label = 'N']
+  
+  a -> b -> c -> d
+  }
+  
+  [1]: S
+  [2]: P
+  [3]: R
+  [4]: N
+  ",
+  height = 100)
+```
+
+
+The following report utilizes Boix, Miller, and Rosato's (2013) dataset on the classification of political regimes from 1800 and 2017. Classifying and measuring what type of a political regime a society creates has been discussed in length in the literature (e.g. Little and Meng 2023). Some employ a continuous index to capture a latent variable that can only be evaluated subjectively by countries experts (see Coppedge et. al. 2023), other prefer a dichotomous classification, democracy and autocracies, by examining an observable characteristic like constitution and the presence of regular election to determine a class of political regime (e. g. Cheibub, Ghandi, and Vreeland 2010).
+
+Boix, Miller, and Rosato's dataset follows the latter school of thought. This dataset classifies a country as a democracy when the legislative branches of the government is elected directly by the majority of male population and the executive branch is responsible fully to the parliament and/or the voters. This dataset is chosen because it provides a simpler discrete classification of regimes with a longest period, that is, from 1800 to 2007. 
+
+The dataset is downloaded through $\texttt{democracyData}$ package in $\texttt{R}$, developed by [xmarquez](https://github.com/xmarquez/democracyData)'s account on Github. The dataset is a panel with $222$ units of observations and $19.755$ year-observations. Almost all unit of observations are classified as sovereigns but in some periods of observation they were not. Excluding the period of units when they are not sovereign, this gives  $19.130$ year-observations in the dataset.
+
+The following report will use an aggregate number of democracies in sovereign states in a given year. Consider $Y_{it}$ as a binomial classification of political regime of unit $i$ in the year $t$ with $N$ as the total number of unit observations in time $t$. This is written as follow. 
+
+$$
+Z(t) = \sum_{i = 1}^N Y_{it}
+$$
+In particular, the following report will count the change in the aggregate number of democracies in time $t$, which is expressed in the following quantities.
+
+$$
+\Delta Z(t) = \max \left(0, Z(t) - Z(t - 1)\right)
+$$
+
+The realized values of the quantities $Z(t)$ and $\Delta Z(t)$ in the dataset are visualized respectively in the graph on the right and the left panel below. Notice that the negative value in the right panel indicates that at that given year there were democracies transiting to autocracies or losing sovereignty, hence no longer exist in the dataset as a democratic country.
+
+
+```{r, echo = FALSE, fig.cap=cap_fig1}
+data <- bmr %>% filter(sovereign == 1) %>%
+  group_by(year) %>%
+  summarise(dems_accum = sum(democracy == 1, na.rm= TRUE),
+            auto_accum = sum(democracy == 0, na.rm = TRUE),
+            tot_sov = sum(dems_accum + auto_accum)) %>%
+  mutate(sov_n = 
+           ifelse(is.na(tot_sov - lag(tot_sov, 1)) | tot_sov - lag(tot_sov, 1) < 0, 0, tot_sov - lag(tot_sov, 1)),
+         democracy = ifelse(is.na(dems_accum - lag(dems_accum, 1)) | dems_accum - lag(dems_accum, 1) < 0, 0, dems_accum - lag(dems_accum, 1)),
+         democracy_tot = ifelse(is.na(auto_accum - lag(auto_accum, 1)), 0, dems_accum - lag(dems_accum, 1))
+         )
+
+data |> mutate(time = year) |>
+  dplyr::select(year, democracy, democracy_tot) %>% rename(time = year) -> df_dems
+
+df_dems |> 
+  pivot_longer(-1) |>
+  ggplot(aes(x = time, y = value)) +
+  geom_line() + facet_wrap(~name, labeller = labeller(name = c(democracy = 'Delta Z(t)', democracy_tot = 'Z(t)'))) +
+  theme_bw() + labs(x = 't', y = 'Z')
+
+cap_fig1 = paste(
+  "**Figure 1.** Annual Change of Sovereign States with Democracies"
+)
+```
+
+
+Therefore, the research question to solve in the following report is below:
+
+ - Given the realization of $\Delta Z(t) = \Delta z(t)$ in the dataset, what are the value of parameters that can best capture the latent process in the model?
+ 
+ The estimation of parameters in the latent process will be estimated through the particle filter algorithm with multiple number of iteration and a different arbitrarily starting initial values with $\texttt{pomp}$ package developed by King, Nguyen, and Ionides (2015). The next section of this report will discuss the parameters of the latent observations will be estimated in the simulation study.
+ 
+ 
+
+# **Model**
+## **Setup**
+
+The latent process in this model starts from the covariate $S(t)$ or the number of sovereign states in year $t$. This is counted as an aggregate number of democracies and autocracies at year $t$. The next step of the latent process is to capture the subset of sovereign states that have elites with powerful endowment, $P(t)$, at the time $t$. Elites may inherit sophisticated military technologies from the previous foreign domination or simply receive exogenous endowment, such as oils or natural resources, that make them powerful enough to not establish democracies. The transition from $S(t)$ to $P(t)$ is captured as a binomial approximation with exponential transition probabilities, as suggested in Euler solutions stochastic dynamic (King, Ionides, and Wheeler 2024):
+
+$$
+\tilde{N}_{SP}(t + \delta) + \tilde{N}_{SP}(t) + \text{Binomial}\left[\tilde{S}(t), 1 - \text{exp}\left( {{-\beta} \frac{\tilde{R}(t)}{\tilde{S}(t)} \Delta t} \right) \right]
+$$
+Drawing insight from SIER model (King and Ionides 2024b), I consider $P(t)$ as a latency period before revoluationary threats occur. Observing powerful elites after the state's sovereignty is established, the mass soon prepares for the revolution to negotiate with the elites with the following expected value.
+
+
+$$
+\beta \frac{R(t)}{S(t)}
+$$
+Notice that $\beta$ and $R(t)$ are the parameters to be estimated, while $S(t)$ is smoothed with a cubic spline. The initial value of covariates $S(0)$ is fixated at 23 to follow the number of sovereign states in the dataset in $t = 0$.
+
+The rate of transition from $P(t)$ to $R(t)$ is captured by the coefficient $\mu_{PR}$ in the following Euler stochastic binomial approximation. $R(0)$ is fixated at two to represent the sovereign states where revolutions had unfolded, the United States and France. 
+
+$$
+\tilde{N}_{PR}(t + \delta) = \tilde{N}_{PR}(t) + \text{Binomial}\left[\tilde{P}(t), \mu_{PR}  \Delta t \right]
+$$
+Finally, the transition from $R(t)$ to $N(t)$ is depicted in the equation $\mu_{RN}$ with the rate of change $\mu_{RN}$. The initial values of $N(0)$, is fixated at one to represent the first sovereign state, the United States, that was classified as a democracy in the dataset.
+
+$$
+\tilde{N}_{RN}(t + \delta) = \tilde{N}_{RN}(t) + \text{Binomial}\left[\tilde{R}(t), \mu_{RN} \Delta t \right]
+$$
+This counting process is implemented in the following $\texttt{Csnippets}$, where $\texttt{tot_sov}$ is the covariate from the column in the dataset.
+
+```{r}
+sprn_step <- Csnippet("
+  double dN_SP = rbinom(S,1-exp(-Beta* N/tot_sov*dt));
+  double dN_PR = rbinom(P,1-exp(-mu_PR * dt));
+  double dN_RN = rbinom(R,1-exp(-mu_RN * dt));
+  S -= dN_SP;
+  P += dN_SP - dN_PR;
+  R += dN_PR - dN_RN;
+  N += dN_RN;"
+)
+
+sprn_init <- Csnippet("
+  S = 23;
+  P = 1;
+  R = 2;
+  N = 1;"
+)
+```
+
+
+Similar to SEIR model, the dataset will be modeled as a negative binomial with overdispersion parameter $k$, which also will be estimated in the simulation. This parameter helps to capture the discrepencies between the model and the data (see King, Ionides, and Wheler 2024) or the measurement error.
+
+The overdispersion parameter $k$ will interact with the rate of success, or transition to democracy, $\rho \cdot N(t)$. Similar to SEIR model, $\rho$ represents a reporting efficiency, or in this context, it means the efficiency of past sovereign state develop an accessible archive for the future coders of political regimes
+
+To express this idea formally, the number of democracy given time $t$ is measured in the following quantity. 
+
+$$
+\Delta Z(t) \sim \text{NegBin}(\rho \cdot N(t), k)
+$$
+
+
+Finally, measuring democracies has been a subject of debate in the literature (see Little and Meng 2023), so it might be better to count the measurement error, as in the SEIR model. The measurement error function is included in the $\texttt{pomp}$ object with coefficient $\rho$ multiplied by $N(t)$.
+ 
+The following $Csnippet$ implements respectively $\texttt{dmeasure}$, $\texttt{rmeasure}$, and measurement error as a $\texttt{pomp}$ object.
+
+```{r}
+dmeas <- Csnippet("
+  lik = dnbinom_mu(democracy,k,rho* N, give_log);"
+)
+
+rmeas <- Csnippet("
+  democracy = rnbinom_mu(k,rho*N);"
+)
+
+emeas <- Csnippet("
+  E_democracy = rho*N;"
+)
+```
+
+
+With a consideration of time- constraints, the likelihood of parameters above is estimated through two hundred iteration with two thousands number of particle filter. The loglikelihood standard error is estimated through two thousands particle filter with ten number of replicate. Finally, the cooling fraction with the size $0.5$ in addition to random walk with the size $0.02$ to give a stochastic perturbation in each iterations. 
+
+The starting of each parameter value is chosen arbitrarily from a uniformly distributed two hundred sequence of numbers. The following plot represent the design matrix parameter space used in the iteration algorithm.
+
+```{r, echo = FALSE, fig.cap=cap_fig2}
+set.seed(531)
+
+freeze(runif_design(lower = c(Beta = 10, rho = 0.1, k = 1, mu_PR = 0.5, mu_RN = 0.01), 
+  upper = c(Beta = 50, rho = 0.8, k = 30, mu_PR = 100, mu_RN = 0.5), 
+  nseq = 200)) -> profile_design
+
+pairs(Beta ~ rho + k + mu_RN + mu_PR, data = profile_design)
+
+cap_fig2 = paste(
+  "**Figure 2.** Parameter Space"
+)
+```
+
+
+The computation time took about four hours in the Greatlakes computer with $36$ cores. The result is discussed in the next section.
+
+## **Result**
+
+The estimation of parameters value of the simulation is represented in the following plot.
+
+```{r, echo = FALSE, fig.cap=cap_fig3, cache=TRUE}
+colnames(result)[5] <- "mu_PR"
+
+pairs(loglik ~ Beta + rho + k + mu_RN + mu_PR, data = result)
+
+cap_fig3 = paste(
+  "**Figure 2.** The Simulation Result"
+)
+```
+
+
+Examining the plot above, it seems fair to state that although the number of iteration and particle filters are relatively moderate, the parameter estimates are well identified. More specifically, the profile likelihood confidence interval is represented in the following plot.
+
+```{r, echo = FALSE, fig.cap=cap_fig4, cache=TRUE, warning=FALSE}
+maxlog <- max(result$loglik, na.rm = TRUE)
+ci.cutoff.95 <- maxlog - 0.5 * qchisq(df = 1, p = 0.95)
+ci.cutoff.975 <- maxlog - 0.5 * qchisq(df = 1, p = 0.975)
+
+result |> dplyr::select(-loglik.se, -etime) |> 
+  pivot_longer(-6) |>
+  ggplot(aes(x = value, y = loglik)) +
+  geom_point() +
+  geom_hline(aes(yintercept = ci.cutoff.95, linetype = '95%'), size = 0.5, color = 'coral') +
+  geom_hline(aes(yintercept = ci.cutoff.975, linetype = '97.5%'), size = 0.5, color = "steelblue") +
+  facet_wrap(~name, scales = 'free') + theme_bw() + 
+  scale_linetype_manual(name = "Confidence Interval", values = c(2, 2), guide = guide_legend(override.aes = list(color = c("steelblue", "coral")))) + labs("Simulation Result")
+  
+cap_fig4 = paste(
+  "**Figure 4.** Confidence Interval of the Parameters"
+)
+```
+
+The plot above show that $\beta$, $\mu_{PR}$ ,$\mu_{RN}$ have a value below one within $95\%$ and $97.5\%$ confidence interval. This means, the transition of population moving from one to another compartment unfold in a less than a year Substantively, this means, soon when a sovereign state is established, the mass prepares a revolutionary threats to negotiate with the elites to establish democracy.
+
+To be more precise, the following pair plot is presented to examine the interaction between these substantive parameters.
+
+
+```{r, echo = FALSE, fig.cap=cap_fig5}
+pairs(Beta ~ mu_PR + mu_RN, data = result)
+
+cap_fig5 = paste(
+  "**Figure 5.** Pair Plot of the Substantive Parameters"
+)
+```
+
+
+The pair plot above indicates an exponential decay relationship between the parameters $\beta$ with $\mu_{RN}$ and $\mu_{PR}$. The relationship between these two parameters are consistent with the interpretation above. This implies, as the expected value of negotiation between the mass and elites increase, the the latency period $\mu_{PR}$ and the revolutionary moment $\mu_{RN}$ decreases as well. Substantively, this means, compromising with the mass is an effective mean of elites to appease the revolutionary threats.
+
+With regards to the measurement error and the data quality on the regime, the result of simulation indicates if the model is correct, the over dispersion value, $k$, and coding efficiency $\rho$ should be low. The value $k$ within the confidence interval indicates that there is a high discrepancy between the model and the data. The value $\rho$ indicates that if the revolutionary threats is the only route to democratization, there should be more number of democracies reported in the data.
+
+In a more detail, the following plot examines the relationship between $\rho$ and $k$. The plot indicates, within $95%$ confidence interval, one can expect that the coding efficiency is around $0.07$ with overdispersion parameter between $0.56$ and $0.60$. 
+
+```{r, echo = FALSE, fig.cap=cap_fig6}
+result |>
+  mutate(in_ci=loglik>max(loglik)-1.92) |>
+  ggplot(aes(x=rho,y=k,color=in_ci))+
+  geom_point()+
+  labs(
+    color="95% CI?",
+    x=expression(rho),
+    y=expression(k),
+    title="Profile Trace of rho and k"
+) + theme_bw()
+
+cap_fig6 = paste(
+  "**Figure 6.** Profile Trace Plot"
+)
+```
+
+
+Rather than the weakness of the model, the measurement error value in the model suggests that there might additional compartments before $\mu_{RN}$ which complicates the road to democratization. This suggests that elites are not that much willing to negotiate with the mass even though the revolutionary threat occurs.
+
+
+## **Diagnostics**
+### **Benchmark**
+
+To check whether the $\text{pomp}$ model with four parameters are worth to consider, I compare it with a more simpler model such as a negative binomial regression and Poisson regression with year as its explanatory variable. The choice of these model seem reasonable because the outcome variable is a non-negative natural numbers. Finally, independent and identically distributed (IID) model is also chosen as additonal benchmark. 
+
+Additionally, examining the Figure 1 shown earlier, the realization of the measurement model in the dataset also does not indicate the sign of stationarity, hence using ARMA model as a benchmark might be not appropriate. 
+
+The negative binomial model is fitted by using $\texttt{glm.nb}$ function from $\texttt{MASS}$ library while the quasi-Poisson regression is fitted by using $\texttt{glm}$ function in $\texttt{R}$. IID model is fitted by maximum likelihood value function of negative binomial distribution using King, Iondies, and Wheeler's (2024) code.
+
+The log likelihood and AIC values of all these model, including the $\text{pomp}$ model is presented in the following table.
+
+
+```{r, echo = FALSE, cache=TRUE}
+neg.model <- glm.nb(democracy ~ time, data = df_dems)
+pois.model <- glm(formula = democracy ~ time,
+    family = poisson, data = df_dems)
+
+nb_lik <- function (theta) { 
+  -sum(dnbinom(as.numeric(obs(dems_pomp)), 
+               size=exp(theta[1]),prob=exp(theta[2]),log=TRUE))}
+
+nb_mle <- optim(c(0,-5),nb_lik)
+log.iid <- -nb_mle$value
+AIC.iid <- 2 - log.iid
+log.neg.binomial <- -421.243
+log.pois <- -250.7523
+AIC.pois <- AIC(pois.model)
+AIC.neg <- AIC(neg.model)
+AIC.pomp <- 2 * 5 - max(result$loglik)
+
+
+log_table <- data.frame(Model = c("POMP", "Poisson Regression", "Negative Binomial", "IID"),
+           `Log Likelihood` = c(max(result$loglik), log.pois, log.neg.binomial, log.iid),
+           `AIC` = c(AIC.pomp, AIC.pois, AIC.neg, AIC.iid))
+
+knitr::kable(log_table)
+```
+
+
+
+The log likelihood of the POMP model is chosen from the maximum value in the simulation, while its AIC value is computed by considering five parameters estimated during the simulation. 
+
+Examining and comparing these models, it seems safe to conclude that the POMP model is preferable with IID model as a strongest competitor is the IID. In particular, the AIC value of this model is relatively small, even though the number of parameters are the highest among all models.
+
+### **Probes**
+
+The next step of model diagnostic is by probing the simulation data and the observational data. The grey lines in the following plot shows the data generated from twenty simulation from the model with the highest log-likelihood value, while the red line is the actual data point.
+
+
+```{r, echo = FALSE, fig.cap=cap_fig7, cache=TRUE}
+params_best <- result[which.max(result$loglik),][1:5]
+
+dems_pomp |>
+  pomp(params = params_best) -> dems_simulate
+
+
+dems_simulate |>
+  simulate(nsim=20,format="data.frame",include.data=TRUE) |>
+  mutate(
+    date=time,
+    is.data=ifelse(.id=="data","yes","no")
+  ) |>
+  ggplot(aes(x=date,y=democracy, group=.id, color=is.data,
+             alpha=is.data))+
+  geom_line()+
+  guides(color="none",alpha="none") +
+  scale_color_manual(values=c(no=gray(0.4),yes="red"))+
+  scale_alpha_manual(values=c(no=0.4,yes=1)) + 
+  theme_bw() + xlab("Time") + ylab("Delta Z(t)") +
+  ggtitle("Simulation and Data")
+
+
+cap_fig7 = paste(
+  "**Figure 7.** Simulation Plot"
+)
+```
+
+
+Examining the plot above, the simulation predicts at least one incidence of democratization must occur every year. The simulation data indicates a higher exponential growth of democracies in comparison the actual data. Additionally, it might be worth to consider examining the variability of incidence of democracies from the data and from the simulation.
+
+To examine this relationship more precisely, I fit the exponential growth rates model with the simulation and actual data with a function written by King, Ionides, and Wheler (2024) and the standard deviation of its residual fits.
+
+The result is shown in the following plot.
+
+```{r, echo = FALSE, fig.cap=cap_fig7, cache=TRUE}
+growth.rate.plus <- function (y) {
+  democracy <- y["democracy",]
+  fit <- lm(log1p(democracy)~seq_along(democracy)) 
+  c(r=unname(coef(fit)[2]),sd=sd(residuals(fit)))
+}
+
+dems_simulate |>
+  probe(probes=list(growth.rate.plus),nsim=500) |>
+  plot()
+
+cap_fig7 = paste(
+  "**Figure 7.** Probes Plot"
+)
+```
+
+
+
+The plot above indicates there are some moderate evidences in which the growth rate from the model is different from the data, as shown on the two plots on the left panel above. From the plot from the right, additionaly, there is a moderate evidence that the simulation on the lower quartile has a high variability from the data.
+
+However, rather than a weakness of the model, the indication of the lack of fitness between the model and the data ensure the reliability of parameters $rho$ and $k$ in the simulation, which also indicates there is a discrepencies between the model and evidences. This implies, the simulation works well, but the structure of the model needs a further refinement.
+
+
+# **Conclusion**
+
+This report has examined the latent process of democratization in the last two centuries. More specifically, this report asks, given the realization of the annual incidences of democracies in the dataset, what are the value of parameters that can best capture the latent process in the model? The answer of this question is presented in the following plot:
+
+```{r, echo = FALSE, cache=TRUE}
+rownames(result) <- NULL
+
+coefficient <- result |>
+  dplyr::select(-etime) |>
+  filter(loglik == max(loglik)) |>
+  pivot_longer(cols = everything(), names_to = "Coefficient", values_to = "Estimates")
+
+knitr::kable(coefficient)
+```
+
+The estimates of coefficient above is chosen from the simulation of the estimated parameters with the maximum log-likelihood.
+
+Given the low value of coefficient estimates, this model optimistically predicts that incident of democracies occur at least once every year. However even though, this model is over-estimating the actual incidence of democracies in the dataset, it still works well in comparison to other models discussed in the benchmark section. 
+
+Finally, as discussed and suggested in the previous section, a future study of political regime with a simulation method can improve this estimation by adding more compartments so it gives a precise estimate on the latent process that generated the incidence of democracies. 
+
+
+# **References**
+
+
+
+ - Boix, Carles, et. al "A complete data set of political regimes, 1800–2007." *Comparative political studies* 46, no. 12 (2013): 1523-1554
+ - Boix, Charles., 2003. Democracy and redistribution. Cambridge University Press
+ - Cheibub, José Antonio, Jennifer Gandhi, and James Raymond Vreeland. "Democracy and dictatorship revisited." *Public choice* 143 (2010): 67-101
+ - Coppedge, Michael, et. al 2023. "V-Dem  Dataset v13" *Varieties of Democracy (V-Dem) Project.* https://doi.org/10.23696/vdemds23. https://ionides.github.io/531w24/05/slides.pdf
+ - King, Aaron, Edward Ionides, and Jesse Wheeler. 2024. *Simulation-based Inference for Epidemological Dynamics*. Ann Arbor: University of Michigan
+ - King, A.A., Nguyen, D. and Ionides, E.L., 2015. Statistical inference for partially observed Markov processes via the R package pomp. arXiv preprint arXiv:1509.00503
+ - Little, A.T. and Meng, A., 2023. Measuring democratic backsliding. *PS: Political Science & Politics*, pp.1-13
+ - Mann, Michael., 2008. Infrastructural power revisited. *Studies in comparative international development*, 43, pp.355-365
+ - Sen, Amartya.1999. *Development as freedom* 
+ - Weeks, J.L., 2012. Strongmen and straw men: Authoritarian regimes and the initiation of international conflict. *American Political Science Review*, 106(2), pp.326-347
+ - Weber, Max, "Politic as Vocation," in Gerth, H. H. and C. Wright Mills. *From Max Weber: Essay in Sociology*, New York: Oxford University Press, 1946: 77-128
+ 
+
+

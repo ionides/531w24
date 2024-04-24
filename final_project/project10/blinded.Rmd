@@ -1,0 +1,638 @@
+---
+title: "POMP Analysis on Covid-19 Cases in Malaysia and Influenza in the U.S."
+date: "2024-04-19"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3  
+    toc_float: true
+---
+
+## 1. Introduction
+
+The ongoing COVID-19 pandemic and the influenza season in the United States represent significant episodes in the landscape of infectious diseases, each posing unique challenges to public health. The former, caused by the novel SARS-CoV-2 virus, has led to unprecedented global disruption, prompting an urgent need to understand the dynamics of the virus and the impact of vaccination efforts. Malaysia, in particular, has witnessed a diverse range of public health interventions, with vaccine rollout strategies varying in response to the shifting tides of the pandemic in 2021. On the other hand, the 2017-2018 influenza season in the U.S. was notably severe, offering a wealth of data on the transmission dynamics and the effectiveness of vaccines against seasonal influenza strains. The stark contrast between these two scenarios presents an opportunity to analyze and compare the temporal progression and the functional role of vaccines within vastly different contexts. \
+
+Our project used Partially Observed Markov Process (POMP) time series analysis to understand complex dynamical systems behind these diseases. Through rigorous time series analysis and model fitting, we aspire to shed light on the crucial elements that define the success of public health interventions, thereby informing future strategies to mitigate the impact of these and other infectious diseases.
+
+
+## 2. Dataset
+
+### Malaysia Covid-19 data
+
+Our covid dataset comprises COVID-19 data from Malaysia, spanning the years 2021 to 2022, a period significant for the implementation of the National COVID-19 Immunization Program (NIP). Launched on February 24, 2021, the NIP was aimed at curbing the spread of the virus through a structured three-phase vaccination strategy. This initiative began with securing substantial doses of the Pfizer, Sinovac, and AstraZeneca vaccines, totaling over 63 million doses for the year. \
+
+The vaccination program was rolled out in phases: \
+- The first phase targeted around 500,000 essential service workers to maintain critical services. \
+- The second phase aimed to vaccinate 9.4 million individuals, prioritizing those over 60 and those with chronic illnesses. \
+- The third phase, starting on June 21, 2021, planned to vaccinate an additional 13.7 million adults, in response to the emerging Delta variant, which significantly increased transmission rates leading to over 2 million new infections and 27,000 deaths in 2021 alone. \
+
+Despite initial goals to fully vaccinate 80% of the adult population by early 2022, the surge in Delta variant cases prompted an adjustment of the timeline to achieve this target between October and December 2021.
+
+### U.S. Influenza data
+
+For our U.S. influenza dataset, we draw on the U.S. Weekly Influenza Surveillance Report from the Centers for Disease Control and Prevention, which provides comprehensive insights into influenza activity across the country. This dataset brings together the number of influenza cases confirmed by public health laboratories, detailed by viral sub-type and geography, to provide a real-time understanding of the spread and impact of the 2017-2018 influenza season. From the data, we can clearly know the influenza data for each week, such as the number of people tested by Influenza A and B, their positive ratio, the total number of people tested, etc. During the 2017-2018 influenza season in the United States, a variety of flu vaccines were utilized to combat the prevalent strains. These included the standard-dose trivalent vaccines that protected against three different flu viruses and the standard-dose quadrivalent vaccines that provided protection against four different flu viruses
+
+## 3. Methodlogy
+
+### SEIRV model description
+
+The SEIRV model is an enhanced compartmental model used to simulate the spread of infectious diseases and consider vaccination. Our project applies the SEIRV model to understand the dynamics of the COVID-19 pandemic. It was builds upon the classical SEIR framework. [<8>](https://ionides.github.io/531w24/10/notes.pdf)
+
+### Compartments and Parameters
+The main compartments in the model are: \
+
+* Susceptible (S): Individuals who have not contracted the virus and are at risk of infection.
+* Exposed (E): Individuals who have contracted the virus but are not yet infectious, representing the incubation phase.
+* Infectious (I): Individuals who are actively infectious and can transmit the virus to susceptible individuals.
+* Recovered (R): Individuals who have recovered from COVID-19/Flu, but still have possibility of reinfection.
+* Vaccinated (V): Individuals who have received the COVID-19/Flu vaccine, reducing their susceptibility to the virus.
+
+The model is parameterized by the following rates:\
+
+* $\beta$: Transmission rate of the virus.
+* $\mu_{EI}$: Rate at which exposed individuals become infectious.
+* $\mu_{IR}$: Recovery rate from infection.
+* $\mu_{RS}$: Rate ar which recovered people go back to be susceptible.
+* $\mu_{SV}$: Vaccination rate applied to the susceptible population.
+
+We added these parameters because after 2021, the coverage of covid vaccine and flu vaccine are gradually spread out. Thus, the number of sensitive people can be reduced due to both infection and vaccination. Also, both flu and covid showed possibility of getting infected after recovery, which motivates us to add a loop back from the R state to the S state [<6>](https://www.cdc.gov/coronavirus/2019-ncov/your-health/reinfection.html), [<7>](https://www.health.com/condition/flu/can-you-get-flu-twice-in-one-season#:~:text=It's%20possible%20to%20get%20the,different%20strains%20that%20cause%20illness)
+
+```{r, echo=FALSE, fig.cap="<center>Figure1. Compartmental Diagram Describing the Dynamics of COVID-19"}
+library(DiagrammeR)
+library(readr)
+
+grViz("
+digraph SEIRV {
+  
+  node [shape = box]
+  edge [arrowhead = vee]
+  
+  S -> E [label = 'B']
+  E -> I [label = 'μ_EI']
+  I -> R [label = 'μ_IR']
+  R -> S [label = 'μ_RS'] 
+  S -> V [label = 'μ_SV']
+  
+  rankdir = LR;
+}
+")
+```
+
+### Mathematical Intepretation
+
+In this case, the SEIRV model is governed by the following set of differential equations: \
+
+$$\frac{dS}{dt} = -\beta \frac{SI}{N} - \mu_{SV} S + \mu_{RS} R \quad (1)$$
+
+$$\frac{dE}{dt} = \beta \frac{SI}{N} - \mu_{EI} E \quad (2)$$
+
+$$\frac{dI}{dt} = \mu_{EI} E - \mu_{IR} I \quad (3)$$
+
+$$\frac{dR}{dt} = \mu_{IR} I - \mu_{RS} R \quad (4)$$
+
+$$\frac{dV}{dt} = \mu_{SV} S \quad (5)$$
+
+* Equation (1): Represents the rate at which susceptible individuals either become exposed to the virus through contact with infectious individuals or are vaccinated, also some people that are recovered might also become susceptible.
+* Equation (2): Depicts the rate at which exposed individuals become infectious.
+* Equation (3): Indicates the rate at which infectious individuals recover and cease to be infectious.
+* Equation (4): Represents the recovery of infectious individuals and reinfection of recovered individuals. 
+* Equation (5): Models the vaccination of susceptible individuals.
+
+### Model Assumptions
+
+* The model assumes a constant total population size of $N$ and does not account for births or deaths.
+* The model assumes homogeneous mixing, meaning every individual in the population has an equal probability of coming into contact with infectious individuals.
+* The vaccine is thought to confer immunity immediately after injection, easing the process of transitioning directly from $S$ to $V$ without going through an exposure phase.
+
+## 4. Exploratory Data Analysis
+
+### For Covid-19 data
+
+In our analysis, we have aggregated the weekly reported cases by summing the daily case counts to provide a clearer view of the pandemic's progression in relation to the vaccination efforts. From the ACF plot, we noticed that it drops slowly and remains high (such as an ACF of 0.8 at lag 30), it suggests that the series is likely non-stationary. This slow decay in the ACF indicates the presence of a trend or some form of persistent autocorrelation over time, which an ARMA model is not designed to handle directly. [<9>](https://ionides.github.io/531w24/04/notes.pdf) Though by applying some detrending method such as taking differences can alleviate the non-stationarity, we think a POMP model can be more suitable and more intepretable. 
+
+```{r, echo = FALSE}
+library(zoo)
+library(ggplot2)
+library(dplyr)
+library(forecast)
+
+data_covid <- read.csv("/Users/ganjingrui/Desktop/cases_malaysia.csv")
+data_covid$date <- as.Date(data_covid$date, format = "%Y-%m-%d")  # adjust format as needed
+
+
+# Create the line plot
+ggplot(data_covid, aes(x = date, y = cases_new)) +  # Ensure 'case_new' is your column for new daily cases
+  geom_line(color = "blue") +
+  labs(title = "Daily New COVID-19 Cases",
+       x = "Date",
+       y = "Number of New Cases") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x labels for readability if needed
+
+# Plotting ACF
+# Ensure that cases_new has no NA values for accurate ACF calculation
+data_covid <- na.omit(data_covid)
+
+Acf(data_covid$cases_new, main="ACF for Daily New COVID-19 Cases in 2021")
+
+```
+
+
+
+### For Flu data
+
+In our analysis, we selected U.S. Influenza weekly data from Oct 2, 2017 to Sep 29, 2018.
+
+```{r, echo = FALSE, include = FALSE}
+data <- read_csv("/Users/ganjingrui/Desktop/FluData.csv")
+names(data)[names(data) == "TOTAL A"] <- "TOTAL_A"
+names(data)[names(data) == "TOTAL B"] <- "TOTAL_B"
+data$Date <- as.Date(paste(data$YEAR, data$WEEK, 1, sep = "-"), format = "%Y-%U-%u")
+data <- data[order(data$Date), ]
+data$YearWeek <- paste("week", seq_along(data$Date), sep = "")
+data$Week <- as.integer(sub("week", "", data$YearWeek))
+data <- subset(data, Week <= 35)
+```
+
+
+```{r, echo = FALSE}
+library(ggplot2)
+library(lubridate)
+ggplot(data, aes(x = Week, y = TOTAL_A)) +
+  geom_line(color = "red") +  # This creates a line plot
+  labs(title = "Weekly Time Series Plot for U.S. Influenza A From Oct 2, 2017 to Sep 29, 2018", x = "Week", y = "Number of People with Influenza A ") +
+  theme_minimal()
+
+## plot the ACF of flu data
+Acf(data$TOTAL_A, main="ACF plot for Weekly U.S. Influenza Cases From 2017 to 2018")
+```
+
+For our Flu data, we found that after week 35 of the data set, Influenza went into its off-season, causing the number of infections to stay close to 0. Therefore, in order to better fit the model later, we choose to only select the data of the first 35 weeks. From the time series chart of this data, we can clearly see that the number of infections began to rise rapidly from the 10th week and reached a peak around the 17th week, and then continued to decline to 0 at a very fast rate. This trend of change Let us easily understand the high prevalence period of Influenza A. The ACF plot for weekly U.S. influenza cases shows a quick drop in correlation after the first lag, indicating little dependency between the current week's cases and those in the following weeks. This suggests that a more complex model, like POMP, is needed to understand the underlying processes of the disease's spread, as it can integrate both the observed data and the hidden dynamics that an ACF plot cannot capture.
+
+## 5. Covid POMP
+
+### Local search on Covid Data using SEIRV 
+
+After preprocessing the covid data, based on the information obtained from our data set, we set a reasonable initial value for our SEIRV model and ran a local search.
+
+```{r, echo = FALSE, include = FALSE}
+# Preprocess it to weekly data
+library(readr)
+library(dplyr)
+url <- "https://github.com/MoH-Malaysia/covid19-public/raw/main/epidemic/cases_malaysia.csv"
+data <- read_csv(url)
+data$date <- as.Date(data$date)
+filtered_cases1 <- filter(data, date < as.Date("2023-01-01"))
+total_recovered <- sum(filtered_cases1$cases_recovered, na.rm = TRUE)
+filtered_data <- data %>% 
+  filter(date >= as.Date("2021-01-01"))
+filtered_data$week_group <- (as.numeric(filtered_data$date - min(filtered_data$date)) %/% 7) + 1
+weekly_data <- filtered_data %>%
+  group_by(week_group) %>%
+  summarise(across(where(is.numeric), sum, na.rm = TRUE))
+```
+
+```{r, echo = FALSE, include = FALSE}
+library(tidyverse)
+library(pomp)
+set.seed(1350254336)
+library(foreach)
+library(doFuture)
+plan(multisession)
+```
+
+
+```{r}
+library(tidyverse)
+library(pomp)
+set.seed(1350254336)
+
+# TODO: assume vaccination follow this equation
+seirv_step <- Csnippet("
+  double dN_SE = rbinom(S,1-exp(-Beta*I/N*dt));
+  double dN_EI = rbinom(E,1-exp(-mu_EI*dt));
+  double dN_IR = rbinom(I,1-exp(-mu_IR*dt));
+  
+  S -= dN_SE;
+  double dN_SV = rbinom(S,1-exp(-mu_SV*dt));
+  S -= dN_SV;
+  E += (dN_SE - dN_EI);
+  I += (dN_EI - dN_IR);
+  R += dN_IR;
+  double dN_RS = rbinom(I,1-exp(-mu_RS*dt));
+  R -= dN_RS;
+  S += dN_RS;
+  V += dN_SV; 
+  H += dN_IR;
+"
+)
+
+seirv_init_covid <- Csnippet("
+ S = 32400000 - 4977816 - 120000 - 103045;
+ E = 120000;
+ I = 103045;
+ R = 4977816;
+ V = 0;
+ H = 1600;"
+)
+
+
+dmeas <- Csnippet("
+  lik = dnbinom_mu(reports,k,rho*H,give_log);"
+)
+rmeas <- Csnippet("
+  reports = rnbinom_mu(k,rho*H);"
+)
+emeas <- Csnippet("
+  E_reports = rho*H;"
+)
+```
+
+### Simulating an SEIRV Process
+
+```{r, echo = FALSE}
+weekly_data |>
+  select(week_group,reports=cases_new) |>
+  #filter(week_group<50) |>
+  pomp(
+    times="week_group",t0=0,
+    rprocess=euler(seirv_step,delta.t=1/7),
+    rinit=seirv_init_covid,
+    rmeasure=rmeas,
+    dmeasure=dmeas,
+    emeasure=emeas,
+    accumvars="H",
+    statenames=c("S","E","I","R","V","H"),
+    paramnames=c("Beta","mu_EI","mu_IR","mu_SV","mu_RS","rho","k","N"),
+    params=c(Beta=15,mu_IR=2,mu_EI=0.2,mu_RS=0.2,rho=0.9,k=80,N=32400000,mu_SV=0.5)
+  ) -> measSEIRV
+```
+
+```{r}
+sims_covid <- simulate(
+  measSEIRV,
+  params = c(Beta=2,mu_IR=0.088,mu_EI=0.25,mu_RS=0.22,rho=0.8,k=80,N=32400000,mu_SV=0.2),
+  nsim = 20,
+  format = "data.frame",
+  include.data = TRUE
+)
+
+# Plot the simulation results
+sims_covid |>
+  ggplot(aes(x = week_group, y = reports, group = .id, color = .id == "data")) +
+  geom_line() +
+  guides(color = "none")
+
+```
+
+In the simulation process on our covid data, no matter how we tune the parameter set, we cannot derive a perfect simulation result. We guess that this is because our model might not have. a good performance on multi-peak data. Therefore, we are going to do a local search to prove our guess.
+
+```{r, echo = FALSE}
+library(foreach)
+library(doFuture)
+plan(multisession)
+
+
+fixed_params <- c(N=32400000, k=80)
+coef(measSEIRV,names(fixed_params)) <- fixed_params
+
+library(doRNG)
+library(foreach)
+library(doFuture)
+library(doParallel)
+registerDoParallel(36)
+registerDoRNG(482947940)
+bake(file="local_search_covid.rds",{
+  foreach(i=1:20,.combine=c,.packages=c("pomp")
+  ) %dopar% {
+    measSEIRV |>
+      mif2(
+        Np=5000, Nmif=100,
+        cooling.fraction.50=0.1,
+        rw.sd=rw_sd(Beta=2, mu_EI=0.25, mu_IR=0.088,rho=0.8,mu_RS=0.22,mu_SV=0.2),
+        partrans=parameter_trans(log=c("Beta","mu_IR","mu_EI","mu_RS","mu_SV"),logit=c("rho")),
+        paramnames=c("Beta","mu_EI","rho","mu_IR","mu_RS","mu_SV")
+      )
+  } -> mifs_local
+  attr(mifs_local,"ncpu") <- nbrOfWorkers()
+  mifs_local
+}) -> mifs_local
+
+mifs_local |>
+  traces() |>
+  melt() |>
+  ggplot(aes(x=iteration,y=value,group=.L1,color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name,scales="free_y")
+
+```
+
+### Intepretation of Covid result
+
+The presented results from the SEIRV model applied to COVID-19 data suggest problematic model fit and parameter stability. We can obviously observe that the log likelihood change very weirdly and does not have the trend of convergence, which implies that the fit is poor. Also, the lack of convergence for parameters of our model, particularly for the Beta, mu_EI, and mu_IR parameters, indicates that the model may not be adequately capturing the underlying epidemiological process. Such variability and the absence of a clear trend towards stable values as iterations increase raise concerns about the reliability of the model's predictions and parameter estimates
+
+### Why SEIRV Model Failed for Covid-19 data?
+
+1. Multiple Peaks in Infection Rates \
+
+The observation of multiple peaks in the infection rates from 2021 to 2022 highlights a significant limitation of the traditional SEIRV models: \
+Traditional SEIRV models are typically configured to simulate scenarios with a constant rate or probability of state transition. This implies the probability of getting infected stays constant, which can mostly fit a single peak of infection, representing one wave of infections. With multiple waves of pandemics, the infection rate and recovery rate can vary drastically. Therefore, this setup restricts their effectiveness in predicting or accommodating scenarios where multiple waves of infections occur due to various factors such as changes in social behavior or the emergence of new virus variants.
+
+2. Rapid Viral Mutation and Population \
+
+The rapid mutation rate of the COVID-19 virus, especially in densely populated areas like Malaysia, presents another challenge: \
+The virus's ability to mutate rapidly can significantly alter its infectivity and severity, which in turn affects the dynamics of the pandemic. Static parameters such as transition rates (e.g., $\mu_{EI}$ or $\mu_{IR}$) in the model may quickly become outdated, requiring adjustments to remain relevant. Moreover, there may be many people moving in and out the region specifially in populated countries like Malaysia. This makes the number of people less predictable.
+
+3. Non-Uniform Vaccination Rates \
+
+The phased rollout of the vaccination program in Malaysia also presents a challenge to the standard assumptions of the SEIRV model. This non-uniform vaccination rollout can lead to periods of heightened susceptibility in the population, particularly if new virus variants emerge or if logistical challenges delay vaccine distribution.
+
+## 6. Flu POMP
+
+### Simulating an SEIRV Process
+After studying and concluding that our model failed in the covid data, we applied our model to the US flu data again. First, we continued to debug the parameters of the model through simulation, and finally came up with a reasonable set of parameter configurations for our SEIRV model, where $\beta = 10, \mu_{IR} = 0.1, \mu_{EI} = 0.2, \mu_{RS} = 0.1, \mu_{SV} = 0.2, rho = 0.9, k = 10, N = 1000000$.
+
+```{r, include = FALSE}
+seirv_step <- Csnippet("
+  double dN_SE = rbinom(S,1-exp(-Beta*I/N*dt));
+  double dN_EI = rbinom(E,1-exp(-mu_EI*dt));
+  double dN_IR = rbinom(I,1-exp(-mu_IR*dt));
+  S -= dN_SE;
+  double dN_SV = rbinom(S,1-exp(-mu_SV*dt));
+  S -= dN_SV;
+  E += (dN_SE - dN_EI);
+  I += (dN_EI - dN_IR);
+  R += dN_IR;
+  V += dN_SV; 
+  H += dN_IR;
+"
+)
+seirv_init <- Csnippet("
+  S = 1000000;
+  E = 0;
+  I = 200;
+  R = 0;
+  V = 0;
+  H = 0;"
+)
+
+read_csv("https://github.com/flippy1313/data531/raw/main/fludata_new.csv") |>
+  select(WEEK,reports='TOTAL A') |>
+  filter(WEEK<35) |>
+  pomp(
+    times="WEEK",t0=0,
+    rprocess=euler(seirv_step,delta.t=1/7),
+    rinit=seirv_init,
+    rmeasure=rmeas,
+    dmeasure=dmeas,
+    emeasure=emeas,
+    accumvars="H",
+    statenames=c("S","E","I","R","V","H"),
+    paramnames=c("Beta","mu_EI","mu_IR","mu_SV","mu_RS","rho","k","N"),
+    params=c(Beta=10,mu_IR=0.1,mu_EI=0.2,mu_RS=0.1,rho=0.9,k=10,N=1000000,mu_SV=0.2)
+  ) -> measSEIRV_flu
+```
+
+```{r}
+sims <- simulate(
+  measSEIRV_flu,
+  params = c(Beta=10,mu_IR=0.1,mu_EI=0.2,mu_RS=0.1,rho=0.9,k=10,N=1000000,mu_SV=0.2),
+  nsim = 20,
+  format = "data.frame",
+  include.data = TRUE
+)
+
+# Plot the simulation results
+sims |>
+  ggplot(aes(x = WEEK, y = reports, group = .id, color = .id == "data")) +
+  geom_line() +
+  guides(color = "none")
+
+```
+
+### Local search on Flu Data using SEIRV 
+
+After performing the simulation, we use the parameters we obtained as initial values for local serach on the flu data.
+
+```{r}
+library(foreach)
+library(doFuture)
+plan(multisession)
+
+library(doRNG)
+library(foreach)
+library(doFuture)
+library(doParallel)
+registerDoParallel(36)
+registerDoRNG(482947940)
+bake(file="local_search_flu.rds",{
+  foreach(i=1:20,.combine=c,.packages=c("pomp")
+  ) %dopar% {
+    measSEIRV_flu |>
+      mif2(
+        Np=5000, Nmif=100,
+        cooling.fraction.50=0.1,
+        rw.sd=rw_sd(Beta=0.005, mu_EI=0.005, rho=0.005, mu_IR=0.005,mu_SV=0.005),
+        partrans=parameter_trans(log=c("Beta","mu_IR","mu_EI","mu_RS","mu_SV"),logit=c("rho")),
+        paramnames=c("Beta","mu_EI","rho","mu_IR","mu_RS","mu_SV")
+      )
+  } -> mifs_local_flu
+  attr(mifs_local_flu,"ncpu") <- nbrOfWorkers()
+  mifs_local_flu
+}) -> mifs_local_flu
+
+
+mifs_local_flu |>
+  traces() |>
+  melt() |>
+  ggplot(aes(x=iteration,y=value,group=.L1,color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name,scales="free_y")
+
+```
+
+The trace plots for the SEIRV model applied to flu data exhibit a promising trend towards convergence, a critical indicator of a well-performing model. The parameters, including Beta, mu_EI, mu_IR, mu_RS, and mu_SV, stabilize as iterations progress, indicating reliable and consistent estimates. Moreover, the log-likelihood (loglik) plot shows an upward trend, leveling off as iterations continue, which reflects an improving fit of the model to the observed data. Collectively, these patterns demonstrate that the SEIRV model is capturing the disease dynamics effectively, and the parameters are estimated with a level of confidence, reinforcing the robustness of the model in interpreting the U.S. influenza outbreak dynamics from 2017 to 2018.
+
+```{r}
+bake(file = "lik_local.rds", {
+  foreach(mf=mifs_local_flu,.combine=rbind) %dopar% {
+    library(pomp)
+    library(tidyverse)
+    evals <- replicate(10, logLik(pfilter(mf,Np=1000)))
+    ll <- logmeanexp(evals,se=TRUE)
+    mf %>% coef() %>% bind_rows() %>%
+    bind_cols(loglik=ll[1],loglik.se=ll[2])
+  } -> results_flu
+}) -> results_flu
+
+results_flu %>% arrange(-loglik) %>% select(Beta, mu_IR, mu_EI, mu_RS, mu_SV, rho, loglik,loglik.se) %>% head %>% 
+  knitr::kable(digits = 3, caption = "Local search results")
+```
+
+From the local search result table, we can observe that the maximum of log likelihood is -316.098 with standard error 0.053.
+
+### Global Search on Flu data using SEIRV
+
+We aim to improve the result further. Thus, we use a global search from multiple starting points to carry out parameter estimation for dynamic system. We randomly select 100 starting values for parameters, which follow a multivariate uniform distribution, where $\beta\in [5,15], \mu_{IR}\in [0, 0.2], \mu_{EI}\in [0, 0.2], \mu_{RS}\in [0, 0.2], \mu_{SV}\in [0, 0.2], \rho\in [0.7,1]$. $k=10$ and $N=1000000$ are constant in our case.
+
+
+```{r, include=F}
+set.seed(2062379496)
+
+runif_design(
+  lower=c(Beta=5,mu_IR=0,mu_EI=0,mu_RS=0,rho=0.7,k=10,N=1000000,mu_SV=0),
+  upper=c(Beta=15,mu_IR=0.2,mu_EI=0.2,mu_RS=0.2,rho=1,k=10,N=1000000,mu_SV=0.2),
+  nseq=100
+) -> guesses
+
+```
+
+```{r}
+# global
+library(iterators)
+library(doRNG)
+library(doParallel)
+registerDoParallel(36)
+registerDoRNG(2062379496)
+fixed_params <- c(N=1000000, k=10)
+bake(file="global_search.rds",
+  dependson=guesses,{
+    foreach(guess=iter(guesses,"row"), .combine=rbind, .packages=c("pomp")
+    ) %dopar% {
+      measSEIRV_flu %>%
+      mif2(Np=5000, Nmif=100,
+        cooling.fraction.50=0.2,
+        rw.sd=rw_sd(Beta=0.002, mu_EI=0.002, rho=0.002, mu_SV=0.002, mu_IR=0.002,mu_RS=0.002),
+        partrans=parameter_trans(log=c("Beta","mu_EI","mu_SV","mu_IR","mu_RS"),logit=c("rho")),
+        paramnames=c("Beta","mu_EI","rho","mu_SV","mu_IR","mu_RS"),
+        params=c(unlist(guess),fixed_params)) %>%
+      mif2(Nmif=50) -> mf
+      replicate(
+        10,
+        mf |> pfilter(Np=5000) |> logLik()
+      ) |>
+        logmeanexp(se=TRUE) -> ll
+      mf |> coef() |> bind_rows() |>
+        bind_cols(loglik=ll[1],loglik.se=ll[2])
+    } -> results
+    attr(results,"ncpu") <- nbrOfWorkers()
+    results
+  })  |>
+  filter(is.finite(loglik)) -> results
+```
+
+```{r}
+bind_rows(results) |>
+  filter(is.finite(loglik)) |>
+  arrange(-loglik) |>
+  write_csv("final_params_2.csv")
+
+read_csv("final_params_2.csv") |>
+  filter(loglik>max(loglik)-50) |>
+  bind_rows(guesses) |>
+  mutate(type=if_else(is.na(loglik),"guess","result")) |>
+  arrange(type) -> all
+#png("global_search_flu.png")
+pairs(~loglik+Beta+mu_IR+rho+mu_EI+mu_SV+mu_RS, data=all, pch=16, cex=1,
+  col=ifelse(all$type=="guess",grey(0.5),"red"))
+```
+
+In the plots of global search shown above, the grey points represent starting values, and red points represent IF2 estimates. We can find that except for Rho, which is the report rate, all of $\beta$, $mu_{IR}$, $mu_{EI}$, $mu_{SV}$, and $mu_{RS}$ show informative results. The red dots indicate that a smaller $\beta$ around 6, a larger $\mu_{IR}$ around 0.3, a large $\mu_{EI}$ around 0.3, a medium $\mu_{SV}$ around 0.15, and a medium $\mu_{RS}$ around 0.1 tend to give better loglikelihood. However, the curve formed by red dots in $\beta \sim$ loglik, $\mu_{EI} \sim$ loglik, and $\mu_{IR} \sim$ loglik did not clearly show a trend of convergence. This means that we may need to increase the search range for these parameters.
+
+```{r}
+results %>% arrange(-loglik) %>% select(Beta, mu_IR, mu_EI, mu_RS, mu_SV, rho, loglik,loglik.se) %>% head %>%
+  knitr::kable(digits = 3, caption = "Global search results")
+```
+
+From the global search result table, we can observe that the maximum of log likelihood is -306.821 with standard error 0.031. Its performance is better than local search, which is highly reasonable and expected.
+
+### Profile on mu_SV
+
+To evaluate the influence of vaccination rates on the dynamics of influenza within the population. By profiling the parameter $\mu_{SV}$, which represents the vaccination rate applied to the susceptible population, we aim to quantify the efficacy of vaccination campaigns and their capacity to curb the spread of the virus. 
+
+```{r}
+
+read_csv("final_params_2.csv") |>
+  group_by(cut=round(rho,2)) |>
+  filter(rank(-loglik)<=5) |>
+  ungroup() |>
+  arrange(-loglik) |>
+  select(-cut,-loglik,-loglik.se) -> guesses
+
+
+library(foreach)
+library(doParallel)
+library(doRNG)
+registerDoParallel(36)
+registerDoRNG(2105684752)
+bake(file="mu_SV_profile.rds",
+  dependson=guesses,{
+    foreach(guess=iter(guesses,"row"), .combine=rbind,.packages=c("pomp")
+    ) %dopar% {
+      measSEIRV_flu %>%
+      mif2(Np=5000, Nmif=100,
+        cooling.fraction.50=0.3,
+        rw.sd=rw_sd(Beta=0.002, mu_EI=0.002, rho=0.002, mu_IR=0.002, mu_RS=0.002),
+        partrans=parameter_trans(log=c("Beta","mu_EI","mu_IR","mu_RS"),logit=c("rho")),
+        paramnames=c("Beta","mu_EI","rho","mu_RS","mu_IR","mu_SV"),
+        params=c(unlist(guess),fixed_params)) %>%
+      mif2(Nmif=60) -> mf
+      replicate(
+        10,
+        mf |> pfilter(Np=5000) |> logLik()) |>
+        logmeanexp(se=TRUE) -> ll
+      mf |> coef() |> bind_rows() |>
+        bind_cols(loglik=ll[1],loglik.se=ll[2])
+    } -> results
+    attr(results,"ncpu") <- nbrOfWorkers()
+    results
+  }) -> results
+
+read_csv("final_params_2.csv") |>
+  bind_rows(results) |>
+  filter(is.finite(loglik)) |>
+  arrange(-loglik) |>
+  write_csv("final_params_2.csv")
+
+results |>
+  filter(is.finite(loglik)) -> results
+
+pairs(~loglik+Beta+rho+mu_SV+mu_IR+mu_EI+mu_RS,data=results,pch=16)
+
+
+results |>
+  filter(loglik>max(loglik)-100,loglik.se<1) |>
+  group_by(round(mu_SV,2)) |>
+  filter(rank(-loglik)<3) |>
+  ungroup() |>
+  ggplot(aes(x=mu_SV,y=loglik))+
+  geom_point()+
+  geom_hline(
+    color="red",
+    yintercept=max(results$loglik)-0.5*qchisq(df=1,p=0.90)
+  )
+
+results |>
+  filter(loglik>max(loglik)-0.5*qchisq(df=1,p=0.90)) |>
+  summarize(min=min(mu_SV),max=max(mu_SV)) -> mu_SV_ci
+
+```
+
+As the above profile likelihood figure on $\mu_{SV}$, we can see there is a clear peak at around 0.10. This suggests that introducing the vaccination state may be helpful and a 90% confidence interval sits roughly from 0.08 to 0.12. Unlike the search in hm7, in this project, we intentionally make values in rw.sd much smaller because we found the results are more sensitive to the change of parameters. However, increasing the number of trials may give us a better result because we can see the left tail contains much less data points than the right tail. We guess the algorithm searched more intensively on the larger $\mu_{SV}$ region.
+
+## 7. Conclusion
+In our project, we analyzed COVID-19 data from Malaysia and flu data from the US using the SEIRV model. The model struggled with the COVID-19 data due to the virus's rapid mutation and multiple peaks, while it successfully fit the flu data, which typically exhibits a single annual peak and potentially simpler environment, allowing for stable parameters. From global search and profile likelihood on $\mu_{SV}$, we believe our SEIRV with loop capability can fit the pandemic data well. Notably, we found a weakness of POMP models covered in our class. However, we think this can be improved by alternating the value of parameters at different time stamps. For example, this can be done by fitting a curve to predict infection rate based on time and embed this curve into POMP. A similar method is used in this paper [<5>](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10867513/).
+
+## 8. Reference
+1. https://github.com/MoH-Malaysia/covid19-public/blob/main/epidemic/cases_malaysia.csv
+2. https://www.cdc.gov/flu/weekly/index.htm
+3. https://www.cdc.gov/flu/prevent/different-flu-vaccines.htm
+4. https://www.cdc.gov/coronavirus/2019-ncov/your-health/reinfection.html
+5. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10867513/
+6. https://www.cdc.gov/coronavirus/2019-ncov/your-health/reinfection.html
+7. https://www.health.com/condition/flu/can-you-get-flu-twice-in-one-season#:~:text=It's%20possible%20to%20get%20the,different%20strains%20that%20cause%20illness
+8. https://ionides.github.io/531w24/10/notes.pdf
+9. https://ionides.github.io/531w24/04/notes.pdf
+

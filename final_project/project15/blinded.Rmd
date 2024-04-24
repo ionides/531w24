@@ -1,0 +1,851 @@
+---
+title: "Analysis of Middle-East Respiratory Syndrome coronavirus in Saudi Arabia"
+subtitle: "A STATS 531 24W Final Project"
+author: 'Anonymous'
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    toc_float:
+      collapsed: True
+      smooth_scroll: True
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+  rmarkdown::html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+Middle-East respiratory syndrome (MERS-CoV, or MERS) is a virus which affects the respiratory system. It has a fatality rate of around 35\%. The virus was first discovered in 2012 in Jeddah, Saudi Arabia. Since then, there have been several outbreaks of MERS in Saudi Arabia. Additionally, an outbreak took place in South Korea in 2015, which is believed to have been brought there by a traveler from Saudi Arabia. The virus is known to have crossed over into the human population from camels, among which the disease is endemic. It is clear that the virus is not particularly virulent among humans, as the total number of infections over more than a decade amounts to several thousands. However, the very high fatality rate and possibility of spreading to other places, as it did in 2015, motivate interest in modeling the spread of this virus. ^[https://journals.sagepub.com/doi/pdf/10.1177/0962280217746442], ^[https://www.cdc.gov/coronavirus/mers/about/index.html]
+
+In this project, we perform analysis on MERS cases in Saudi Arabia from January 2014 to May 2016. We first analyze the data using ARIMA time series models, and then further explore the data with a Susceptible-Exposed-Infectious-Recovered-Susceptible (SEIRS) model to simulate the spreading of MERS among camels population.
+
+## Data Source
+
+The data, downloaded from Kaggle^[https://www.kaggle.com/datasets/imdevskp/mers-outbreak-dataset-20122019], was originally gathered by the **World Health Organization**. The data contains, for each week, the number of reported MERS cases in each of three places: Saudi Arabia, South Korea, and other countries. The data begin in March 2012 and end in June 2019.
+
+## Exploratory Analysis
+
+First, we examine the plot of the epidemic in both Saudi Arabia and South Korea.
+
+```{r,fig.cap=TRUE, message=FALSE, warning=F, echo=F}
+library(pomp)
+library(tidyverse)
+```
+
+```{r, echo=F}
+mers = read.csv('weekly_clean.csv')
+saudi = mers[mers$Region=='Saudi Arabia',]
+# mers <- rename(mers, reports=New.Cases)
+saudi$date <- make_date(year=saudi$Year) + weeks(saudi$Week)
+saudi$week = 1:dim(saudi)[1]
+
+korea = mers[mers$Region=='Republic of Korea',]
+# mers <- rename(mers, reports=New.Cases)
+korea$date <- make_date(year=korea$Year) + weeks(korea$Week)
+korea$week = 1:dim(korea)[1]
+```
+
+```{r, echo=F}
+plot(saudi$date, saudi$New.Cases, type="l", col="black", ylab="reports", xlab="date", main="Weekly Cases of MERS in Saudi Arabia (Mar 2012 - June 2019)",
+     cex.main=0.9, cex.lab=0.8, cex.axis=0.7)
+```
+
+```{r, echo=F}
+plot(korea$date, korea$New.Cases, type="l", col="black", ylab="reports", xlab="date", main="Weekly Cases of MERS in South Korea (Mar 2012 - June 2019)",
+     cex.main=0.9, cex.lab=0.8, cex.axis=0.7)
+```
+
+Statistical summary of weekly cases in Saudi Arabia:
+
+```{r, echo=F}
+summary(saudi$New.Cases)
+```
+
+Statistical summary of weekly cases in South Korea:
+
+```{r, echo=F}
+summary(korea$New.Cases)
+```
+
+
+As we can see in the plots and summaries, the epidemic in Saudi Arabia spans a number of years, with occasional spikes to over 25 new cases per week. Otherwise, the weekly count is relatively small. The epidemic in South Korea has only one peak, but the virus didn't originate there and the cases shrunk to zero, thus the entire time frame of the virus in Korea is only several weeks.
+
+### Data Selection
+
+For this project, we consider only the spread in Saudi Arabia. The time-series available from the spread in South Korea is too short to work with. However, we added the plot of its spread to give more context about the spread of MERS.
+
+For the cases in Saudi Arabia, we decide to focus on the cases from January 2014 to May 2016 for the following reasons:
+
+- The cases before January 2014 in Saudi Arabia are in small amount;
+- Saudi Arabia witnessed the first peak of reported cases during April 2014;
+- We intend to model this first great outbreak and the other smaller outbreaks in the next two years;
+- We discard the data after May 2016 to keep an appropriate length of data to analyze.
+
+## ARMA
+
+### Data Visualization
+
+```{r, echo=F, message=FALSE, warning=FALSE}
+library(conflicted)
+library(tidyverse)
+library(lubridate)
+library(tsibble)
+library(stats)
+library(feasts) # Seasonal plot
+library(forecast) # Plot ARMA roots
+conflicts_prefer(dplyr::filter())
+```
+
+
+```{r, echo=F}
+mers = read.csv('weekly_clean.csv')
+saudi = mers[mers$Region=='Saudi Arabia',]
+# mers <- rename(mers, reports=New.Cases)
+saudi$date <- make_date(year=saudi$Year) + weeks(saudi$Week)
+saudi$week = 1:dim(saudi)[1]
+saudi <- saudi %>% filter(week > 91) %>% filter(week < 217)
+saudi$week = saudi$week - 91
+```
+
+```{r, echo=F}
+plot(saudi$date, saudi$New.Cases, type="l", col="black", ylab="reports", xlab="date", main="Weekly Cases of MERS in Saudi Arabia (Jan 2014 - May 2016)",
+     cex.main=0.9, cex.lab=0.8, cex.axis=0.7)
+```
+
+```{r, echo=F}
+cat(paste0("The time series has ", nrow(saudi), " observations on a weekly level from ", min(saudi$date), " to ", max(saudi$date), ". Over this period, a total of ", sum(saudi$New.Cases), " cases of MERS were reported in Saudi Arabia with a major peak in May 2014 followed by smaller peaks in February 2015, August 2015, and March 2016."))
+```
+
+### Auto-correlation
+
+In the model selection process for ARIMA models (which we will be using as a benchmark in our analysis), we will need to provide some preliminary values of p and q. One way of doing that is to look at the sample ACF (autocorrelation function) and PACF (partial autocorrelation function) plots ^[Shumway and Stoffer (2017), Section 3.7 (Building ARIMA Models)].
+
+- The ACF measures the correlation between $y_{t+h}$ and $y_t$.
+- The PACF measures the correlation between $y_{t+h}$ and $y_t$ with the linear dependence of the intermediate observations $\{y_{t+1}, ... , y_{t+h-1}\}$ on each, removed ^[Shumway and Stoffer (2017), Section 3.3 (Autocorrelation and Partial Autocorrelation)].
+
+
+```{r acf-pacf, fig.width=10, fig.height=4, echo=F}
+par(mfrow=c(1,2), cex.main=0.8, cex.lab=0.8, cex.axis=0.8)
+plot(acf(saudi$New.Cases, plot=F), ylim=c(-0.2, 1), xlim=c(0, 20), main="Weekly Cases of MERS in Saudi Arabia (Jan 2014 - May 2016)")
+plot(pacf(saudi$New.Cases, plot=F), ylim=c(-0.2, 1), xlim=c(0, 20), main="")
+```
+
+
+The ACF tails off/decays to 0 over several lags while the PACF cuts off sharply after lag 1. This indicates that the process underlying the data could be modeled as AR(1) ^[Shumway and Stoffer (2017), Section 3.7 (Building ARIMA Models)].
+
+
+### Seasonality 
+
+#### Seasonal Plot
+
+```{r seasonal-plot, echo=F}
+saudi_ts <- tsibble(date=yearweek(as.Date(saudi$date)), reports=saudi$New.Cases, index=date)
+saudi_ts |> 
+  fill_gaps() |>
+  gg_season(reports, labels = "both") + 
+  labs(x = "date", y = "reports",
+       title = "Seasonal Plot: Weekly MERS Cases in Saudi Arabia (Jan 2014 - May 2016)")
+```
+
+From the plot above, we see no clear yearly pattern, and the peaks in different years do not coincide.
+
+#### Spectral Analysis
+
+Any stationary time series $Y_t$ can be approximated by linear combinations of sines and cosines of different frequencies with random coefficients. The goal of spectral analysis is to estimate the variance of these coefficients based on the observed data so as to understand which frequencies contribute more to the total variance in $Y_t$ than the others ^[[P.K. Bhattacharya and Prabir Burman, Chapter 13 - Time Series, Theory and Methods of Statistics (2016)](https://www.sciencedirect.com/science/article/pii/B9780128024409000138)]. The **spectral density** of $Y_t$ is the frequency domain representation of $Y_t$ given by the discrete Fourier transform of its autocovariance function. The **periodogram** calculated from a sample is used as an estimator of the spectral density of the population.
+
+The raw periodogram is a rough estimate of the population spectral density. The estimate is “rough” partly because the periodogram only uses the discrete fundamental harmonic frequencies whereas the spectral density is defined over a continuum of frequencies. One way to improve the periodogram estimate is by smoothing it using localized centered moving average windows ^[[Estimating the Spectral Density](https://online.stat.psu.edu/stat510/lesson/12/12.1)]. This is a non-parametric method for estimating the spectral density.
+
+```{r, echo=F}
+sd.pg_sm <- spectrum(saudi$New.Cases, spans=c(3,5,3),
+                     main="Smoothed Periodogram", xlab="frequency (1/week)", sub="")
+
+freq.pg_sm <- sd.pg_sm$freq[which.max(sd.pg_sm$spec)]
+abline(v=freq.pg_sm, lty=2, col="red")
+```
+
+```{r, echo=F}
+num_weeks_per_year <- 52.143
+cat(paste("Dominant frequency =", round(freq.pg_sm, 4), "frequency (1/week)", 
+          "\nEstimated Period =", round(12/(num_weeks_per_year * freq.pg_sm), 2), "months"))
+```
+
+From the periodogram, we discovered a dominant frequency of 0.032, which represents a period of 7 months. We decide not to apply this period into our ARIMA model as it does not match any particular length of period (i.e. yearly, quarterly) and we find no evidence in the literature that supports this length of period ^[https://journals.sagepub.com/doi/pdf/10.1177/0962280217746442].  
+
+### ARMA Benchmark
+
+Linear Gaussian Auto Regressive Moving Average (ARMA) models provide a flexible non-mechanistic benchmark comparison ^[Aaron A. King, Edward L. Ionides, [Lesson 5. Case study: Measles in large and small towns](https://kingaa.github.io/sbied/measles/slides.pdf)]. So we start by fitting a stationary Gaussian ARMA(p,q) model under the null hypothesis that there is no trend (which is not entirely unreasonable from looking at the data). We choose not to add integration and seasonality into the ARMA model as the previous parts show that the data has no clear linear trend and no meaningful seasonality to explore.
+
+Model: $\phi(B)(Y_n - \mu) = \psi(B) \epsilon_n$ ^[Edward L. Ionides, [Chapter 5: Parameter estimation and model identification for ARMA models](https://ionides.github.io/531w24/05/slides-annotated.pdf)]
+
+Parameter vector: $\theta = (\phi_{1:p}, \psi_{1:q}, \mu, \sigma^2) \in \mathrm{R^D}$
+
+- Mean function: $E[Y_n] = \mu$ 
+- AR(p) polynomial: $\phi(x) = 1 - \phi_1 x - \phi_2 x^2 - ... - \phi_px^p$
+- MA(q) polynomial: $\psi(x) = 1 + \psi_1 x + \psi_2 x^2 + ... + \psi_qx^q$
+- Gaussian white noise process: $\epsilon_n \sim \text{iid } N(0, \sigma^2)$
+
+
+#### Model Selection
+
+We fit multiple models for different p and q using maximum likelihood estimation and calculate the **Akaike's Information Criterion** in each case.
+
+- $AIC = -2 * \ell(\hat{\theta}_{MLE}) + 2 * D$ where $l(\theta)$ is the log-likelihood and $D$ is the no. of parameters.
+- This balances goodness of fit vs. model complexity, favoring models that are less prone to overfitting and have a lower prediction error. 
+- The "best" model is the one with the **lowest AIC**.
+- NOTE: The "best" model chosen by AIC is not necessarily the best approximation to the true model. It is just the one with the best predictive power among a set of candidate ARMA(p,q) models.
+
+
+```{r arma-aic, warning=FALSE, echo=F}
+aic_table_arma <- function(data, P, Q) {
+  table <- matrix(NA, (P+1), (Q+1))
+  for (p in 0:P) {
+    for (q in 0:Q) {
+       table[p+1, q+1] <- arima(data, order=c(p,0,q), method="ML")$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR", 0:P, sep=""), paste("MA", 0:Q, sep=""))
+  table
+}
+
+arma_aic.sa <- aic_table_arma(saudi$New.Cases, 5, 5)
+arma_aic.sa
+
+min_aic <- min(arma_aic.sa)
+which_min <- which(arma_aic.sa == min_aic, arr.ind = TRUE)
+ar_p <- rownames(which_min)
+ma_q <- colnames(arma_aic.sa)[which_min[,2]]
+cat(paste0("\nMinimum AIC = ", round(min_aic, 2), " for ", ar_p, " ", ma_q))
+```
+
+Best Model:
+
+```{r, echo=F}
+saudiARMA <- arima(saudi$New.Cases, order = c(1, 0, 4))
+saudiARMA
+```
+
+The best ARMA model based on the AIC criterion is **ARMA(1,4)** with 5 parameters, **log-likelihood of -422.77**, and AIC of 859.54. All the coefficients except `ma4` are significant at the 5% level (more than 2 Fisher standard errors away from 0). We will use this as a benchmark to compare our mechanistic SEIRS model against.
+
+
+```{r, echo=F, warning=FALSE}
+saudi %>%
+  ggplot(aes(x=date, y=New.Cases)) +
+  geom_line(aes(color="Observed")) +
+  geom_line(aes(x=date, y=fitted(saudiARMA), color="Fitted ARMA(1,4)")) +
+  scale_colour_manual("", breaks=c("Observed", "Fitted ARMA(1,4)"), values=c("black", "red")) +
+  labs(x="Date", y="Reports", title="MERS Cases in Saudi Arabia (Jan 2014 - May 2016)") + 
+  theme(legend.position=c(0.8, 0.8), legend.title = element_blank())
+```
+
+### Model Diagnostics
+
+```{r arma-roots, echo=F}
+plot(saudiARMA, type="both")
+```
+
+All the AR and MA roots lie outside the unit circle (since the inverse roots lie inside the unit circle). So the model is both causal and invertible.
+
+
+#### Residual Analysis {.tabset .tabset-fade .tabset-pills}
+
+We need to verify the model assumptions ($\epsilon_n \sim \text{iid } N(0, \sigma^2)$) to make sure the results of our analysis can be trusted.
+
+##### Constant Mean & Variance
+
+```{r warning=FALSE, echo=F}
+hist(saudiARMA$residuals, breaks=50, main = 'Histogram of residuals of ARMA(1,4)', xlab="residuals of ARMA(1,4)")
+```
+
+```{r}
+plot(saudi$date, saudiARMA$residuals)
+```
+
+- The histogram suggests that the distribution of residuals could be non-Gaussian;
+- There is no trend in the residuals so the constant mean assumption is valid;
+- Further, there is some indication of non-constant variance as the residuals are scattered with different variance along the time frame (i.e. the residuals have larger variance in middle-2014, middle-2015, and early-2016).
+
+
+##### Independence
+
+
+```{r, echo=F}
+acf(saudiARMA$residuals, main="Residuals of ARMA(1,4)")
+```
+
+- As there are no significant correlations at any lags, our assumption of independent errors seems to be valid.
+
+
+##### Normality
+
+```{r, echo=F}
+qqnorm(saudiARMA$residuals, pch=1, cex.main=0.9, cex.axis=0.8, cex.lab=0.8)
+qqline(saudiARMA$residuals, col="blue")
+```
+
+- The bulk of the residuals mostly follow the normal line, but with large deviations at the tails;
+- This matches what we observe in the histogram. The Gaussian assumption may need further investigation.
+
+## SEIRS POMP model
+
+### Model Considerations and Assumptions
+
+We would like to consider a Partially Observed Markov Process (POMP) model to model the spread of MERS.
+
+What is noticeable about the MERS virus is that isn't very virulent ^[https://www.sciencedirect.com/science/article/pii/S1755436514000607#fig0005] ^[https://journals.sagepub.com/doi/pdf/10.1177/0962280217746442]. In Saudi Arabia it seems to have a static number of infections which generally number in the single or small double digits. This is punctuated by occasional incidents of greater scale which then decrease. Whereas measles, covid-19 and other diseases can be modeled such that they eventually spread throughout a population and are limited only by natural immunity of the population and the immunity of those already infected, MERS is clearly different. We need a model that accounts for these occasional spikes and drops.
+
+After initially attempting to model the spread of MERS among humans as a POMP process, we were not able to find any model that satisfactorily simulated the actual observed spread. Essentially, where the rate of transmission - $\beta$ - was sufficiently large, the disease spread throughout the population. Where it wasn't sufficiently large, it didn't really spread at all. The spread in Saudi Arabia, as shown above, persistently exists in very small case numbers, occasionally breaking out to numbers in the dozens.
+A model was proposed (Lin et al., 2018) ^[Lin, Q., Chiu, A. P., Zhao, S., & He, D. (2018). Modeling the spread of Middle East respiratory syndrome coronavirus in Saudi Arabia. Statistical Methods in Medical Research, 27(7), 1968–1978. https://doi.org/10.1177/0962280217746442] to model MERS as a POMP model which takes into account the primary spread of MERS among the camel population, treating that spread as the Markov process, and treats the human cases as a function of infectious camels. Using the camel population of Saudi Arabia which is known and assumed to be constant, the model uses a SEIRS model to model the spread of MERS among the camels and assumes that the human cases are from infectious camels at time $t$. We based our work in this project on that model proposed by Lin et al. with some adjustments.
+
+### The Model
+
+We have a SEIRS model where all camels are classified as either:
+
+- **S** : Susceptible to infection. Its initial value is estimated as the total population multiplied by the parameter $\eta$.
+
+- **E** : Exposed to infection but not infectious. Its initial value is estimated as the total population multiplied by the parameter $\eta_2$.
+
+- **I** : Infectious. Its initial value is estimated as the total population multiplied by the parameter $\eta_2$. (we used the same parameter $\eta_2$ for initial exposed and infectious camels. The values are relatively small, and in Lin et al, they assumed same initial values for E and I, which we find no reason to reject)
+
+- **R** : Recovered. Part of the recovered camels could turn back to being susceptible.
+
+At all times, we have that $S+E+I+R=N$ where $N=270000$ is the total camel population of Saudi Arabia, which we assume to be constant.
+
+Additionally, we have the following parameters:
+
+- $\rho_{CH}$, the spillover rate from camels to the human population. It was estimated ^[Lin, Q., Chiu, A. P., Zhao, S., & He, D. (2018). Modeling the spread of Middle East respiratory syndrome coronavirus in Saudi Arabia. Statistical Methods in Medical Research, 27(7), 1968–1978. https://doi.org/10.1177/0962280217746442] that each crossover primary infection results in four human infections, so the total number of infected humans is expected to be $4$ times the number of primary-infected (from camels) humans.
+- $\beta$, the transmission rate among camels.
+- $\mu_{EI}$, the rate at which exposed camels become infectious.
+- $\mu_{IR}$, the rate at which infectious camels recover.
+- $\mu_{RS}$, the rate at which the recovered cohort loses its immunity due to evolution of the virus and becomes susceptible again.
+- $\eta$, the proportion of the population that is susceptible. We expect this to be quite large as our data starts right before the first human outbreak, which implies a substantial amount of susceptible camels.
+- $\eta_2$, the proportion of the population that is exposed and infectious.
+- $N$, the regional population of camels, which is assumed to be 270,000 according to Lin et at.
+- $\mu$, the birth and death rate of camels. As we assumed constant population, we also assume that the camels are being born and dying at the same rate. This will bring new-born susceptible camels into the process. The rate is fixed as $\mu^{-1}=14years$ ^[Lin, Q., Chiu, A. P., Zhao, S., & He, D. (2018). Modeling the spread of Middle East respiratory syndrome coronavirus in Saudi Arabia. Statistical Methods in Medical Research, 27(7), 1968–1978. https://doi.org/10.1177/0962280217746442] This reflects that the older cohort is being replaced at a constant rate by newborn calves.
+- $\rho$, the reporting rate for primary cases. We fix it as $\rho=1$ as almost all camel-infected human cases are recorded.
+- $k$, the over-dispersion rate of the measurement model.
+
+The model can be exprssed as following:
+
+\begin{align}
+\Delta N_{SE} &\sim \text{Binomial}(S, 1 − e^{−\beta \frac{I}{N} \Delta t})
+\\
+\Delta N_{EI} &\sim \text{Binomial}(E, 1 − e^{-\mu_{EI} \Delta t})
+\\
+\Delta N_{IR} &\sim \text{Binomial}(I, 1 − e^{-\mu_{IR} \Delta t})
+\\
+\Delta N_{RS} &\sim \text{Binomial}(R, 1 − e^{-\mu_{RS} \Delta t})
+\\
+\Delta N_{S} &\sim \text{Binomial}(S, 1 − e^{-\mu \Delta t})
+\\
+\Delta N_{E} &\sim \text{Binomial}(E, 1 − e^{-\mu \Delta t})
+\\
+\Delta N_{I} &\sim \text{Binomial}(I, 1 − e^{-\mu \Delta t})
+\\
+\Delta N_{R} &\sim \text{Binomial}(R, 1 − e^{-\mu \Delta t})
+\\
+\Delta N_{N} &\sim \text{Binomial}(N, 1 − e^{-\mu \Delta t})
+\end{align}
+
+\begin{align}
+S_{t+\Delta t} &= S_{t} - \Delta N_{SE} + \Delta N_{RS} - \Delta N_S + \Delta N_N
+\\
+E_{t+\Delta t} &= E_{t} + \Delta N_{SE} - \Delta N_{EI} - \Delta N_E
+\\
+I_{t+\Delta t} &= I_{t} - \Delta N_{IR} + \Delta N_{EI} - \Delta N_I
+\\
+R_{t+\Delta t} &= R_{t} + \Delta N_{IR} - \Delta N_{RS} - \Delta N_R
+\end{align}
+
+
+<div align="center">
+![SEIRS Model Structure](model.png)
+
+
+</div>
+
+For primary cases, we have a compartment $C$ which represents the number of primary cases caused by the infectious camels to human. It is modeled as:
+
+\begin{align}
+Z_i &= \int_{{week}_i} \rho_{CH}\mu_{IR}I dt
+\\
+C_i &= \text{Negative Binomial}(mean=Z_i\rho, variance=Z_i\rho+\frac{Z_i\rho}{k})
+\end{align}
+
+For total number of human cases, we have $reports=4C_i$.
+
+### Simulation
+
+In our implementation, we include checks to make sure that the values of the different states do not become negative^[Jesse's Office Hours on Tuesday April 23].
+
+```{r, echo=F}
+seirs_step <- Csnippet('
+ double dN_SE = rbinom(S,1-exp(-Beta*I/N*dt));
+ double dN_EI = rbinom(E,1-exp(-mu_EI*dt));
+ double dN_IR = rbinom(I,1-exp(-mu_IR*dt));
+ double dN_Smu = rbinom(S,1-exp(-mu*dt));
+ double dN_Emu = rbinom(E,1-exp(-mu*dt));
+ double dN_Imu = rbinom(I,1-exp(-mu*dt));
+ double dN_Rmu = rbinom(R,1-exp(-mu*dt));
+ double dN_Nmu = rbinom(N,1-exp(-mu*dt));
+ double dN_RS = rbinom(R,1-exp(-mu_RS*dt));
+ S += dN_RS - fmin(S, dN_SE + dN_Smu) + dN_Nmu;
+ E += dN_SE - fmin(E, dN_EI + dN_Emu);
+ I += dN_EI - fmin(I, dN_IR + dN_Imu);
+ R += dN_IR - fmin(R, dN_RS + dN_Rmu);
+ C += dN_IR * rho_CH;
+ 
+ S = fmax(S, 0.0);
+ E = fmax(E, 0.0);
+ I = fmax(I, 0.0);
+ R = fmax(R, 0.0);
+ C = fmax(C, 0.0);
+ ')
+
+seirs_rinit <- Csnippet("
+ S = nearbyint(eta*N);
+ E = nearbyint(eta2*N);
+ I = nearbyint(eta2*N);
+ R = nearbyint((1-eta-eta2-eta2)*N);
+ C = 0;
+ ")
+
+seirs_dmeas <- Csnippet("
+ lik = dnbinom_mu(reports,k,rho*C,give_log);
+ ")
+
+seirs_rmeas <- Csnippet("
+ int total_to_primary = 4; // from the paper
+ reports = total_to_primary * rnbinom_mu(k,rho*C);
+ ")
+```
+
+```{r, echo=F}
+try_params <- c(N=270000, k=10, rho=1, Beta=3, eta=0.9, eta2=0.0003, mu_IR=7/4, mu_EI=7/4, mu_RS=1/(0.62*52), mu=1/(52*14), rho_CH=0.0006)
+try_params
+```
+
+```{r, echo=F}
+saudi %>% select(week, reports=New.Cases) %>%
+  pomp(times="week", t0=0,
+       rprocess=euler(seirs_step, delta.t=1/7),
+       rinit=seirs_rinit,
+       rmeasure=seirs_rmeas,
+       dmeasure=seirs_dmeas,
+       accumvars="C",
+       statenames=c("S","E","I","R","C"),
+       paramnames=c("N","k","eta","eta2","Beta","mu_EI","mu_IR","mu_RS","mu","rho_CH","rho"),
+       params=try_params
+  ) -> saudiSEIRS
+
+set.seed(531)
+saudiSEIRS |>
+  simulate(params=try_params, nsim=20, format="data.frame", include.data=TRUE) -> sims
+
+sims |>
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+ 
+  scale_color_discrete(labels=c("Simulations", "Reported Cases")) + 
+  theme(legend.position=c(0.8, 0.8), legend.title = element_blank())
+
+median_sims = sims %>% filter(.id!='data') %>% group_by(week) %>% summarise(reports=median(reports))
+median_sims[".id"] <- "simulations_median"
+sims_disp <- bind_rows(sims[sims$.id=="data",], median_sims)
+sims_disp |>
+  ggplot(aes(x=week, y=reports, group=.id, color=.id=="data")) +
+  geom_line() + 
+  scale_color_discrete(labels=c("Simulations Median", "Reported Cases")) + 
+  theme(legend.position=c(0.8, 0.8), legend.title = element_blank())
+```
+
+We are able to simulate the first major outbreak and one of the later minor peaks. However, we are not able to simulate the peak around week 80. Hopefully, our search will lead us to better estimates of $\mu_{RS}$ which will ensure that the pool of susceptibles is large enough to lead to another outbreak.
+
+
+```{r, echo=F}
+# Verify that particle filter works
+saudiSEIRS |> pfilter(Np=2000) -> pf
+cat("Log-likelihood:", round(logLik(pf), 2))
+plot(pf)
+```
+
+- Compared to the best ARMA(1,4) model with log-likelihood of -422.77, the log-likelihood at the simulated model is -843.17, which is much lower. 
+- From the ESS plot, we see that the effective sample size becomes low at time steps corresponding to some peaks. But the value is still quite high (>500), so this should not be of much concern.
+
+
+```{r, echo=F, warning=F, message=F}
+library(foreach)
+library(doParallel)
+library(doRNG)
+
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE', unset=NA))
+if(is.na(cores)) cores <- detectCores()  
+registerDoParallel(cores)
+registerDoRNG(123456789)
+```
+
+
+```{r, echo=F, eval=F}
+# Replicated particle filters
+set.seed(123456789)
+
+tic <- Sys.time()
+
+foreach(i=1:10, .combine=c, .packages=c("pomp")) %dopar% {
+  saudiSEIRS |> pfilter(Np=2000)
+} -> pf
+
+pf |> logLik() |> logmeanexp(se=TRUE) -> L_pf
+L_pf
+
+toc <- Sys.time()
+cat("\nTook", difftime(toc, tic, units = "secs")[[1]], " seconds")
+
+pf[[1]] |> coef() |> bind_rows() |>
+  bind_cols(loglik=L_pf[1], loglik.se=L_pf[2]) |>
+  write_csv("saudi_mers_params.csv")
+```
+
+
+### Local Search
+
+#### Likelihood Maximization
+
+```{r, echo=F}
+saudiSEIRS |>
+  pomp(
+    partrans=parameter_trans(log=c("Beta", "mu_EI", "mu_IR", "mu_RS", "mu", "k"), logit=c("rho", "rho_CH", "eta", "eta2")),
+    paramnames=c("Beta", "rho", "rho_CH", "eta", "eta2", "mu_EI", "mu_IR", "mu_RS", "mu", "k")
+  ) -> saudiSEIRS2
+
+if (file.exists("local_search.rds")) {
+  mifs_local <- readRDS("local_search.rds")
+} else {
+  registerDoRNG(987654321)
+  
+  tic <- Sys.time()
+
+  bake(file="local_search.rds", {
+    foreach(i=1:10, .combine=c, .packages=c("pomp")) %dopar% {
+      saudiSEIRS2 |>
+        mif2(
+          Np=2000, Nmif=100,
+          cooling.fraction.50=0.5,
+          rw.sd=rw_sd(Beta=0.02, eta=ivp(0.01), eta2=ivp(0.0001), mu_EI=0.01, mu_IR=0.01, mu_RS=0.001, rho_CH=0.0001, k=0.01)
+        )
+    } -> mifs_local
+    mifs_local
+  }) -> mifs_local
+  
+  toc <- Sys.time()
+  cat("\nLikelihood maximization took", round(difftime(toc, tic, units = "secs")[[1]], 4), "seconds with", cores, "cores")
+}
+```
+
+
+```{r, echo=F}
+mifs_local |>
+  traces() |>
+  melt() |>
+  ggplot(aes(x=iteration, y=value, group=.L1, color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name, scales="free_y")
+```
+
+- The log-likelihood converges to above -400, which is better than the ARMA(1,4) model.
+- Some parameters ($\eta$, $\eta_2$) do not converge even after 100 iterations -- this could be a sign of weak identifiability in the model. As the likelihood seems to be maximized correctly, this should not be too problematic.
+- Other parameters ($\beta$, $\mu_{EI}$, $\mu_{IR}$, $k$) seem to be converging while $\mu_{RS}$ continues to increase and could benefit from more iterations.
+
+
+#### Likelihood Evaluation
+
+```{r, echo=F}
+if (file.exists("lik_local.rds")) {
+  logliks_local <- readRDS("lik_local.rds")
+} else {
+  registerDoRNG(462662562)
+  
+  tic <- Sys.time()
+  
+  bake(file="lik_local.rds", {
+    foreach(mf=mifs_local, .combine=rbind, .packages=c("pomp")) %dopar% {
+      evals <- replicate(10, logLik(pfilter(mf, Np=2000)))
+      ll <- logmeanexp(evals, se=TRUE)
+      mf |> coef() |> bind_rows() |>
+        bind_cols(loglik=ll[1], loglik.se=ll[2])
+    } -> logliks_local
+    logliks_local
+  }) -> logliks_local
+  
+  toc <- Sys.time()
+  cat("\nLikelihood evaluation took", round(difftime(toc, tic, units = "secs")[[1]], 4), "seconds with", cores, "cores")
+  
+  read_csv("saudi_mers_params.csv") |>
+    bind_rows(logliks_local) |>
+    arrange(-loglik) |>
+    write_csv("saudi_mers_params.csv")
+}
+```
+
+
+```{r, echo=F}
+pairs(~loglik+Beta+eta+eta2+mu_EI+mu_IR+mu_RS+rho_CH+k, data=logliks_local, pch=16)
+```
+
+
+```{r, echo=F}
+if (file.exists("CLUSTER.R")) {
+  source("CLUSTER.R")
+}
+```
+
+
+### Global Search
+
+```{r, echo=F, warning=F}
+fixed_params <- c(N=270000, rho=1, mu=1/(52*14))
+coef(saudiSEIRS2, names(fixed_params)) <- fixed_params
+cat("SEIRS fixed parameters:\n")
+print(fixed_params)
+```
+
+```{r, echo=F}
+set.seed(2062379496)
+
+runif_design(
+  lower=c(Beta=2, rho_CH=0, eta=0.2, eta2=0, mu_EI=0.5, mu_IR=0.5, mu_RS=0, k=1),
+  upper=c(Beta=20, rho_CH=0.001, eta=0.95, eta2=0.01, mu_EI=5, mu_IR=5, mu_RS=0.1, k=10),
+  nseq=400
+) -> guesses
+```
+
+```{r, echo=F}
+mf1 <- mifs_local[[1]]
+
+if (file.exists("global_search.rds")) {
+  results <- readRDS("global_search.rds")
+} else {
+  
+  tic <- Sys.time()
+  
+  bake(file="global_search.rds", dependson=guesses, {
+      foreach(guess=iter(guesses, "row"), .combine=rbind, .packages=c("pomp", "dplyr")) %dopar% {
+        mf1 |>
+          mif2(params=c(unlist(guess), fixed_params)) |> 
+          mif2(Nmif=50) -> mf 
+  
+        replicate(10, mf |> pfilter(Np=2000) |> logLik()) |>
+          logmeanexp(se=TRUE) -> ll
+        
+        mf |> coef() |> bind_rows() |>
+          bind_cols(loglik=ll[1], loglik.se=ll[2])
+      } -> results
+      results
+    }) |>
+    filter(is.finite(loglik)) -> results
+  
+  toc <- Sys.time()
+  cat("\nGlobal search took", round(difftime(toc, tic, units = "secs")[[1]], 4), "seconds with", cores, "cores")
+  
+  read_csv("saudi_mers_params.csv") |>
+    bind_rows(results) |>
+    filter(is.finite(loglik)) |>
+    arrange(-loglik) |>
+    write_csv("saudi_mers_params.csv")
+}
+```
+
+Best parameters from the global search:
+
+```{r, echo=F}
+best_params_gs <- results[which.max(results$loglik),]
+best_params_gs
+```
+The best model from global search has a maximized log-likelihood of -378.33.
+
+We can conduct a Likelihood Ratio Test to verify whether this is significantly higher than ARMA(1,4) with a log-likelihood of -422.77.
+
+- $H_0$: ARMA(1,4), $D_0 = 5$ 
+- $H_1$: SEIRS, $D_1 = 8$
+
+Assuming the Wilks approximation is valid, under $H_0$, the likelihood ratio test statistic $\ell_1 - \ell_0 \approx \frac{1}{2} \chi^2_{D_1 - D_0}$.
+
+```{r, echo=F}
+arma_ll <- -422.77
+seirs_ll <- -378.33
+ll_diff <- seirs_ll - arma_ll
+
+arma_params <- 5
+seirs_params <- 8
+d_diff <- seirs_params - arma_params
+
+cat(paste("p-value:", 1 - pchisq(2 * ll_diff, df=d_diff)))
+```
+
+As the p-value < 0.05, we can reject $H_0$ at the 5% significance level and conclude that the SEIRS model is significantly better than the ARMA(1,4) model.
+
+Simulate the model at the best parameters:
+
+```{r, echo=F}
+set.seed(53193890)
+saudiSEIRS2 |>
+  simulate(params=select(best_params_gs, -c("loglik", "loglik.se")), nsim=20, format="data.frame", include.data=TRUE) -> sims_gs
+
+sims_gs |>
+  ggplot(aes(x=week,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+ 
+  scale_color_discrete(labels=c("Simulations", "Reported Cases")) + 
+  theme(legend.position=c(0.8, 0.8), legend.title = element_blank())
+
+median_sims = sims_gs %>% filter(.id!='data') %>% group_by(week) %>% summarise(reports=median(reports))
+median_sims[".id"] <- "simulations_median"
+sims_disp <- bind_rows(sims_gs[sims_gs$.id=="data",], median_sims)
+sims_disp |>
+  ggplot(aes(x=week, y=reports, group=.id, color=.id=="data")) +
+  geom_line() + 
+  scale_color_discrete(labels=c("Simulations Median", "Reported Cases")) + 
+  theme(legend.position=c(0.8, 0.8), legend.title = element_blank())
+```
+
+The simulation fits the data relatively well. The first major peak and the peak around week 80 are captured.
+
+The reproduction number ($R_0$) is defined as the average number of cases generated by a typical case and it quantifies the
+intensity of transmission (Lin et al., 2018). It can be calculated as:
+
+$$
+R_0 = \frac{\beta}{\mu_{IR}}
+$$
+```{r, echo=F}
+cat(paste("Estimated reproduction number R0 =", round(best_params_gs["Beta"] / best_params_gs["mu_IR"], 1)))
+```
+
+
+
+### Profile Likelihood for Camel-to-human Spill-over Rate
+
+Profile likelihood for $\rho_{CH}$ is the likelihood maximized over all other parameters with $\rho_{CH}$ held constant. This is repeated for multiple values of $\rho_{CH}$ to get a profile likelihood plot.
+
+```{r, echo=F}
+read_csv("saudi_mers_params.csv", show_col_types = FALSE) |>
+  filter(loglik > max(loglik) - 20, loglik.se < 2) |>
+  sapply(range) -> box
+```
+
+
+```{r, echo=F}
+freeze(
+  seed=1196696958,
+  profile_design(
+    rho_CH =seq(0.0001, 0.001, length=40),
+    lower=box[1, c("Beta", "eta", "eta2", "mu_EI", "mu_IR", "mu_RS", "k")],
+    upper=box[2, c("Beta", "eta", "eta2", "mu_EI", "mu_IR", "mu_RS", "k")],
+    nprof=5, type="runif"
+  )
+) -> guesses 
+
+plot(guesses)
+```
+
+
+```{r, echo=F}
+mf1 <- mifs_local[[1]]
+
+if (file.exists("saudi_mers_params_profile.csv")) {
+  results <- read_csv("saudi_mers_params_profile.csv", show_col_types = FALSE)
+} else {
+  bake(file="rho_CH_profile.rds", dependson=guesses, {
+    foreach(guess=iter(guesses, "row"), .combine=rbind, .packages=c("pomp")) %dopar% {
+      mf1 |>
+        mif2(params=c(guess, fixed_params), 
+             rw.sd=rw_sd(Beta=0.02, eta=ivp(0.01), eta2=ivp(0.0001), mu_EI=0.01, mu_IR=0.01, mu_RS=0.001, k=0.01)) |>
+        mif2(Nmif=100, cooling.fraction.50=0.3) |>
+        mif2() -> mf
+  
+      replicate(10, mf |> pfilter(Np=2000) |> logLik()) |>
+        logmeanexp(se=TRUE) -> ll
+  
+      mf |> coef() |> bind_rows() |>
+        bind_cols(loglik=ll[1], loglik.se=ll[2])
+    } -> results
+    results
+  }) -> results
+  
+  results |>
+    filter(is.finite(loglik)) -> results
+  
+  results |>
+    arrange(-loglik) |>
+    write_csv("saudi_mers_params_profile.csv")
+  
+  read_csv("saudi_mers_params.csv") |>
+    bind_rows(results) |>
+    filter(is.finite(loglik)) |>
+    arrange(-loglik) |>
+    write_csv("saudi_mers_params_with_profile.csv")
+}
+```
+
+
+```{r, echo=F}
+pairs(~loglik+Beta+eta+eta2+mu_EI+mu_IR+mu_RS+rho_CH+k, data=results, pch=16)
+```
+
+
+```{r, echo=F}
+results |>
+  filter(loglik > max(loglik) - 10, loglik.se < 1) |>
+  group_by(round(rho_CH, 6)) |>
+  filter(rank(-loglik) < 3) |>
+  ungroup() |>
+  ggplot(aes(x=rho_CH, y=loglik)) +
+  geom_point() +
+  geom_hline(
+    color="red",
+    yintercept=max(results$loglik) - 0.5 * qchisq(df=1, p=0.95)
+  ) +
+  labs(
+    x=expression(rho_CH),
+    title="Profile Likelihood Plot for Camel-to-Human Spill-over Rate"
+  )
+```
+
+
+```{r, echo=F}
+results |>
+  filter(loglik > max(loglik) - 0.5 * qchisq(df=1, p=0.95)) |>
+  summarize(min=min(rho_CH), max=max(rho_CH)) -> rho_CH_CI
+
+cat("Approximate 95% C.I. for camel-to-human spill-over rate:", as.numeric(rho_CH_CI))
+```
+
+
+- The $\rho_{CH}$ with the largest log-likelihood is on the edge of the interval (0.001) we choose to construct the plot.
+- The 95% confidence interval is approximately around 0.001, which is quite narrow.
+- We would argue that we may choose a wider range of $\rho_{CH}$ and increase the number of iterations to locate the best value.
+- The value of $\rho_{CH}$ is the spill-over rate rate for camels infecting human. As we know that there are 270000 camels in Saudi Arabia, this $\rho_{CH}$ would give us the idea that on average 1000 camels would create a primary human MERS case. In our data we have 1218 reported human cases in total, and without camels dying, being born, and turning back to susceptible, we would expect a total case of $270000\times0.001\times4=1080$. The numbers are matching, which means our obtained best $\rho_{CH}$ makes sense.
+
+
+## Conclusion
+
+- In this project, we performed analysis on MERS cases in Saudi Arabia from January 2014 to May 2016. We first analyzed the data using ARIMA time series models, and concluded that a ARMA(1,4) model fits the data well.
+- Using the best ARMA model as the  benchmark, we further explored the data with a Susceptible-Exposed-Infectious-Recovered-Susceptible (SEIRS) model to simulate the spreading of MERS among camels population (Lin et al, 2018). The model treats the transition of stages in camels as the hidden Markov process, and reflects the spill-over of camels infecting human, which leads to primary human MERS cases, making up about a quarter of the total human cases.
+- The estimated basic reproduction number $R_0$ is 2.6, which is close to the range estimated in Lin et al.
+- We were able to find parameters that simulate and capture most of the major outbreaks and peaks in the data.
+- We constructed profile likelihood for the spill-over rate $\rho_{CH}$ with narrow confidence interval, and the value explained the overall number of the cases well.
+
+
+## References
+
+

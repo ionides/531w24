@@ -1,0 +1,584 @@
+---
+title: "Stats 531 Final Project"
+author: 
+  - "Blinded"
+date: "2024-04-18"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    mathjax: "default"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning = FALSE, message=FALSE, echo=FALSE}
+library(ggplot2)
+library(tseries)
+library(tidyverse)
+library(pomp)
+library(plotly)
+library(forecast)
+library(xts)
+library(quantmod)
+library(zoo)
+library(fGarch)
+library(doParallel)
+library(doRNG)
+```
+
+## Introduction
+
+In financial markets, having the foresight to anticipate upcoming trends can give a considerable edge. This project delves into analyzing NVIDIA Corporation's stock prices using sophisticated time series methodologies like ARMA and GARCH models, while also delving into the POMP framework. Our dataset spans daily stock market data from January 18, 2022, focusing particularly on the 'Adjusted Close' price, which provides a nuanced reflection of NVIDIA's valuation, accounting for corporate actions. The ARMA model helps dissect the series' linear dynamics, while the GARCH model aptly deals with its inherent volatility. Furthermore, we employ the POMP framework to capture the intricacies of processes influenced by latent variables. By integrating these models, our aim is not only to improve predictive accuracy regarding future stock prices but also to contribute to a deeper understanding of financial time series modeling. The insights gleaned from this analysis offer promise in crafting effective strategies for risk management and trading.
+
+We plan to divide our project into four main segments: exploratory data analysis, ARMA model selection, GARCH model selection, and the implementation of the POMP framework. Each model will undergo diagnostic checks, and we will choose the best one based on its highest likelihood and interpretability.
+
+## Exploratory Data Analysis
+
+### Daily Stock Price and Summary
+
+```{r, echo = FALSE}
+setwd("/Users/huanglingqi/Desktop/Stats 531 Final Project")
+data <- read.csv("NVDA.csv")
+```
+
+In a candlestick chart representing stock prices, a green candlestick signifies that the closing price is higher than the opening price, indicating an increase in price. Conversely, a red candlestick indicates that the closing price is lower than the opening price, signaling a decrease in price. Observing the trend from a decline until October 14, 2022, when the stock reached its lowest price of \$112.9, there has been a consistent upward trajectory in prices, culminating in a peak of \$950.02 on March 25, 2024.
+
+```{r, echo = FALSE}
+fig <- plot_ly(x = data$Date, type="candlestick",
+               open = data$Open,
+               close = data$Adj.Close,
+               high = data$High,
+               low = data$Low)
+
+# Update layout with titles and theme
+fig <- fig %>% layout(title = "NVIDIA Stock Price, 2022/01/18-2024/04/12",
+                      xaxis = list(title = "Date"),
+                      yaxis = list(title = "Stock Price (USD)"),
+                      template = "plotly_dark")
+
+# Show the plot
+fig
+```
+
+```{r, echo = FALSE}
+data$dates <- as.Date(data$Date)
+## Get the data of min adjusted close price and max adjusted close price
+date_price_max <- data$Date[which(data$Adj.Close == max(data$Adj.Close))]
+date_price_min <- data$Date[which(data$Adj.Close == min(data$Adj.Close))]
+mean_adj_close <- mean(data$Adj.Close)
+sd_adj_close <- sd(data$Adj.Close)
+max_adj_close <- max(data$Adj.Close)
+min_adj_close <- min(data$Adj.Close)
+# Create a data frame to hold the statistics and dates in a tabular format
+stats <- data.frame(
+  Statistic = c("Mean", "Standard Deviation", "Maximum", "Minimum", 
+                "Date of maximum adjusted close price", "Date of minimum adjusted close price"),
+  Value = c(mean_adj_close, sd_adj_close, max_adj_close, min_adj_close, 
+            date_price_max, date_price_min)
+)
+
+# Print the data frame
+print(stats)
+```
+
+### Definition of Daily Log-return and Summary Statistics
+
+We define the daily log-return as follows:
+
+Suppose $\{X_t\}$ is the daily closing stock-price of an asset, then the daily Log-returns are defined as $$r_t = \log\left(\frac{X_t}{X_{t-1}}\right)$$
+
+Also, the $k-$period log-return is additive over past $k$-days' log-return, which is a way to normalize data: $$r_t(k) = \log\left(\frac{X_t}{X_{t-1}}\right) = r_t + t_{t-1} + \cdots + r_{t-k+1}$$
+
+After obtaining the daily log-return, it appears that our data exhibits signs of stationarity, yet there are notable peaks indicating periods of high volatility. The daily log volatility, averaging about 0.035, suggests considerable fluctuations. Notably, the highest daily log-return occurred on May 25, 2023, reaching 0.218, while the lowest was recorded on September 13, 2022, at -0.09. With these observations in mind, we can proceed to fitting an ARMA model to the daily log-return data.
+
+```{r, echo = FALSE}
+daily_log_return <- diff(log(data$Adj.Close))
+data$return <- c(0, daily_log_return)
+
+## Draw the plot of daily log-return Versus dates
+
+ggplot(data , aes(x = dates, y = log(Adj.Close))) +
+  geom_line() +
+  labs(x = "Date", y = "log-price")+
+  ggtitle("log of adjusted closing price, 2022/01/18-2024/04/12")
+
+ggplot(data , aes(x = dates, y = return)) +
+  geom_line() +
+  labs(x = "Date", y = "Daily log-return")+
+  ggtitle("Daily log-return, 2022/01/18-2024/04/12")
+```
+
+```{r, echo = FALSE}
+# Calculate descriptive statistics
+mean_log_return <- mean(data$return)
+sd_log_return <- sd(data$return)
+max_log_return <- max(data$return)
+min_log_return <- min(data$return)
+
+# Get the dates for max and min log daily return
+date_return_max <- data$Date[which.max(data$return)]
+date_return_min <- data$Date[which.min(data$return)]
+
+# Create a data frame to hold the statistics and dates in a tabular format
+descriptive_stats_table <- data.frame(
+  Statistic = c("Mean", "Standard Deviation", "Maximum", "Minimum","Date of maximum daily log-return", "Date of minimum daily log-return"),
+  Value = c(mean_log_return, sd_log_return, 
+            max_log_return, min_log_return, 
+            date_return_max, date_return_min)
+)
+
+# Print the table
+print(descriptive_stats_table)
+```
+
+## ARIMA Model Selection
+
+Before ARMA model selection, let's review the definition of ARMA process[2]:
+
+$\textbf{Definition:}$ A time series $\{X_t: t = 0, \pm 1, \pm 2, \cdots \}$ is ARMA($p, q$) if it is stationary and $$X_t = \phi_1 X_{t-1} + \cdots + \phi_p X_{t-p} + \epsilon_t + \theta_1 \epsilon_{t-1} + \cdots + \theta_q \epsilon_{t-q}$$ with $\phi_p \neq 0, \theta_q \neq 0$. Here $\epsilon_t$ is a weak white noise. We define $\epsilon_t$ to be weak white noise if it has mean 0, constant variance $\sigma^2$, and $Cov(\epsilon_m, \epsilon_n) = 0$ for $m \neq n$.
+
+```{r, echo = FALSE}
+diff_data <- diff(log(data$Adj.Close))
+ggplot() + 
+  geom_line(aes(x = data$dates[-1], y = diff_data)) +
+  labs(x = "date", y = " Daily log-return") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red")+
+  ggtitle("Daily log-return")+
+  scale_x_date(date_labels = "%Y-%m-%d")
+```
+
+### ADF Test for Stationary
+
+To begin with, we first take a Augmented Dickey-Fuller test(ADF) [6]to our time series. ADF tests the null hypothesis that a unit root is presented in a time series sample, the alternative hypothesis is usually stationarity or trend-stationarity. The more negative the test value is , the stronger the rejection of the hypothesis that there is a unit root at some level of confidence. We see that the test-statistic is about -7.16 and the p-value is less than 0.01, which suggest we keep the null hypothesis that our time series is stationary.
+
+```{r, echo=FALSE, warning=FALSE}
+### Conduct ADF test
+adf_test_result <- adf.test(diff_data)
+```
+
+### Ljung-Box test for Independent Distribution
+
+We then conducted the Ljung-Box test, wherein the null hypothesis assumes that the data are independently distributed, while the alternative hypothesis suggests that the data are not independently distributed and exhibit serial correlation. Upon testing our time series data, we obtained a p-value of approximately 0.325, which exceeds the significance level of 0.05. This suggests that we retain the null hypothesis, indicating that our data are independently distributed.
+
+Having verified both the stationarity and independence of the data, we can now proceed to the next stage: selecting an appropriate ARMA model.
+
+```{r, echo= FALSE}
+### Box-Ljung test
+Box.test(diff_data, lag = 20, type = 'Ljung-Box')
+```
+
+### ARMA Model Selection
+
+We calculated the Akaike Information Criterion (AIC) for each ARMA($p, q$) model, with $1 \leq p, q \leq 4$. Our analysis identified ARMA(0, 0), ARMA(0, 1), and ARMA(1, 0) as potential feasible models, each with AIC values of -2171.24, -2169.36, and -2169.35, respectively.
+
+```{r,warning = FALSE}
+### AIC table
+aic_table <- function(data, P, Q){
+  table <- matrix(NA, (P+1), (Q+1))
+  for (p in 0 : P){
+    for (q in 0 : Q){
+      table[p+1, q+1] <- arima(data, order = c(p, 0, q))$aic
+    }
+  }
+  dimnames(table) <- list(paste("AR", 0 : P, sep = ""),
+                          paste("MA", 0 : Q, sep = ""))
+  table
+}
+
+aic_table <- aic_table(diff_data, 4, 4)
+require(knitr)
+kable(aic_table, digits = 2)
+```
+
+Upon examining the plot for the roots of the autoregressive (AR) and moving average (MA) components, we observe that both ARMA(0, 1) and ARMA(1, 0) appear promising, with their roots located inside the unit circle. This suggests that ARMA(0, 1) exhibits invertibility, while ARMA(1, 0) demonstrates causality.
+
+```{r, echo = FALSE}
+diff_data_00 <- arima(diff_data, order = c(0, 0, 0))
+diff_data_10 <- arima(diff_data, order = c(1, 0, 0))
+diff_data_01 <- arima(diff_data, order = c(0, 0, 1))
+
+
+par(mfrow = c(1, 2))
+
+autoplot(diff_data_10) +
+  ggtitle("ARMA(1, 0)")
+
+autoplot(diff_data_01) +
+  ggtitle("ARMA(0, 1)")
+
+
+```
+
+### Likelihood Ratio test
+
+To further refine our model selection process, we conducted a likelihood ratio test, comparing the null hypothesis of ARMA(0, 0) against the alternative hypotheses of either ARMA(0, 1) or ARMA(1, 0). Since the hypotheses are nested, the test is valid. We then applied Wilk's approximation to determine that the test statistic follows a $\chi_d$,where $d$ represents the difference in the dimension of parameters between the null and alternative hypotheses.
+
+```{r, echo = FALSE}
+test_stat_1 <- diff_data_10$loglik - diff_data_00$loglik 
+```
+
+```{r, echo = FALSE}
+test_stat_2 <- diff_data_01$loglik - diff_data_00$loglik
+```
+
+After conducting the two nested hypothesis tests, we conclude that retaining the null hypothesis, indicating that ARMA(0, 0) is sufficient. Considering both the AIC value and the likelihood ratio test, we select ARMA(0, 0) as the optimal ARMA model.
+
+Also, the intercept term for the ARMA(0, 0) is 0.00223, and so we can represent the ARMA(0, 0) model as $$Y_n = 0.00223 + \epsilon_n$$ where $\epsilon_n$ is a weak white noise process.
+
+```{r, echo = FALSE}
+diff_data_00$coef
+```
+
+### Residual Analysis For ARMA(0, 0)
+
+We now proceed to the part of residual analysis for the ARMA(0, 0) process, by checking the ACF plot for the residual, we see that all lags greater than 2 are inside of the confidence band, indicating stationarity of our time series data.
+
+```{r, echo = FALSE}
+acf_residuals <- acf(diff_data_00$residuals, main = "ACF of residuals for ARMA(0, 0)")
+
+```
+
+Then, we estimated the sample mean and sample variance of residuals, that$E(\epsilon_n) \approx 0$ and $Var(\epsilon_n) = 0.0012$. Also, we checked the QQ-plot of the residuals and conducted the Shapiro test for testing normality. We conclude that the residual may not be normal but behaves heavier tail than normal, but we conclude our process should be a weak white noise. This suggests that normal residuals could not model the outliers well and the high volatilities shows in our above plot, suggesting the residual may be fitted by a t-distribution and we can then try to fit a GARCH model to better fit high volatility.
+
+```{r, echo = FALSE}
+paste("mean of epsilon:", mean(diff_data_00$residuals),
+      "Variance of epsilon:" ,var(diff_data_00$residuals))
+```
+
+```{r, echo = FALSE}
+qqnorm(residuals(diff_data_00))
+qqline(residuals(diff_data_00))
+shapiro_1 <- shapiro.test(residuals(diff_data_00))
+```
+
+For our purpose, we computed the log-likelihood of the ARMA(0, 0) model, which is approximately 1087. We will now proceed to fit a GARCH model and find the corresponding log-likelihood.
+
+```{r, echo = FALSE}
+paste("log-likelihood for ARMA(0, 0):", diff_data_00$loglik)
+```
+
+## GARCH Model Selection
+
+Before model selection, we first introduce why we want to choose a GARCH model. In many financial datasets, returns may change over time, meaning that volatility may also vary over time, and the variance may depend on local history. While the ARMA model assumes constant volatility over time, it may fail to explain periods of high volatility effectively. The GARCH model addresses this limitation and is capable of capturing time-varying volatility more accurately. Now, let's begin by reviewing the definition of the GARCH model.[3]
+
+$\textbf{Definition}$: We say a process $X = \{X_n\}$ is GARCH(p, q) if $$X_n = \mu_n + \sigma_n\epsilon_n$$ where $\{\sigma_n\}$ is an iid white noise process with mean 0 and variance of 1, and the model for $\sigma_n$ is $$\sigma_n^2 = \alpha_0 + \sum\limits_{i=1}^{p}\beta_i\sigma^2_{n-i} + \sum\limits_{j=1}^{q}\alpha_j \tilde{X}_{n-j}^2$$ with $$\tilde{X}_n = X_n - \mu_n$$ A popular used model is the GARCH(1, 1) model, that we have $$X_n = \mu_n + \sigma_n\epsilon_n$$ where $$\sigma_n^2 = \alpha_0 + \beta_1\sigma^2_{n-1} + \alpha_1 \tilde{X}^2_{n-1}$$
+
+### GARCH(1,1)
+
+We now fit a GARCH(1, 1) to our time series, we notice that the coefficients of fitted model are not statistically significant, that we find $$\alpha_0 = 0.0011, \alpha_1 = 0.0499, \beta_1 = 0.05$$ and the p-value for three coefficient are greater than 0.1. Although the likelihood of the model is about 1596 that far exceed that of ARAM(0, 0) model, we still discard this model for those insignificant coefficients.
+
+```{r, warning=FALSE, echo = FALSE}
+fit.garch <- garch(diff_data, order = c(1, 1), grad = "numerical", trace = FALSE)
+```
+
+### ARMA(0, 0）+ GARCH(1, 1) + Normal error
+
+Now, after failing to fit a GARCH(1, 1) model, we are considering an ARMA/GARCH model[4]. This decision stems from our observation that in the ARMA(0, 0) model, the residuals may not follow a normal distribution. Therefore, we aim to model the residuals as a GARCH process.
+
+$\textbf{Definition}$: The ARMA($p, q$) model for $X_n$ corresponds to $$X_n = \sum\limits_{i=1}^{p}\alpha_iX_{n-i} + \sum\limits_{j=1}^{q}\phi_j\epsilon_{n-j} + \epsilon_n$$ where ${\epsilon_n}$ is a mean-zero white noise process. A more general model is to allow the noise process $\epsilon_n$ be a GARCH($p, q$) process, that $$\epsilon_n = \sigma_n\delta_n$$ where $\delta_n$ is a iid $N(0, 1)$, and $$\sigma_n^2 = \alpha_{g,0} + \sum\limits_{j=1}^{p}\beta_{g, j}\sigma^2_{n-i} + \sum\limits_{i=1}^{q}\alpha_{g, i}\epsilon_{n-j}^2$$ Now, after fitting the model, we obtained a likelihood of 1092. However, it is worth noting that both the Shapiro-Wilk test statistic and the Jarque-Bera test statistic indicate that the residuals $\epsilon_n$ do not follow a normal distribution, violating our model assumption. Consequently, we once again discard this model.
+
+```{r, echo = FALSE}
+garchFit_ARGARCH_norm <- garchFit(~ arma(0, 0) + garch(1, 1), data = diff_data,
+                             cond.dist = c("norm"), include.mean = FALSE,
+                             algorithm = c("nlminb"), hessian = c("ropt"), 
+                             trace = FALSE)
+```
+
+### ARMA(0, 0) + GARCH(1,1) + t-error
+
+Instead of fitting the residual with a normal distribution, we attempted to fit it with a t-distribution. Upon fitting this model, we observed that all test statistics performed well, and we obtained a shape parameter of 6.78, which is statistically significant. Additionally, the model provided a likelihood of 1120. Therefore, in this section, we select ARMA(0, 0) + GARCH(1, 1) with residuals following a t-distribution as our potential model.
+
+```{r, echo = FALSE}
+garchFit_ARGARCH_t <- garchFit(~ arma(0, 0) + garch(1, 1), data = diff_data,
+                             cond.dist = c("std"), include.mean = FALSE,
+                             algorithm = c("nlminb"), hessian = c("ropt"), 
+                             trace = FALSE)
+```
+
+## POMP Model
+
+We will now consider a stochastic volatility model, where volatility is modeled as a latent stochastic process, partially observed via the returns. Additionally, assuming a Markovian property for volatility leads to a POMP (Partially Observed Markov Process) model. Now, we define the leverage $R_n$, that on day $n$ as the correlation between index return on day $n-1$ and the increase in the log volatility from day $n-1$ to day $n$, and model $R_n$ as a random walk on a transformed scale[1], $$R_n = \frac{\exp{(2G_n)} - 1}{\exp{(2G_n)} + 1}$$ where $\{G_n\}$ is a Gaussian random walk.[1]
+
+Now the proposed model is below[8]: $$Y_n = \exp{(H_n/2)}\epsilon_n$$ $$H_n = \mu_h(1-\phi) + \phi H_{n-1} + \beta_{n-1}R_n\exp{(-H_{n-1}/2)} + \omega_n$$ $$G_n = G_{n-1} + \nu_n$$ where $\beta_n = Y_n\sigma_{\eta}\sqrt{1 - \phi^2}$, $\{\epsilon_n\}$ is an iid $N(0, 1)$ sequence, $\{\nu_n\}$ is an iid $N(0, \sigma^2_{\nu})$ sequence, and $\omega_n$ is $N(0, \sigma^2_{\omega, n})$ with $$\sigma^2_{\omega, n} = \sigma^2_{\eta}(1 - \phi^2)(1-R_n^2)$$ Here , $H_n$ is the log volatility. The latent stat is $X_n = (G_n, H_n)$. To build a POMP model, the POMP representation has state variable $X_n = (G_n, H_n, Y_n)$, and we write the filtered particle $j$ at time $n-1$ as $$X_{n-1, j}^{F} = (G_{n-1, j}^{F}, H_{n-1, j}^{F}, y^{*}_{n-1})$$ and we can construct prediction particles at time $n$, $$(G_{n, j}^{P}, H_{n, j}^{P}) \sim f_{G_n, H_n|G_{n-1}, H_{n-1}, Y_{n-1}}(g_n|G_{n-1, j}^F, H_{n-1, j}^F, y^{*}_{n-1})$$ with corresponding weight $$w_{n, j} = f_{Y_n|G_n, H_n}(y^{*}_n|G_{n, j}^{P}, H^{P}_{n, j})$$ We can now start fitting the POMP model, that we need to estimate $\sigma_{\nu}, \mu_h, \phi, \sigma_{eta}, G_0, H_0$ where $G_0, H_0$ are initial values.
+
+```{r, echo=FALSE}
+nv_statenames <- c("H","G","Y_state")
+nv_rp_names <- c("sigma_nu","mu_h","phi","sigma_eta")
+nv_ivp_names <- c("G_0","H_0")
+nv_paramnames <- c(nv_rp_names,nv_ivp_names)
+```
+
+```{r, echo = FALSE}
+rproc1 <- "
+double beta,omega,nu;
+omega = rnorm(0,sigma_eta * sqrt( 1- phi*phi ) *
+ sqrt(1-tanh(G)*tanh(G)));
+nu = rnorm(0, sigma_nu);
+G += nu;
+beta = Y_state * sigma_eta * sqrt( 1- phi*phi );
+H = mu_h*(1 - phi) + phi*H + beta * tanh( G )
+ * exp(-H/2) + omega;
+"
+rproc2.sim <- "
+ Y_state = rnorm( 0,exp(H/2) );
+"
+rproc2.filt <- "
+ Y_state = covaryt;
+"
+nv_rproc.sim <- paste(rproc1,rproc2.sim)
+nv_rproc.filt <- paste(rproc1,rproc2.filt)
+```
+
+```{r, echo=FALSE}
+nv_rinit <- "
+  G = G_0;
+  H = H_0;
+  Y_state = rnorm( 0,exp(H/2) );
+"
+
+nv_rmeasure <- "
+y=Y_state;
+"
+
+nv_dmeasure <- "
+lik=dnorm(y,0,exp(H/2),give_log);
+"
+```
+
+```{r, echo = FALSE}
+nv_partrans <- parameter_trans(
+log=c("sigma_eta","sigma_nu"),
+logit="phi"
+)
+```
+
+```{r, echo = FALSE}
+nv.filt <- pomp(data=data.frame(
+    y=diff_data,time=1:length(diff_data)),
+  statenames=nv_statenames,
+  paramnames=nv_paramnames,
+  times="time",
+  t0=0,
+  covar=covariate_table(
+    time=0:length(diff_data),
+    covaryt=c(0,diff_data),
+    times="time"),
+  rmeasure=Csnippet(nv_rmeasure),
+  dmeasure=Csnippet(nv_dmeasure),
+  rprocess=discrete_time(step.fun=Csnippet(nv_rproc.filt),
+    delta.t=1),
+  rinit=Csnippet(nv_rinit),
+  partrans=nv_partrans
+)
+```
+
+```{r, echo = FALSE}
+params_test <- c(
+  sigma_nu = exp(-4.5),
+  mu_h = -0.25,
+  phi = expit(4),
+  sigma_eta = exp(-0.07),
+  G_0 = 0,
+  H_0=0
+)
+
+sim1.sim <- pomp(nv.filt,
+  statenames=nv_statenames,
+  paramnames=nv_paramnames,
+  rprocess=discrete_time(
+    step.fun=Csnippet(nv_rproc.sim),delta.t=1)
+)
+
+sim1.sim <- simulate(sim1.sim,seed=1,params=params_test)
+```
+
+```{r, echo = FALSE}
+sim1.filt <- pomp(sim1.sim,
+  covar=covariate_table(
+    time=c(timezero(sim1.sim),time(sim1.sim)),
+    covaryt=c(obs(sim1.sim),NA),
+    times="time"),
+  statenames=nv_statenames,
+  paramnames=nv_paramnames,
+  rprocess=discrete_time(
+    step.fun=Csnippet(nv_rproc.filt),delta.t=1)
+)
+```
+
+```{r, echo = FALSE}
+run_level <- 3
+nv_Np <- switch(run_level, 50, 800, 1500)
+nv_Nmif <- switch(run_level, 5, 80, 150)
+nv_Nreps_eval <- switch(run_level, 4, 8, 15)
+nv_Nreps_local <- switch(run_level, 5, 15, 15)
+nv_Nreps_global <- switch(run_level, 5, 15, 80)
+```
+
+```{r, echo = FALSE}
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE',unset=NA))
+if(is.na(cores)) cores <- detectCores()
+registerDoParallel(cores)
+registerDoRNG(34118892)
+```
+
+```{r, echo= FALSE}
+stew(file=paste0("pf1_",run_level,".rda"),{
+  t.pf1 <- system.time(
+    pf1 <- foreach(i=1:nv_Nreps_eval,
+      .packages='pomp') %dopar% pfilter(sim1.filt,Np=nv_Np))
+})
+```
+
+### Local Search
+
+```{r}
+nv_rw.sd_rp <- 0.02
+nv_rw.sd_ivp <- 0.1
+nv_cooling.fraction.50 <- 0.5
+nv_rw.sd <- rw_sd(
+  sigma_nu = nv_rw.sd_rp,
+  mu_h = nv_rw.sd_rp,
+  phi = nv_rw.sd_rp,
+  sigma_eta = nv_rw.sd_rp,
+  G_0 = ivp(nv_rw.sd_ivp),
+  H_0 = ivp(nv_rw.sd_ivp)
+)
+```
+
+```{r}
+start_time <- system.time({
+stew(file=paste0("mif1_",run_level,".rda"),{
+  t.if1 <- system.time({
+  if1 <- foreach(i=1:nv_Nreps_local,
+    .packages='pomp', .combine=c) %dopar% mif2(nv.filt,
+      params=params_test,
+      Np=nv_Np,
+      Nmif=nv_Nmif,
+      cooling.fraction.50=nv_cooling.fraction.50,
+      rw.sd = nv_rw.sd)
+  L.if1 <- foreach(i=1:nv_Nreps_local,
+.packages='pomp', .combine=rbind) %dopar% logmeanexp(
+    replicate(nv_Nreps_eval, logLik(pfilter(nv.filt,
+      params=coef(if1[[i]]),Np=nv_Np))), se=TRUE)
+  })
+})
+})
+r.if1 <- data.frame(logLik=L.if1[,1],logLik_se=L.if1[,2],
+  t(sapply(if1,coef)))
+if (run_level>1) write.table(r.if1,file="nv_params.csv",
+  append=TRUE,col.names=FALSE,row.names=FALSE)
+```
+
+```{r, echo = FALSE}
+elapsed_time_local <- start_time["elapsed"]
+
+```
+
+```{r, echo = FALSE}
+pairs(~logLik+sigma_nu+mu_h+phi+sigma_eta,
+  data=subset(r.if1,logLik>max(logLik)-20))
+```
+
+```{r, echo = FALSE}
+plot(if1)
+```
+
+```{r, echo = FALSE}
+summary(r.if1$logLik)
+```
+
+Now, from the summary of likelihood by local search, we find that the maximum likelihood is 1111. We observe that $\sigma_{\nu}, \phi, \sigma_{\eta}, G_0$ converge as the MIF iteration increases, while\
+$\mu_h, H_0$ do not converge. Consequently, we constructed a box and commenced conducting the global search.
+
+### Global Search
+
+```{r}
+nv_box <- rbind(
+  sigma_nu=c(0.005,0.05),
+  mu_h =c(-1,0),
+  phi = c(0.95,0.99),
+  sigma_eta = c(0.5,1),
+  G_0 = c(-2,2),
+  H_0 = c(-1,1)
+)
+```
+
+```{r}
+start_time <- system.time({
+stew(file=paste0("box_eval_",run_level,".rda"),{
+  if.box <- foreach(i=1:nv_Nreps_global,
+    .packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
+      params=apply(nv_box,1,function(x)runif(1,x)))
+  L.box <- foreach(i=1:nv_Nreps_global,
+    .packages='pomp',.combine=rbind) %dopar% {
+      logmeanexp(replicate(nv_Nreps_eval, logLik(pfilter(
+        nv.filt,params=coef(if.box[[i]]),Np=nv_Np))),
+        se=TRUE)}
+  })
+})
+timing.box <- .system.time["elapsed"]
+r.box <- data.frame(logLik=L.box[,1],logLik_se=L.box[,2],
+  t(sapply(if.box,coef)))
+
+if(run_level>1) write.table(r.box,file="nv_params.csv",
+  append=TRUE,col.names=FALSE,row.names=FALSE)
+summary(r.box$logLik,digits=5)
+```
+
+```{r, echo = FALSE}
+pairs(~logLik+log(sigma_nu)+mu_h+phi+sigma_eta+H_0,
+data=subset(r.box,logLik>max(logLik)-10))
+```
+
+```{r, echo = FALSE}
+plot(if.box)
+```
+
+```{r, echo = FALSE}
+summary(r.box$logLik)
+```
+
+We observe that the likelihood converges after approximately 20 iterations. Notably, parameters such as $\sigma_{\nu}$, $\mu_h$, $\sigma_{\eta}$, and $G_0$ demonstrate strong convergence. Specifically, $\sigma_{\nu}$ stabilizes at 0, $\mu_h$ settles around -2, $\sigma_{\eta}$ tends to converge around 5, and $G_0$ approaches approximately 0.6. However, some other parameters may not exhibit clear convergence, necessitating further iterations for evaluation. Additionally, while we examined the likelihood of the POMP model using global search, no significant improvement was observed compared to local search.
+
+## Conclusion
+
+By fitting all three models, ARMA(0, 0) give us the likelihood of 1092, the ARMA(0, 0)-GARCH(1, 1) model give us likelihood of 1120, while the pomp model using both local search and global search give us likelihood of 1110.
+
+Indeed, we have compelling reasons to consider each model as the best fit for our analysis. The ARMA(0, 0) model stands out as the simplest option, indicating that daily log-returns follow a shifted random walk, highlighting the inherent unpredictability of financial markets. This aligns with the efficient market theory, emphasizing the importance of market unpredictability to prevent arbitrage opportunities. On the other hand, the ARMA-GARCH model offers a more nuanced approach by better capturing the volatility of daily log-returns and acknowledging that future volatility may depend on past observations. Although it provides the highest likelihood among the models considered, it remains complex and doesn't explicitly elucidate the underlying causes of volatility but serves as a superior fitting model for our data. Meanwhile, the POMP model introduces the concept of latent processes to interpret observed measurements, offering meaningful insights into time-series dynamics. However, it exhibits a lower likelihood compared to the ARMA-GARCH model. In conclusion, we opt for the ARMA-GARCH model as our best choice, but recognize the need for further validation and research to enhance both fitting performance and interpretability.
+
+## Acknowledgement
+
+The materials presented in this project represent a continuation of Midterm Project 15 from Winter 2024 in Stats 531. Lingqi Huang serves as the primary author for both projects. In this iteration, instead of solely fitting an ARMA model as in the midterm project, Lingqi conducted more rigorous validation of theory and diagnosis. Building upon the foundations established in the midterm project, Lingqi then proceeded to fit ARMA-GARCH and POMP models, enriching the content and enhancing its significance. This evolution has resulted in a more comprehensive and meaningful exploration of the subject matter.
+
+### Group Member Contribution
+
+Lingqi Huang played a pivotal role by implementing exploratory data analysis (EDA), certain aspects of the ARMA model, and GARCH model selection. Lingqi also fitted the POMP model and make final conclusion.
+
+Muxue Liu contributed by fitting the ARMA model and GARCH model, as well as providing valuable interpretations of the models.
+
+## Reference
+
+[1] <https://ionides.github.io/531w24/16/index.html>
+
+[2] Shumway RH, Stoffer DS (2017). Time Series Analysis and its Applications: With R Examples. 4th edition. Springer.
+
+[3] Ruppert, D. and Matteson, D. (2015) Statistics and Data Analysis for Financial Engineering with R Examples, Springer.
+
+[4] Analysis of Financial Time Series, Second Edition, RUEY S. TSAY.
+
+[5] Stats 509 Lecture Notes Chapter 10
+
+[6] <https://en.wikipedia.org/wiki/Augmented_Dickey%E2%80%93Fuller_test>
+
+[7] <https://en.wikipedia.org/wiki/Ljung%E2%80%93Box_test>
+
+[8] Bret´o C (2014). "On idiosyncratic stochasticity of financial leverage effects." Statistics & Probability Letters, 91, 20--26.
+
+[9] <https://ionides.github.io/531w24/midterm_project/project15/comments.html>
+
+[10] <https://ionides.github.io/531w20/final_project/Project5/final.html>
