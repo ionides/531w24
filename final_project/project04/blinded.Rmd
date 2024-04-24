@@ -593,8 +593,7 @@ Based on the accuracy of the prediction scenarios from the EDA portion of the po
 
 ### Original model
 
-```{r,message=FALSE, warning=FALSE,echo=FALSE}
-
+```{r, message=FALSE, warning=FALSE,echo=FALSE}
 suppressMessages(suppressWarnings(library(tidyverse)))
 suppressMessages(suppressWarnings(library(pomp)))
 suppressMessages(suppressWarnings(library(lubridate)))
@@ -602,7 +601,10 @@ suppressMessages(suppressWarnings(library(dplyr)))
 suppressMessages(suppressWarnings(library(doFuture)))
 suppressMessages(suppressWarnings(library(GenSA)))
 suppressMessages(suppressWarnings(library(patchwork)))
+```
 
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE,eval=FALSE}
 df <- read.csv("2.csv")
 
 selected_rows <- subset(df, administrative_area_level_2 == "Washington")
@@ -645,7 +647,6 @@ weekly_data_diff <- weekly_data_diff %>%
 weekly_data_diff <- head(weekly_data_diff, -1)
 
 write_csv(weekly_data_diff,"week.csv")
-
 ```
 
 ```{r,message=FALSE, warning=FALSE,echo=FALSE}

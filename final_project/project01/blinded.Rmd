@@ -184,7 +184,7 @@ Therefore, the research question to solve in the following report is below:
 The latent process in this model starts from the covariate $S(t)$ or the number of sovereign states in year $t$. This is counted as an aggregate number of democracies and autocracies at year $t$. The next step of the latent process is to capture the subset of sovereign states that have elites with powerful endowment, $P(t)$, at the time $t$. Elites may inherit sophisticated military technologies from the previous foreign domination or simply receive exogenous endowment, such as oils or natural resources, that make them powerful enough to not establish democracies. The transition from $S(t)$ to $P(t)$ is captured as a binomial approximation with exponential transition probabilities, as suggested in Euler solutions stochastic dynamic (King, Ionides, and Wheeler 2024):
 
 $$
-\tilde{N}_{SP}(t + \delta) + \tilde{N}_{SP}(t) + \text{Binomial}\left[\tilde{S}(t), 1 - \text{exp}\left( {{-\beta} \frac{\tilde{R}(t)}{\tilde{S}(t)} \Delta t} \right) \right]
+\tilde{N}_{SP}(t + \delta) + \tilde{N}_{SP}(t) + \text{Binomial}\left[\tilde{S}(t), 1 - \text{exp}\left( -\beta \frac{\tilde{R}(t)}{\tilde{S}(t)} \Delta t \right) \right]
 $$
 Drawing insight from SIER model (King and Ionides 2024b), I consider $P(t)$ as a latency period before revoluationary threats occur. Observing powerful elites after the state's sovereignty is established, the mass soon prepares for the revolution to negotiate with the elites with the following expected value.
 
