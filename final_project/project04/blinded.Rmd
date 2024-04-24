@@ -1,0 +1,994 @@
+---
+title: "Comparative Analysis of ARIMA and SEIR Models Using COVID-19 Data"
+
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+## Introduction
+
+In the first half of the semester, we learned about ARIMA models, which are basic tools for fitting time series data. In the second half, we focused on models more suitable for epidemiology, particularly the POMP model and the fundamental mathematical model of infectious diseases known as the SIR model, which delineates the dynamics among Susceptible, Infectious, and Recovered individuals. Therefore, the main question we explore in this report is:
+
+> Can the SEIR model, which extends the SIR framework by including an Exposed (E) category, provide a better fit for the process of infectious disease transmission compared to the ARIMA model?
+
+For this analysis, we have selected data on the spread of the coronavirus (COVID-19).
+
+The COVID-19 outbreak began in the United States in early 2020, with the first confirmed case reported on January 20. This initial case involved a resident of Washington State who had returned from Wuhan, China. In the following weeks, the number of cases gradually increased across various states. By March, COVID-19 was rapidly spreading nationwide, prompting the implementation of travel restrictions and stay-at-home orders in numerous locations. As of today, the COVID-19 pandemic has not yet concluded. Although most countries have significantly reduced the severity and mortality of cases through extensive vaccination campaigns, the virus continues to spread globally. This persistence is particularly driven by the emergence and transmission of new variants of the virus.
+
+The [data](https://covid19datahub.io/articles/data.html) we used were separately recorded for different regions, detailing the confirmed cases, deaths, and recoveries from COVID-19. In the Exploratory Data Analysis (EDA) section, we analyzed the progression of COVID-19 in three regions: Washington State, California, and New York. For subsequent modeling with ARIMA and SEIR models, we primarily used 1500 data points from Washington State to determine whether the SEIR model could more effectively capture the characteristics of the epidemic's spread.
+
+## EDA
+
+Given the distinct demographic and public health landscapes of these states, our analysis focuses on these regions to capture the unique aspects of COVID-19 transmission and control measures. Our aim is to apply a POMP model to these data to elucidate the transmission dynamics of the virus. This approach will not only provide insights into the pandemic’s trends but also serve as a foundational framework for more intricate derivative models in subsequent analyses.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+library(readr)
+
+zip_url <- 'https://storage.covid19datahub.io/location/1c20e671.csv.zip'
+
+zip_path <- tempfile()  # Creates a temporary file
+
+download.file(zip_url, zip_path)
+
+csv_files <- unzip(zip_path, exdir = tempdir())  # Extracts to a temporary directory
+
+
+```
+
+```{r pomp1,message=FALSE, warning=FALSE,echo=FALSE}
+library(tidyverse)
+library(pomp)
+
+data <- read_csv(csv_files[1]) %>%
+  select(date, confirmed) %>%
+  mutate(week = as.numeric(format(date, "%U"))) %>%
+  group_by(week) %>%
+  summarize(reports = sum(confirmed), .groups = "drop")
+
+# Define the differential equations of the SIR model using C code snippets
+sir_step <- Csnippet("
+  double dN_SI = rbinom(S, 1 - exp(-Beta * I / N * dt));
+  double dN_IR = rbinom(I, 1 - exp(-mu_IR * dt));
+  S -= dN_SI;
+  I += dN_SI - dN_IR;
+  R += dN_IR;
+  H += dN_IR; // Add hospitalized cases (if necessary)
+")
+
+# Initialize state variables
+sir_init <- Csnippet("
+  S = nearbyint(eta * N);
+  I = 1; // Assume there is one infected person at the beginning
+  R = nearbyint((1 - eta) * N);
+  H = 0; // Assume there are no hospitalized cases at the beginning
+")
+
+# Define the measurement model
+dmeas <- Csnippet("
+  lik = dnbinom_mu(reports, k, rho * I, give_log); // Model based on I as infectious individuals
+")
+
+# Define the random measurement process
+rmeas <- Csnippet("
+  reports = rnbinom_mu(k, rho * I);
+")
+
+# Calculation of expected measurement values
+emeas <- Csnippet("
+  E_reports = rho * I;
+")
+
+# Create a POMP model object
+pomp(
+  data = data,
+  times = "week", t0 = 0,
+  rprocess = euler(sir_step, delta.t = 1/52), # Assume updated weekly
+  rinit = sir_init,
+  rmeasure = rmeas,
+  dmeasure = dmeas,
+  emeasure = emeas,
+  accumvars = "H", # If tracking hospitalization is necessary
+  statenames = c("S", "I", "R", "H"),
+  paramnames = c("Beta", "mu_IR", "eta", "rho", "k", "N"),
+  params = c(
+    Beta = 0.45,    # Increase transmission rate
+    mu_IR = 0.1,  # Decrease recovery rate
+    eta = 0.80,    # Assume 80% of the population is susceptible
+    rho = 0.9,     # Assume reporting rate is 90%
+    k = 1,         # Assume the shape parameter of the negative binomial distribution is 1
+    N = 1000000    # Assume total population is 1 million
+  ) 
+) -> covidSIR
+library(ggplot2)
+
+# Simulate the model to obtain multiple simulation trajectories
+simulations <- simulate(covidSIR, nsim = 5)
+simulations_df <- as.data.frame(simulations)  # Manually convert to a data frame
+
+# Ensure columns for time, S, I, R, H exist
+simulations_df$time <- rep(seq_along(simulations_df$S), each = nrow(simulations_df) / length(simulations_df$S))
+simulations_df <- simulations_df[, c("time", "S", "I", "R", "H")]
+#print(simulations_df)
+
+# Plot the simulation results
+ggplot(data = simulations_df, aes(x = time)) +
+  geom_line(aes(y = S, colour = "S")) +
+  geom_line(aes(y = I, colour = "I")) +
+  geom_line(aes(y = R, colour = "R")) +
+  geom_line(aes(y = H, colour = "H")) +  # Line for hospitalized cases, if any
+  labs(title = " Simulation of POMP Model with Hospitalization in Califonia",
+       x = "Weeks",
+       y = "Number of Individuals",
+       colour = "Compartments") +
+  theme_minimal()
+
+
+```
+
+```{r pomp2,message=FALSE, warning=FALSE,echo=FALSE}
+library(tidyverse)
+library(pomp)
+
+zip_url <- 'https://storage.covid19datahub.io/location/328e3124.csv.zip'
+
+zip_path <- tempfile()  # Creates a temporary file
+
+download.file(zip_url, zip_path)
+
+csv_files <- unzip(zip_path, exdir = tempdir())  # Extracts to a temporary directory
+
+data <- read_csv(csv_files[1]) %>%
+  select(date, confirmed) %>%
+  mutate(week = as.numeric(format(date, "%U"))) %>%
+  group_by(week) %>%
+  summarize(reports = sum(confirmed), .groups = "drop")
+
+# Define the differential equations of the SIR model using C code snippets
+sir_step <- Csnippet("
+  double dN_SI = rbinom(S, 1 - exp(-Beta * I / N * dt));
+  double dN_IR = rbinom(I, 1 - exp(-mu_IR * dt));
+  S -= dN_SI;
+  I += dN_SI - dN_IR;
+  R += dN_IR;
+  H += dN_IR; // Add hospitalized cases (if necessary)
+")
+
+# Initialize state variables
+sir_init <- Csnippet("
+  S = nearbyint(eta * N);
+  I = 1; // Assume there is one infected person at the beginning
+  R = nearbyint((1 - eta) * N);
+  H = 0; // Assume there are no hospitalized cases at the beginning
+")
+
+# Define the measurement model
+dmeas <- Csnippet("
+  lik = dnbinom_mu(reports, k, rho * I, give_log); // Model based on I as infectious individuals
+")
+
+# Define the random measurement process
+rmeas <- Csnippet("
+  reports = rnbinom_mu(k, rho * I);
+")
+
+# Calculation of expected measurement values
+emeas <- Csnippet("
+  E_reports = rho * I;
+")
+
+# Create a POMP model object
+pomp(
+  data = data,
+  times = "week", t0 = 0,
+  rprocess = euler(sir_step, delta.t = 1/52), # Assume updated weekly
+  rinit = sir_init,
+  rmeasure = rmeas,
+  dmeasure = dmeas,
+  emeasure = emeas,
+  accumvars = "H", # If tracking hospitalization is necessary
+  statenames = c("S", "I", "R", "H"),
+  paramnames = c("Beta", "mu_IR", "eta", "rho", "k", "N"),
+  params = c(
+    Beta = 0.45,    # Increase transmission rate
+    mu_IR = 0.1,  # Decrease recovery rate
+    eta = 0.80,    # Assume 80% of the population is susceptible
+    rho = 0.9,     # Assume reporting rate is 90%
+    k = 1,         # Assume the shape parameter of the negative binomial distribution is 1
+    N = 1000000    # Assume total population is 1 million
+  ) 
+) -> covidSIR
+library(ggplot2)
+
+# Simulate the model to obtain multiple simulation trajectories
+simulations <- simulate(covidSIR, nsim = 5)
+simulations_df <- as.data.frame(simulations)  # Manually convert to a data frame
+
+# Ensure columns for time, S, I, R, H exist
+simulations_df$time <- rep(seq_along(simulations_df$S), each = nrow(simulations_df) / length(simulations_df$S))
+simulations_df <- simulations_df[, c("time", "S", "I", "R", "H")]
+#print(simulations_df)
+
+# Plot the simulation results
+ggplot(data = simulations_df, aes(x = time)) +
+  geom_line(aes(y = S, colour = "S")) +
+  geom_line(aes(y = I, colour = "I")) +
+  geom_line(aes(y = R, colour = "R")) +
+  geom_line(aes(y = H, colour = "H")) +  # Line for hospitalized cases, if any
+  labs(title = " Simulation of POMP Model with Hospitalization in Washington",
+       x = "Weeks",
+       y = "Number of Individuals",
+       colour = "Compartments") +
+  theme_minimal()
+
+
+```
+
+
+```{r pomp3,message=FALSE, warning=FALSE,echo=FALSE}
+library(tidyverse)
+library(pomp)
+
+zip_url <- 'https://storage.covid19datahub.io/location/bae2006a.csv.zip'
+
+zip_path <- tempfile()  # Creates a temporary file
+
+download.file(zip_url, zip_path)
+
+csv_files <- unzip(zip_path, exdir = tempdir())  # Extracts to a temporary directory
+
+data <- read_csv(csv_files[1]) %>%
+  select(date, confirmed) %>%
+  mutate(week = as.numeric(format(date, "%U"))) %>%
+  group_by(week) %>%
+  summarize(reports = sum(confirmed), .groups = "drop")
+
+# Define the differential equations of the SIR model using C code snippets
+sir_step <- Csnippet("
+  double dN_SI = rbinom(S, 1 - exp(-Beta * I / N * dt));
+  double dN_IR = rbinom(I, 1 - exp(-mu_IR * dt));
+  S -= dN_SI;
+  I += dN_SI - dN_IR;
+  R += dN_IR;
+  H += dN_IR; // Add hospitalized cases (if necessary)
+")
+
+# Initialize state variables
+sir_init <- Csnippet("
+  S = nearbyint(eta * N);
+  I = 1; // Assume there is one infected person at the beginning
+  R = nearbyint((1 - eta) * N);
+  H = 0; // Assume there are no hospitalized cases at the beginning
+")
+
+# Define the measurement model
+dmeas <- Csnippet("
+  lik = dnbinom_mu(reports, k, rho * I, give_log); // Model based on I as infectious individuals
+")
+
+# Define the random measurement process
+rmeas <- Csnippet("
+  reports = rnbinom_mu(k, rho * I);
+")
+
+# Calculation of expected measurement values
+emeas <- Csnippet("
+  E_reports = rho * I;
+")
+
+# Create a POMP model object
+pomp(
+  data = data,
+  times = "week", t0 = 0,
+  rprocess = euler(sir_step, delta.t = 1/52), # Assume updated weekly
+  rinit = sir_init,
+  rmeasure = rmeas,
+  dmeasure = dmeas,
+  emeasure = emeas,
+  accumvars = "H", # If tracking hospitalization is necessary
+  statenames = c("S", "I", "R", "H"),
+  paramnames = c("Beta", "mu_IR", "eta", "rho", "k", "N"),
+  params = c(
+    Beta = 0.45,    # Increase transmission rate
+    mu_IR = 0.1,  # Decrease recovery rate
+    eta = 0.80,    # Assume 80% of the population is susceptible
+    rho = 0.9,     # Assume reporting rate is 90%
+    k = 1,         # Assume the shape parameter of the negative binomial distribution is 1
+    N = 1000000    # Assume total population is 1 million
+  ) 
+) -> covidSIR
+library(ggplot2)
+
+# Simulate the model to obtain multiple simulation trajectories
+simulations <- simulate(covidSIR, nsim = 5)
+simulations_df <- as.data.frame(simulations)  # Manually convert to a data frame
+
+# Ensure columns for time, S, I, R, H exist
+simulations_df$time <- rep(seq_along(simulations_df$S), each = nrow(simulations_df) / length(simulations_df$S))
+simulations_df <- simulations_df[, c("time", "S", "I", "R", "H")]
+#print(simulations_df)
+
+# Plot the simulation results
+ggplot(data = simulations_df, aes(x = time)) +
+  geom_line(aes(y = S, colour = "S")) +
+  geom_line(aes(y = I, colour = "I")) +
+  geom_line(aes(y = R, colour = "R")) +
+  geom_line(aes(y = H, colour = "H")) +  # Line for hospitalized cases, if any
+  labs(title = " Simulation of POMP Model with Hospitalization in New York",
+       x = "Weeks",
+       y = "Number of Individuals",
+       colour = "Compartments") +
+  theme_minimal()
+
+
+```
+
+The simulation charts provided exhibit several key characteristics:
+
+**Cyclical Fluctuations:** There's a distinct cyclical pattern observed in the number of susceptibles (S), infected (I), and recovered (R) individuals. This typically suggests periodic outbreaks and retreats of the disease within the population.
+Extreme Fluctuations: The number of susceptibles rapidly falls close to zero and then recovers just as quickly, which is not consistent with real-world scenarios. In reality, outbreaks tend to spread gradually rather than instantaneously.
+
+**Constant Number of Recovered:** After each wave of infection, the number of recovered individuals seems to reach a new equilibrium without a significant decrease.
+Analysis of the Model
+
+**Model Assumptions:** The model may be overly simplistic or may not capture key features of disease transmission. For example, if the model assumes that individuals become susceptible immediately after recovery, this could lead to cyclical fluctuations. This might be reasonable for certain diseases, but with COVID-19, recovered individuals typically have a period of immunity.
+
+**Parameter Settings:** The value of Beta (transmission rate) may be set too high, or the recovery rate (mu_IR) may be set too low, leading to rapid spread and recovery of the disease within the population. Additionally, the initial proportion of susceptibles (eta) might need adjustment.
+Time Scale: The time step of the model may need to be adjusted to better capture the rates of infection and recovery.
+
+**Adjust Transmission Rate (Beta):** Decrease the Beta value to slow down the spread of the virus.
+
+**Adjust Recovery Rate (mu_IR):** Increase the mu_IR value to speed up the recovery rate of infected individuals, which will result in lower peaks of infection.
+
+
+## ARIMA model
+
+Given time series data $\{X_t\}_{t=1}^N$, an ARIMA(p,d,q) model is given by:
+
+$$\phi (B) ((1 - B)^d X_t-\mu) = \psi (B) \varepsilon_t$$
+
+Where:
+
+- $\mu = E[X_t]$.
+- $\phi (B) = 1 - \sum_{i=1}^{p} \phi_i B^i$ is the autoregressive part of the model.
+- $\psi(B) = 1 + \sum_{i=1}^{q} \psi_i B^i$ is the moving average part of the model.
+- $B$ is the lag operator. $BY_n = Y_{n-1}$.
+- $\varepsilon_t$ is the error term at time $t$, and normally we assume $\varepsilon_t$ $iid \sim  N(0,1)$.
+
+Here $d$ is the order of difference. When $d = 1$, $(1 - B) X_t = X_t - X_{t-1}$, each time series observation is subtracted from its previous observation. By doing this calculation, linear trend in the original series will be removed.
+
+### Model selection
+
+We use AIC criterion to choose the best model. After trying d = 0, 1, 2, we decided to find the model from different ARIMA(P,1,Q) model with parameters P and Q ranging from 0 to 3. The AIC table for each model are shown below.
+
+```{r, echo=FALSE}
+library(knitr)
+library(ggplot2)
+```
+
+```{r, echo=FALSE}
+week <- read.table(file = 'week.csv', sep = ",", header = TRUE)
+week_ts <- ts(week$new_confirmed, start = c(2020, 1), frequency = 52)
+```
+
+```{r AIC_table, echo=FALSE}
+#' ARIMA AIC table
+#'
+#' Construct table of AIC for all combinations 0<=p<=P and 0<=q<=Q
+#'
+#' This function creates an AIC table for ARMA models of varying sizes.
+#' Each row for the table corresponds to a different AR value, and each column
+#' of the table corresponds to a different MA value.
+#'
+#' @param data a time series object, or a dataset that can be used as input into
+#'    the [arima] function.
+#' @param P a positive integer value representing the maximum number of AR
+#'    coefficients that should be included in the table.
+#' @param Q a positive integer value representing the maximum number of MA
+#'    coefficients that should be included in the table.
+#' @param D a positive integer value representing the degree of differencing
+#' @param ic Information criterion to be used in the table.
+#' @param ... Additional arguments passed to [arima()].
+#'
+#' @returns A matrix containing the model AIC values.
+#' @export
+#' @examples
+#' set.seed(654321)
+#' aicTable(presidents, 3, 2)
+aicTable <- function(data, P, Q, D = 0, ic = c('aic', 'aicc'), ...){
+
+  ic <- match.arg(ic)
+
+  if (!is.numeric(P) | !is.numeric(Q) | !is.numeric(D)) {
+    stop("'P', 'Q' and 'D' must be numeric.")
+  }
+
+  P <- as.integer(P)
+  Q <- as.integer(Q)
+  D <- as.integer(D)
+
+  table <- matrix(NA, (P + 1), (Q + 1))
+  for (p in 0:P) {
+    for (q in 0:Q) {
+      mod <- arima(data, order = c(p, D, q), ...)
+
+      val <- mod$aic
+
+      if (ic == "aicc") {
+        k <- sum(mod$mask) + 1
+        val <- val + (2 * k^2 + 2 * k) / (mod$nobs - k - 1)
+      }
+
+      table[p + 1, q + 1] <- val
+    }
+  }
+  dimnames(table) <- list(paste("AR", 0:P, sep = ""), paste("MA", 0:Q, sep = ""))
+  table
+}
+
+#' Check Table
+#'
+#' This function is used to check the consistency of an AIC table generated
+#' using the aicTable function (above).
+#'
+#' This function was primarily implemented to help with the ArXiv paper that
+#' describes this package, and for that reason aicc check isn't implemented.
+#'
+#' @param data a time series object, or a dataset that can be used as input into
+#'    the [arima] function.
+#' @param P a positive integer value representing the maximum number of AR
+#'    coefficients that should be included in the table.
+#' @param Q a positive integer value representing the maximum number of MA
+#'    coefficients that should be included in the table.
+#' @param D a positive integer value representing the degree of differencing
+#' @param method string that must be "arima2" or "stats", indicating which
+#'    package should be used to fit the ARIMA model.
+#' @param eps_tol Tolerance for accepting a new solution to be better than a
+#'    previous solution in terms of log-likelihood. The default corresponds to a
+#'    one ten-thousandth unit increase in log-likelihood.
+#' @param ... Additional arguments passed to either [stats::arima()] or
+#'    [arima()], depending on which method is called.
+#'
+#' @return Boolean. True if the table is consistent in the sense that larger
+#'    models have likelihood that is greater than or equal to all smaller
+#'    models.
+#' @noRd
+#'
+#' @examples arima2:::.checkTable(presidents, 3, 2)
+.checkTable <- function(data, P, Q, D = 0, method = 'arima2', eps_tol = 1e-4, ...) {
+
+  is_consistent = TRUE
+
+  if (!is.numeric(P) | !is.numeric(Q) | !is.numeric(D)) {
+    stop("'P', 'Q' and 'D' must be numeric.")
+  }
+
+  P <- as.integer(P)
+  Q <- as.integer(Q)
+  D <- as.integer(D)
+
+  table <- matrix(NA, (P + 1), (Q + 1))
+  for(p in 0:P) {
+    for(q in 0:Q) {
+
+      if (method == 'arima2') {
+        table[p + 1, q + 1] <- arima(data, order = c(p, D, q), ...)$loglik
+      } else {
+        table[p + 1, q + 1] <- stats::arima(data, order = c(p, D, q), ...)$loglik
+      }
+
+      if (q > 0 && table[p + 1, q + 1] + eps_tol < table[p + 1, q]) {
+        is_consistent = FALSE
+        break
+      } else if (p > 0 && table[p + 1, q + 1] + eps_tol < table[p, q + 1]) {
+        is_consistent = FALSE
+        break
+      }
+
+    }
+
+    if (!is_consistent) break
+  }
+
+  is_consistent
+}
+```
+
+```{r, echo=FALSE}
+aic_matrix <- aicTable(week_ts, 3, 3, D = 1, ic = c("aic", "aicc"))
+
+aic_matrix_kable <- kable(aic_matrix, digits = 3, caption = "AIC Values for ARIMA Models")
+aic_matrix_kable
+```
+
+As we can see, ARIMA(2, 1, 3) achieve the smallest AIC value 3983.290. However, since AIC penalized less for complexity, we also compare this model with ARIMA(3,1,1). Since these two ARIMA models are not nested, it is inappropriate to use the likelihood ratio test for comparison. Therefore, we decided to choose the ARIMA(2, 1, 3) model after comparing their residual plots, autocorrelation function (ACF) graphs, and QQ plots.
+
+```{r, echo=FALSE}
+arima_model <- arima(x = week_ts, order = c(3, 1, 1))
+
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+
+residuals <- residuals(arima_model)
+plot(residuals, type = 'l', main = "Residuals of ARIMA Model", xlab = "Time", ylab = "Residuals")
+abline(h = 0, col = "red")  
+
+acf(residuals, main = "ACF of Residuals")
+
+qqnorm(residuals, main = "QQ Plot of Residuals")
+qqline(residuals, col = "red")
+```
+
+From the residual plot, it can be observed that the residuals suddenly increase around 2022, but the QQ plot and ACF show good performance. We also plotted the fitted data as below, which generally appears to be well-fitted.
+
+```{r, echo=FALSE, warning= FALSE}
+suppressPackageStartupMessages(library(forecast))
+suppressPackageStartupMessages(library(quantmod))
+
+ts_data <- week_ts
+
+fitted_values <- fitted(arima_model)
+
+data_to_plot <- data.frame(Time = time(ts_data),
+                           Original = as.numeric(ts_data),
+                           Fitted = as.numeric(fitted_values))
+
+ggplot(data_to_plot, aes(x = Time)) +
+  geom_line(aes(y = Original, colour = "Original Data")) +
+  geom_line(aes(y = Fitted, colour = "Fitted Values")) +
+  labs(y = "Value", title = "Original Data and Fitted ARIMA Model Values",
+       caption =expression(bold("Figure:") ~ "Fitted value(Red) and Original time series(Black).") ) +
+  scale_colour_manual("", 
+                      breaks = c("Original Data", "Fitted Values"),
+                      values = c("Original Data" = "black", "Fitted Values" = "red"))+
+  theme_minimal()+
+  theme(legend.title = element_text(face = "bold"),  
+        legend.text = element_text(size = 8),  
+        plot.title = element_text(hjust = 0.5),
+        plot.caption = element_text(size = 8, hjust = 0.5, face = "bold") )
+
+```
+
+
+## SEIR model
+
+![](SEIR.png)
+
+The SEIR model is consist of four stages:
+
+- S: susceptible population
+- E: exposed population, asymptomatic but won’t test positive yet
+- I: infected population, symptomatic/tests positive
+- R: removed population
+
+Suppose the number of people in each compartment at time $t$ is $S(t)$, $E(t)$, $I(t)$, $R(t)$, respectively. The model can be specified as follows:
+
+$$
+\begin{aligned}
+S(t) &= S(0) - \Delta N_{SE}(t) \\
+E(t) &= E(0) + \Delta N_{SE}(t) - \Delta N_{EI}(t) \\
+I(t) &= I(0) + \Delta N_{EI}(t) - \Delta N_{IR}(t) \\
+R(t) &= R(0) + \Delta N_{IR}(t)
+\end{aligned}
+$$
+
+where the number of people transiting from one compartment to another is given by:
+
+$$
+\begin{aligned}
+\Delta N_{SE} &\sim \text{Binomial}(S, 1 - e^{-\beta \frac{I}{N} \Delta t}) \\
+\Delta N_{EI} &\sim \text{Binomial}(E, 1 - e^{-\mu_{EI} \Delta t}) \\
+\Delta N_{IR} &\sim \text{Binomial}(I, 1 - e^{-\mu_{IR} \Delta t})
+\end{aligned}
+$$
+
+As for the parameters, $\beta$ is the contact rate with $b_1$ when time is in the first half of time period and $b_2$ when time is in the second half of time period, and $\mu_{SI} = \beta I(t)$ denotes the rate at which individuals in $S$ transition to $E$, $\mu_{EI}$ is the rate at which individuals in $E$ transition to $I$ and $\mu_{IR}$ denotes the transition rate from $I$ to $R$. The probability of a case being reported is $\rho$.
+
+Based on the accuracy of the prediction scenarios from the EDA portion of the pomp model, and when viewed in the context of covid19 at the time. Washington is the state where the first case of covid19 appeared in the United States, so it would be more convincing for us to choose its confirmation data to build the SEIR model. After the initial model building we use local optimization on local search and overall optimization on gloabl search to help the model adjust the parameters to the extent that the prediction results are more realistic.
+
+### Original model
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(pomp)))
+suppressMessages(suppressWarnings(library(lubridate)))
+suppressMessages(suppressWarnings(library(dplyr)))
+suppressMessages(suppressWarnings(library(doFuture)))
+suppressMessages(suppressWarnings(library(GenSA)))
+suppressMessages(suppressWarnings(library(patchwork)))
+
+df <- read.csv("2.csv")
+
+selected_rows <- subset(df, administrative_area_level_2 == "Washington")
+selected_rows <- selected_rows %>%
+  mutate(day_number = row_number())
+
+selected_rows <- selected_rows %>%
+  mutate(across(everything(), ~replace(., is.na(.), 0)))
+
+selected_rows <- selected_rows %>% 
+  filter(date < as.Date("2023-03-24"))
+
+selected_rows <- selected_rows %>%
+  arrange(date) %>% # Make sure the data is sorted by date
+  mutate(
+    new_confirmed = confirmed - lag(confirmed, default = first(confirmed)),
+    new_deaths = deaths - lag(deaths, default = first(deaths)),
+    new_recovered = recovered - lag(recovered, default = first(recovered))
+  )
+
+data <- selected_rows %>% 
+  mutate(date = as.Date(date))
+
+weekly_data <- data %>%
+  group_by(week = floor_date(date, "week")) %>%
+  summarise(new_confirmed = sum(confirmed, na.rm = TRUE),
+            new_deaths = sum(deaths, na.rm = TRUE)) %>%
+  ungroup()
+
+# Calculate the difference between weeks
+weekly_data_diff <- weekly_data %>%
+  arrange(week) %>%
+  mutate(new_confirmed = new_confirmed - lag(new_confirmed, default = first(new_confirmed)),
+         new_deaths = new_deaths - lag(new_deaths, default = first(new_deaths)))
+
+# Add a sequential week number
+weekly_data_diff <- weekly_data_diff %>%
+  mutate(week_number = row_number())
+
+weekly_data_diff <- head(weekly_data_diff, -1)
+
+write_csv(weekly_data_diff,"week.csv")
+
+```
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+data <- read_csv("week.csv") %>%
+  select(week_number, new_confirmed) %>%
+  rename(time = week_number, cases = new_confirmed)
+
+seir_step <- Csnippet("
+  double new_exposed = rbinom(S, 1.0 - exp(-beta * I / N * dt));
+  double new_infectious = rbinom(E, 1.0 - exp(-sigma * dt));
+  double new_recovered = rbinom(I, 1.0 - exp(-gamma * dt));
+
+  S -= new_exposed;
+  E += new_exposed - new_infectious;
+  I += new_infectious - new_recovered;
+  R += new_recovered;
+")
+
+seir_init <- Csnippet("
+  S = nearbyint(N - 1);
+  E = 0;
+  I = 1;
+  R = 0;
+")
+
+seir_dmeas <- Csnippet("
+  lik = dnbinom(cases, I, rho, give_log);
+")
+
+seir_rmeas <- Csnippet("
+  cases = rbinom(I, rho);
+")
+
+params <- c(
+  beta = 0.5,  
+  sigma = 0.5,  
+  gamma = 0.5,   
+  N = 5000000,   
+  rho = 0.1    
+)
+
+seir_pomp <- pomp(
+  data = data,
+  times = "time",
+  t0 = 0,
+  rprocess = euler(seir_step, delta.t = 0.1),
+  rinit = seir_init,
+  dmeasure = seir_dmeas,
+  rmeasure = seir_rmeas,
+  statenames = c("S", "E", "I", "R"),
+  paramnames = c("beta", "sigma", "gamma", "N", "rho")
+)
+
+simulated <- simulate(
+  seir_pomp,
+  params = params,
+  nsim = 1,
+  format = "data.frame"
+)
+
+ggplot() +
+  geom_line(aes(x = time, y = cases), data = data, color = "blue") +
+  geom_line(aes(x = time, y = cases), data = simulated, color = "red") +
+  theme_minimal() +
+  labs(title = "SEIR Model Simulation(red line) vs Actual Data(blue line)", x = "Day", y = "Number of Cases") +
+  scale_color_manual(values = c('Actual Data' = 'blue', 'Simulated Data' = 'red'))
+
+```
+
+The blue line in the figure represents real data on the number of confirmed diagnoses over time in Washington State, and the red line represents the SEIR model's predictions of the number of confirmed diagnoses over time based on our initial parameters. We can see that the model under the initial parameters fails to make predictions, with predictions almost universally close to 0.
+
+### Local search and optimization
+
+```{r, message=FALSE, warning=FALSE,echo=FALSE, results='hide'}
+
+trace <- data.frame(iteration = integer(), beta = numeric(), sigma = numeric(),
+                    gamma = numeric(), N = numeric(), rho = numeric(), cost = numeric())
+
+
+optim_trace <- function(params) {
+  fval <- cost_function(params)
+  new_row <- as.data.frame(t(c(params, fval)), stringsAsFactors = FALSE)
+  names(new_row) <- c("beta", "sigma", "gamma", "N", "rho", "cost")
+  new_row$iteration <- nrow(trace) + 1
+  trace <<- rbind(trace, new_row)
+  return(fval)
+}
+
+cost_function <- function(params) {
+  sim <- simulate(
+    seir_pomp,
+    params = params,
+    nsim = 1,
+    format = "data.frame"
+  )
+  sum((sim$cases - data$cases)^2)
+}
+
+params <- c(beta = 0.5, sigma = 0.5, gamma = 0.5, N = 5000000, rho = 0.1)
+
+optim_results <- optim(
+  par = params,
+  fn = optim_trace,
+  method = "Nelder-Mead",
+  control = list(maxit = 500, trace = TRUE)
+)
+
+```
+ 
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+par(mfrow = c(2, 3))
+data <- trace
+
+# Example plots with base R plotting
+plot(data$iteration, data$beta, type = "l", col = "red", main = "Optimization of Beta", xlab = "Iteration", ylab = "Beta")
+plot(data$iteration, data$sigma, type = "l", col = "blue", main = "Optimization of Sigma", xlab = "Iteration", ylab = "Sigma")
+plot(data$iteration, data$gamma, type = "l", col = "green", main = "Optimization of Gamma", xlab = "Iteration", ylab = "Gamma")
+plot(data$iteration, data$N, type = "l", col = "black", main = "Optimization of N", xlab = "Iteration", ylab = "N")
+plot(data$iteration, data$rho, type = "l", col = "purple", main = "Optimization of Rho", xlab = "Iteration", ylab = "Rho")
+
+```
+The five images as above show the convergence of local search for each parameter in the optimization. We can clearly see that except for the population represented by N, all the other parameters are converging to a positive number close to 0 eventually. And we also derive the final reference values of the five parameters given by the local optimization.
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+data <- read_csv("week.csv") %>%
+  select(week_number, new_confirmed) %>%
+  rename(time = week_number, cases = new_confirmed)
+
+params <- c(
+  beta = 1.1305,  
+  sigma = 0.3445,  
+  gamma = 0.063008,   
+  N = 5031249,   
+  rho = 0.25344    
+)
+
+seir_pomp <- pomp(
+  data = data,
+  times = "time",
+  t0 = 0,
+  rprocess = euler(seir_step, delta.t = 0.1),
+  rinit = seir_init,
+  dmeasure = seir_dmeas,
+  rmeasure = seir_rmeas,
+  statenames = c("S", "E", "I", "R"),
+  paramnames = c("beta", "sigma", "gamma", "N", "rho")
+)
+
+simulated <- simulate(
+  seir_pomp,
+  params = params,
+  nsim = 1,
+  format = "data.frame"
+)
+
+ggplot() +
+  geom_line(aes(x = time, y = cases), data = data, color = "blue") +
+  geom_line(aes(x = time, y = cases), data = simulated, color = "red") +
+  theme_minimal() +
+  labs(title = "SEIR Model Simulation(red line) vs Actual Data(blue line)", x = "Day", y = "Number of Cases") +
+  scale_color_manual(values = c('Actual Data' = 'blue', 'Simulated Data' = 'red'))
+
+```
+Based on the five parameters adjusted by the local optimization, we plot again to make predictions. Although the prediction is significantly better this time, the peak position still deviates from the real situation. In the real-world scenario, there is a distinct peak around day 100 that is not captured by the model, suggesting that the model may not have fully accounted for all the factors that influence transmission or case reporting. The mismatch of peaks may indicate that key dynamics or external factors were missed in the simulation, or that parameter values need to be adjusted to achieve a more accurate fit.
+
+### Global Search and Optimization
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE, results='hide'}
+
+params <- c(beta = 0.5, sigma = 0.5, gamma = 0.5, N = 5000000, rho = 0.1)
+
+seir_step <- Csnippet("
+  double new_exposed = rbinom(S, 1.0 - exp(-beta * I / N * dt));
+  double new_infectious = rbinom(E, 1.0 - exp(-sigma * dt));
+  double new_recovered = rbinom(I, 1.0 - exp(-gamma * dt));
+  S -= new_exposed;
+  E += new_exposed - new_infectious;
+  I += new_infectious - new_recovered;
+  R += new_recovered;
+")
+
+seir_init <- Csnippet("
+  S = nearbyint(N - 1);
+  E = 0;
+  I = 1;
+  R = 0;
+")
+
+seir_dmeas <- Csnippet("
+  lik = dnbinom(cases, I, rho, give_log);
+")
+
+rmeasure <- Csnippet("
+  cases = nearbyint(I);
+")
+
+
+cost_function <- function(params) {
+  sim <- simulate(
+    seir_pomp,
+    params = as.list(params),
+    nsim = 1,
+    format = "data.frame"
+  )
+  sum((sim$cases - data$cases)^2)
+}
+
+lower <- c(beta = 0.1, sigma = 0.1, gamma = 1/21, N = 1, rho = 0.1)
+upper <- c(beta = 1, sigma = 1, gamma = 1, N = 10000000, rho = 1)
+
+gen_sa_control <- list(
+  maxit = 1000,
+  temp = 10,
+  max.call = 500,
+  stop.T = 1e-3,
+  verbose = TRUE
+)
+
+set.seed(123)
+global_opt <- GenSA(lower = lower, upper = upper, fn = cost_function,control = gen_sa_control)
+
+```
+To find the optimal parameters in the global search, we used the GenSA software package, which defines lower and upper limits for each parameter and measures the fit of the SEIR simulation model to the actual case data using a cost function that calculates the sum of the squared differences between observed and simulated cases. To ensure an accurate and efficient process, we quantified the iteration limits and temperature decrements when running the GenSA function. In the end, we obtained the following optimal parameters.
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+global_opt$par
+
+```
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+data <- read_csv("week.csv") %>%
+  select(week_number, new_confirmed) %>%
+  rename(time = week_number, cases = new_confirmed)
+
+params <- c(
+  beta = 0.3588,  
+  sigma = 0.8094,  
+  gamma = 0.4371,   
+  N = 8830174,   
+  rho = 0.9464    
+)
+
+seir_pomp <- pomp(
+  data = data,
+  times = "time",
+  t0 = 0,
+  rprocess = euler(seir_step, delta.t = 0.1),
+  rinit = seir_init,
+  dmeasure = seir_dmeas,
+  rmeasure = seir_rmeas,
+  statenames = c("S", "E", "I", "R"),
+  paramnames = c("beta", "sigma", "gamma", "N", "rho")
+)
+
+simulated <- simulate(
+  seir_pomp,
+  params = params,
+  nsim = 1,
+  format = "data.frame"
+)
+
+ggplot() +
+  geom_line(aes(x = time, y = cases), data = data, color = "blue") +
+  geom_line(aes(x = time, y = cases), data = simulated, color = "red") +
+  theme_minimal() +
+  labs(title = "SEIR Model Simulation(red line) vs Actual Data(blue line)", x = "Day", y = "Number of Cases") +
+  scale_color_manual(values = c('Actual Data' = 'blue', 'Simulated Data' = 'red'))
+
+```
+
+According to the image above,we can clearly see that global optimization is even less effective than local optimization, the fit between predicted and true values is too low.
+
+### Final SEIR Model
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+data <- read_csv("week.csv") %>%
+  select(week_number, new_confirmed) %>%
+  rename(time = week_number, cases = new_confirmed)
+
+params <- c(
+  beta = 0.35,  
+  sigma = 0.3,  
+  gamma = 1/14,   
+  N = 5000000,  
+  rho = 0.5    
+)
+
+seir_pomp <- pomp(
+  data = data,
+  times = "time",
+  t0 = 0,
+  rprocess = euler(seir_step, delta.t = 0.1),
+  rinit = seir_init,
+  dmeasure = seir_dmeas,
+  rmeasure = seir_rmeas,
+  statenames = c("S", "E", "I", "R"),
+  paramnames = c("beta", "sigma", "gamma", "N", "rho")
+)
+
+simulated <- simulate(
+  seir_pomp,
+  params = params,
+  nsim = 1,
+  format = "data.frame"
+)
+
+ggplot() +
+  geom_line(aes(x = time, y = cases), data = data, color = "blue") +
+  geom_line(aes(x = time, y = cases), data = simulated, color = "red") +
+  theme_minimal() +
+  labs(title = "SEIR Model Simulation(red line) vs Actual Data(blue line)", x = "Day", y = "Number of Cases") +
+  scale_color_manual(values = c('Actual Data' = 'blue', 'Simulated Data' = 'red'))
+
+```
+
+Based on the locally optimized parameter data, we again tuned and derived a SEIR model with predictions closer to the real situation.
+
+## Conclusion
+
+In this project, we employed both ARIMA and SEIR models to fit the transmission dynamics of a particular virus in the Washington region. 
+
+Overall, both models performed commendably. The ARIMA model was able to capture every subtle trend in the variation, though it did not perform as well around the 2022 outbreak peak. 
+
+The SEIR model, grounded in the principles of epidemiological dynamics, appeared to more naturally capture the specific characteristics of infectious disease spread within populations, especially noticeable around the peak of the curve. The peak provided by the SEIR model aligns more closely with the actual data peak, suggesting that this model may more accurately depict the dynamics of epidemic outbreaks. However, our SEIR model still fell short of the ARIMA model in terms of fitting precision, a gap that could perhaps be bridged by incorporating variables such as Death into the model.
+
+## Reference
+
+[1] Data sources: https://covid19datahub.io/articles/data.html
+
+[2] Course notes: https://kingaa.github.io/sbied/stochsim/notes.pdf
+
+[3] Course codes: https://kingaa.github.io/sbied/stochsim/main.R
+
+[4] The SEIRS model for infectious disease dynamics, https://www.nature.com/articles/s41592-020-0856-2
+
+[5] Final project modeling Covid 19 with multivariate POMP Model: https://ionides.github.io/531w22/final_project/project16/blinded.html
+
+[6] Code optimization and error correction, https://chat.openai.com/
+
+

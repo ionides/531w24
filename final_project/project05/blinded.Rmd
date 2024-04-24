@@ -1,0 +1,1045 @@
+---
+title: "STATS-531 - Modeling Flu Cases in Oklahoma"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+      smooth_scroll: true
+    toc_depth: 4
+    code_folding: hide
+---
+
+### Introduction
+
+```{r, include=F}
+
+library(tidyverse)
+library(pomp)
+library(foreach)
+library(doParallel)
+library(doRNG)
+library(knitr)
+library(magrittr)
+library(tseries)
+library(forecast)
+
+registerDoParallel(6)
+registerDoRNG(237835)
+
+theme_set(theme_minimal())
+
+options(scipen = 999)
+
+```
+
+Disease modeling has become an essential field within computational biology, enabling researchers to develop a statistical understanding of how viruses affect the population and forecast future cases. In this report, we apply time series analysis techniques to model influenza cases in America. Specifically, we aim to answer the following research question: Can flu cases in Oklahoma be modeled using a partially-observed Markov process time series model?
+
+We begin by collecting flu case data from the Centers for Disease Control (1), discussing our methodology, and performing exploratory analysis on the dataset. We then fit a SARIMA model to the flu data in order to establish a baseline for performance. Next, we fit a partially observed Markov process (POMP) model to the flu data and compare the performance with the SARIMA-based approach. Finally, we discuss the results and limitations of our analysis.
+
+### Methodology
+
+Our analysis was inspired by a previous report (2), which applied time series models to influenza cases in America between 2010-2022. We collected our dataset from the same source as this report, the CDC's FluView Interactive dashboard (1). This online tool allows users to download flu case information for any state from 1998 to the current year. It should be noted that the previous report focused on flu cases for all states over a decade-long period, while our analysis takes a more narrow focus in terms of locations and timeframe. We employ a SEIRS POMP model to the flu dataset but utilize a different model framework and distinct development process for this report. 
+
+We initially collected flu data from 2010-2024 to examine trends in flu cases. The following plot depicts the number of weekly cases in Oklahoma over these 14 years. 
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+flu <- read_csv('ok-flu.csv')
+
+flu %>%
+  mutate(row = row_number()) %>%
+  ggplot(aes(x = row, y = ILITOTAL)) + 
+  geom_line() + 
+  labs(
+    x = "Week",
+    y = "Cases",
+    title = "Oklahoma Weekly Flu Cases (2010-2024)"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+We decided to reduce the scope of the dataset for a few reasons. First, irregularities in public health due to the COVID-19 pandemic produced strange patterns in flu cases between 2020-2023. There are relatively few cases in 2020 compared to previous years, while 2023 and 2024 show abnormally high case counts. Additionally, the large number of records over this period makes it difficult to develop a POMP model fully. The Great Lakes cluster was running slow when working on this project, so we decided to reduce the timeframe and more thoroughly explore the POMP model with a simpler dataset. Accordingly, we restricted the data to 2011-2015, a period still exhibiting strong seasonal trends but with a similar magnitude for each year.
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+ok_flu <- flu %>%
+  mutate(row = row_number()) %>%
+  filter(row >= 43, row <= 252) %>%
+  mutate(week = row_number()) %>%
+  select(week, cases = ILITOTAL)
+
+ok_flu %>%
+  ggplot(aes(x = week, y = cases)) + 
+  geom_line() + 
+  labs(
+    x = "Week",
+    y = "Cases",
+    title = "Oklahoma Weekly Flu Cases (2011-2015)"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+### Exploratory Analysis
+
+#### Decompostion
+
+We applied decomposition to the dataset to further explore seasonal trends in flu cases. It is divided into four components: observed, trend, seasonal, and random.
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+flu_ts <- ts(ok_flu$cases, start = c(2011), frequency = 52)
+flu_decomp <- decompose(flu_ts)
+plot(flu_decomp)
+
+```
+
+The observed component at the top exhibits significant fluctuations, with sharp peaks throughout. The trend component shows the overall progression of the time series. It shows an oscillating pattern, suggesting the presence of longer-term cycles in the average value over time. However, the magnitude of these oscillations is relatively small compared to the seasonal variation. The seasonal component dominates the time series decomposition. It displays a very distinct and consistent recurring pattern, with large spikes followed by dips at regular intervals. This indicates the data likely has a strong daily or weekly seasonality. The height of the seasonal peaks remains fairly constant across the years, implying a stable seasonal effect.Finally, the random component contains the remaining variation after accounting for the trend and seasonality. The variance of the random component appears mostly constant over time.
+
+#### Frequency Analysis {.tabset}
+
+Our next step in the analysis involves examining the time series data from the frequency domain. We determine the most dominant frequency present in the data and create a periodogram. Peaks observed in the periodogram indicate recurring patterns or cycles in the data, which are often associated with consistent cycles in the number of cases.
+
+##### Unsmoothed Periodogram
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+us_pd <- spectrum(ok_flu$cases,
+                  xlab = "Frequency", sub="", main = "Unsmoothed Periodogram")
+
+uspd_freq <- us_pd$freq[which.max(us_pd$spec)]
+abline(v=uspd_freq, lty=2, col="red")
+text(uspd_freq, max(us_pd$spec), labels=paste("Dominant Frequency:", round(uspd_freq, 2)), pos=4, col="red")
+
+```
+
+##### Smoothed Periodogram
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+sm_pd <- spectrum(ok_flu$cases, spans=c(3,5,3),
+                     main="Smoothed Periodogram", xlab="Frequency", sub="")
+
+smpd_freq <- sm_pd$freq[which.max(sm_pd$spec)]
+abline(v=smpd_freq, lty=2, col="red")
+text(smpd_freq, max(sm_pd$spec), labels=paste("Dominant Frequency:", round(smpd_freq, 2)), pos=4, col="red")
+
+```
+
+#### {.unlisted .unnumbered}
+
+Both periodograms show a clear dominant frequency $(\omega)$ of 0.02,
+
+This dominant frequencies corresponds to a time period T where (3),
+
+$$T= \frac{1}{\omega} = \frac{1}{0.02} = 50$$ weeks.
+
+The time period T, corresponds to approximately a year. This means there is a significant seasonal pattern in the flu cases data that repeats approximately every 50 weeks (~1 year).
+
+### ARMA Models
+
+#### ARMA
+
+We will proceed with the modeling by fitting an ARMA(p,q) model. Mathematically, the ARMA(p,q) model can be expressed as:
+
+$$Y_t = \mu + \phi_1 Y_{t-1} + \phi_2 Y_{t-2} + \ldots + \phi_p Y_{t-p} + \theta_1 \epsilon_{t-1} + \theta_2 \epsilon_{t-2} + \ldots + \theta_q \epsilon_{t-q} + \epsilon_t$$
+
+where $Y_t$ is the observed value at time t, $\mu$ is the constant term (mean) of the time series, $\phi_1, \phi_2, \ldots, \phi_p$ are the autoregressive coefficients, $\theta_1, \theta_2, \ldots, \theta_q$ are the moving average coefficients, and $\epsilon_t$ is the white noise error term at time t.
+
+We use a grid search to identify the optimal values for p and q for the ARMA model.
+
+```{r}
+
+arma_aic_table <- function(data, P, D, Q) {
+  best_aic <- Inf
+  best_p <- NULL
+  best_q <- NULL
+  table <- matrix(NA, (P+1), (Q+1))
+  for (p in 0:P) {
+    for (q in 0:Q) {
+       aic_pq <- arima(data, order=c(p,D,q))$aic
+       table[p+1, q+1] <- aic_pq
+       if (aic_pq < best_aic) {
+         best_aic <- aic_pq
+         best_p <- p
+         best_q <- q
+       }
+    }
+  }
+  dimnames(table) <- list(paste("AR", 0:P, sep=""), paste("MA", 0:Q, sep=""))
+  list(table, best_p, best_q)
+}
+
+max_ar <- 2
+max_ma <- 2
+table <- arma_aic_table(flu_ts, max_ar, 0, max_ma)
+
+kable(table[[1]])
+
+```
+
+The grid search produced values of `r table[2]` for p, and `r table[3]` for q. We also consider an ARMA model with differencing:
+
+```{r}
+
+max_ar <- 2
+max_ma <- 2
+table <- arma_aic_table(flu_ts, max_ar, 1, max_ma)
+
+kable(table[[1]])
+
+```
+
+The ARMA(1,1,1) model with differencing demonstrates improvement over the non-differenced model. 
+
+```{r}
+
+arma111 <- arima(flu_ts, order = c(1, 1, 1))
+arma111
+
+```
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot(arma111$residuals)
+
+```
+
+The ARMA(1,1,1) model produced a log-likelihood of `r round(arma111$loglik, 3)`. Examining the residual plot, there are clear spikes which occur in annual intervals. This suggests that the ARMA model is not fully capturing the seasonal trends in the flu dataset. 
+
+#### SARIMA
+
+To better account for the seasonal trends in flu cases, we now test out a SARIMA model (4), which is of the form:
+
+<center>$\phi(B)\Phi(B_{12})(Y_n - \mu) = \psi(B)\Psi(B_{12})\epsilon_n,$</center>
+
+Where the error terms are a white noise process and
+
+\begin{align*}
+\mu &= E(Y_n) \\
+\phi(x) &= 1 - \phi_1x - \ldots - \phi_px^p \\
+\psi(x) &= 1 + \psi_1x - \ldots + \psi_qx^q \\
+\Phi(x) &= 1 - \Phi_1x - \ldots - \Phi_px^p \\
+\Psi(x) &= 1 + \Psi_1x - \ldots + \Psi_qx^q
+\end{align*}
+
+Let's first consider set of SARIMA((1,1,1)×$(P,1,Q)_{[52]}$) models:
+
+```{r}
+
+get_aic_table_sarma = function(data, P, Q, p, q){ 
+    table = matrix(NA, (P+1), (Q+1))
+    for (Pi in 0:P) {
+        for (Qi in 0:Q) {
+            table[Pi+1, Qi+1] = arima(data, 
+                                      order=c(p, 1, q),
+                                      seasonal=list(order=c(Pi, 1, Qi), period=12))$aic
+        }
+    }
+    dimnames(table) = list(paste('SAR', 0:P, sep=' '), paste('SMA', 0:Q, sep=' '))
+    table
+}
+
+aic_table_sarma <- get_aic_table_sarma(flu_ts, 2, 2, 1, 1)
+kable(aic_table_sarma)
+
+```
+
+The SARIMA grid search produced a minimum AIC with the SARIMA((1,1,1)×$(0,1,1)_{[52]}$) model. 
+
+```{r}
+
+sarima011 <- arima(flu_ts, order=c(1, 1, 1), seasonal=list(order=c(0, 1, 1), period=52))
+sarima011
+
+```
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot(sarima011$residuals)
+acf(sarima011$residuals, main = "ACF of Residuals")
+
+```
+
+The residual plot still shows peaks at annual intervals, but the magnitude is reduced compared to the ARMA model. Moreover, the residual ACF plot shows the majority of autocorrelation values within the confidence bands. This suggests that the SARIMA model is handling the seasonal trends in flu cases well. The log-likelihood for the SARIMA approach is `r round(sarima011$loglik, 3)`, a significant reduction from the first approach. We will use the SARIMA((1,1,1)×$(0,1,1)_{[52]}$) model as our baseline for the remainder of this analysis. The log-likelihood for this model will be used as a benchmark to compare against POMP models in the next section.
+
+### SEIRS Model
+
+#### Model Definition
+
+The next modeling approach we utilized is an SEIRS POMP model. This is a modification to the SIR model discussed in the Chapter 12 notes (5), but with the addition of a hidden latent period and the adjustment that recovered individuals move back into the susceptible population. This change to the SIR model is important in the context of the flu since individuals can catch the flu again in the future after recovering. As noted above, we got the idea for the SIRS model from a previous project (2) but used a different implementation and parameter set for this report.
+
+The number of individuals in each state of the model is represented with the following system of equations, adapted from the example in the Chapter 12 lecture notes, slide 10.
+
+\begin{align*}
+S(t) &= S_0 + N_{RS}(t) - N_{SE}(t) \\
+E(t) &= E_0 + N_{SE}(t) - N_{EI}(t) \\
+I(t) &= I_0 + N_{EI}(t) - N_{IR}(t) \\
+R(t) &= R_0 + N_{IR}(t) - N_{RS}(t)
+\end{align*}
+
+Next, the following ordinary differential equations describe the flow of the counting process. These equations are modified version of the ODEs in slide 11 of the Chapter 12 lecture notes (5). For our model, we treat $\mu_{SI}$ as a function of time, while $\mu_{EI}$, $\mu_{IR}$, and $\mu_{RS}$ are constant.
+
+\begin{align*}
+\frac{dN_{SE}}{dt} &= \mu_{SE}(t) S(t) \\
+\frac{dN_{EI}}{dt} &= \mu_{EI} E(t) \\
+\frac{dN_{IR}}{dt} &= \mu_{IR} I(t) \\
+\frac{dN_{RS}}{dt} &= \mu_{RS} R(t)
+\end{align*}
+
+These differential equations can be solved using Euler's method, which is described in slides 16-23 of the Chapter 12 lecture notes. This produces the following binomial approximations with exponential transition densities, as described on slide 24 of the Chapter 12 notes (5). 
+
+\begin{align*}
+N_{SE}(t + \Delta t) &= N_{SE}(t) + Binomial[S(t), 1 - \exp(-\mu_{SE}(t) \Delta t)] \\
+N_{EI}(t + \Delta t) &= N_{EI}(t) + Binomial[E(t), 1 - \exp(-\mu_{EI} \Delta t)] \\
+N_{IR}(t + \Delta t) &= N_{IR}(t) + Binomial[I(t), 1 - \exp(-\mu_{IR} \Delta t)] \\
+N_{RS}(t + \Delta t) &= N_{RS}(t) + Binomial[R(t), 1 - \exp(-\mu_{RS} \Delta t)]
+\end{align*}
+
+We originally constructed the model by setting the initial values for the state parameters to be zero. This produced many problems when estimating parameters, since many people in the real population will exist within a state. We adjusted our model by adding parameters for the proportion of the population that belongs in each state, which also must be estimated. We followed the example from slide 28 of the Chapter 17 lecture notes (7), which is reflected in the following equations.
+
+\begin{align*}
+Pop &= N / (S_0 + E_0 + I_0 + R_0) \\
+S &= S_0 * Pop \\
+E &= E_0 * Pop \\
+I &= I_0 * Pop \\
+R &= R_0 * Pop
+\end{align*}
+
+For simplicity, we did not consider the birth and death rates for the population. Additionally, we assumed the population to be constant at 3.8 million, the population of Oklahoma in 2012 (8). We initially treated $\beta$, the transmission rate, as constant. However, this version of the SEIRS model was unable to capture the seasonal trends in flu cases. After implementing this version of the SEIRS model in R, we were unable to produce simulations which matched the true Oklahoma flu data. 
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+
+seirs_step <- Csnippet("
+  double dN_SE = rbinom(S, 1 - exp(-Beta * I / N * dt));
+  double dN_EI = rbinom(E, 1 - exp(-mu_EI * dt));
+  double dN_IR = rbinom(I, 1 - exp(-mu_IR * dt));
+  double dN_RS = rbinom(R, 1 - exp(-mu_RS * dt));
+  S += dN_RS - dN_SE;
+  E += dN_SE - dN_EI;
+  I += dN_EI - dN_IR;
+  R += dN_IR - dN_RS;
+  H += dN_IR;
+  ")
+
+seirs_rinit <- Csnippet("
+  double pop = N / (S0 + E0 + I0 + R0);
+  S = nearbyint(S0 * pop);
+  E = nearbyint(E0 * pop);
+  I = nearbyint(I0 * pop);
+  R = nearbyint(R0 * pop);
+  H = 0;
+  ")
+
+seirs_dmeas <- Csnippet("
+  lik = dbinom(cases, H, rho, give_log);
+  ")
+
+seirs_rmeas <- Csnippet("
+  cases = rbinom(H, rho);
+  ")
+
+flu_seirs <- ok_flu %>%
+  pomp(
+    times = "week",
+    t0 = 0,
+    rprocess = euler(seirs_step, delta.t = 1/7),
+    rinit = seirs_rinit,
+    rmeasure = seirs_rmeas,
+    dmeasure = seirs_dmeas,
+    accumvars = "H",
+    statenames = c("S", "E", "I", "R", "H"),
+    paramnames = c("Beta", "mu_EI", "mu_IR", "mu_RS", "N", "S0", "E0", "I0", "R0", "eta", "rho")
+  )
+
+```
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Function to run simulation and plot the results
+sim <- function(sirs, params, model = "SEIR", seed = 35) {
+  set.seed(seed)
+  sims <- sirs %>%
+    simulate(
+      params = params,
+      nsim = 20,
+      format = "data.frame",
+      include.data = TRUE
+    )
+  ggplot() + 
+    geom_line(data = sims %>% filter(.id == "data"), aes(x = week, y = cases), color = "#007ac1") + 
+    geom_line(data = sims %>% filter(.id != "data"), aes(x = week, y = cases, group = .id), color = "#dc4151", alpha = 0.4) + 
+    labs(
+      x = "Week",
+      y = "Cases",
+      title = paste0("Flu ", model, " Simulations")
+    ) + 
+    theme(plot.title = element_text(hjust = 0.5))
+}
+
+params <- c(
+  Beta = 3, mu_EI = 0.005, mu_IR = 0.0005, mu_RS = 0.005, 
+  rho = 0.5, eta = 0.05, N = 3800000,
+  S0 = 0.2, E0 = 0.02, I0 = 0.02, R0 = 0.5
+)
+
+flu_seirs %>% sim(params)
+
+```
+
+The simulations all showed a linearly increasing case trend into the future. In order to properly account for the inherent seasonality in flu cases, we had to modify our approach to the SEIRS model. We consulted ChatGPT to identify methods to incorporate seasonality into the model, and it suggested making the transmission rate parameter a function of time. Specifically, ChatGPT suggested to modify the step function so $\beta$ is calculated using a sine function, allowing the model to capture seasonal variation in transmission. 
+
+The updated step function for the transmission rate parameter is:
+
+$$\beta = \beta_0 * (1 + amp * sin(2 * \pi * (t + phase) / 52)) $$
+
+Where $\beta_0$ is the initial transmission rate, $amp$ is the amplitude of the sine function, and $phase$ represents the phase shift. These three values become new parameters for the model which must be estimated. In the updated SEIRS model, we also modified the measurement models to utilize a negative binomial distribution, following the example in slide 45 of the Chapter 12 lecture notes (5). To verify that this structure for the SEIRS model is applicable to the flu data, we ran several simulations using manually-determined parameters.
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+
+seirs_step <- Csnippet("
+  double pi = 3.141593;
+  double Beta = Beta0 * (1 + amp * sin(2 * pi * (t + phase) / 52));
+  double dN_SE = rbinom(S, 1 - exp(-Beta * I / N * dt));
+  double dN_EI = rbinom(E, 1 - exp(-mu_EI * dt));
+  double dN_IR = rbinom(I, 1 - exp(-mu_IR * dt));
+  double dN_RS = rbinom(R, 1 - exp(-mu_RS * dt));
+  S += dN_RS - dN_SE;
+  E += dN_SE - dN_EI;
+  I += dN_EI - dN_IR;
+  R += dN_IR - dN_RS;
+  H += dN_IR;
+  ")
+
+seirs_rinit <- Csnippet("
+  double pop = N / (S0 + E0 + I0 + R0);
+  S = nearbyint(S0 * pop);
+  E = nearbyint(E0 * pop);
+  I = nearbyint(I0 * pop);
+  R = nearbyint(R0 * pop);
+  H = 0;
+  ")
+
+seirs_dmeas <- Csnippet("
+  lik = dnbinom_mu(cases, k, rho * H, give_log);
+  ")
+
+seirs_rmeas <- Csnippet("
+  cases = rnbinom_mu(k, rho * H);
+  ")
+
+flu_seirs <- ok_flu %>%
+  pomp(
+    times = "week",
+    t0 = 0,
+    rprocess = euler(seirs_step, delta.t = 1 / 7),
+    rinit = seirs_rinit, 
+    rmeasure = seirs_rmeas,
+    dmeasure = seirs_dmeas,
+    accumvars = "H",
+    statenames = c("S", "E", "I", "R", "H"),
+    paramnames = c("Beta0", "amp", "phase", "mu_EI", "mu_IR", "mu_RS", "N", "S0", "E0", "I0", "R0", "rho", "k"),
+    partrans = parameter_trans(
+      log = c("Beta0", "mu_EI", "mu_IR", "mu_RS", "k"),
+      logit = c("amp", "rho"),
+      barycentric = c("S0", "E0", "I0", "R0")
+    )
+  )
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+# Manually-defined parameters
+params <- c(
+  Beta0 = 2.2, amp = 0.3, phase = -4.5,
+  mu_EI = 0.8, mu_IR = 2, mu_RS = 1,
+  N = 3.8e6, S0 = 0.1, E0 = 0.01, I0 = 0.01, R0 = 0.3,
+  rho = 0.0005, k = 10
+)
+
+# Run simulation and plot results
+flu_seirs %>% sim(params)
+
+```
+
+The simulations from the updated SEIRS model are able to capture the seasonality in the flu data. While the simulations do not perfectly reflect the curves in flu cases, this version of the model seems appropriate for further analysis and parameter estimation.
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Manually set model parameters
+coef(flu_seirs) <- params
+
+# Run particle filter for log-likelihood estimation
+pf <- foreach(i = 1:10, .combine = c) %dopar% {
+  flu_seirs %>% pfilter(Np = 2000)
+}
+
+```
+
+To establish a baseline performance for comparison, we ran an initial particle filter with the manually-specified parameters. The first version of the model produced a log-likelihood of `r round(logmeanexp(logLik(pf), se = TRUE)[[1]], 3)`. Moreover, the plot below shows the effective sample size and conditional log-likelihood for the particle filter. 
+
+```{r, fig.align = 'center', echo = FALSE, message = FALSE, warning = FALSE, error = FALSE}
+
+plot(pf)
+
+```
+
+The minimum effective sample size in the plot is a good amount above zero, which is a positive sign. This value should also improve as the parameters are better estimated.
+
+#### Local Search
+
+We began parameter estimation by running a local search, following the example in slides 32-35 of the chapter 14 lecture notes (6). We used the manually-defined parameters as a starting point and ran the iterated filtering algorithm. The following trace plot depicts the results from the local search.
+
+```{r, include=F}
+# Switch statement for different run levels
+run_level <- 3
+Np              <- switch(run_level, 100, 1e3, 2e3)
+Nlocal          <- switch(run_level, 2, 5, 20)
+Nglobal         <- switch(run_level, 2, 5, 100)
+Npoints_profile <- switch(run_level, 4, 10, 50)
+Nreps_profile   <- switch(run_level, 2, 4, 15)
+Nmif            <- switch(run_level, 10, 50, 100)
+Nreps_eval      <- switch(run_level, 2, 5, 10)
+
+```
+
+```{r, fig.align = 'center', message = FALSE, warning = FALSE, error = FALSE}
+# Load local search results from great lakes
+# The script that produced these results is 'great-lakes-seirs-local.R'
+mifs_local <- readRDS("SEIRS/seirs_local_search.RDS")
+results_local <- readRDS("SEIRS/seirs_local_results.RDS")
+
+# Create parameter trace plot
+mifs_local %>%
+  traces() %>%
+  melt() %>%
+  ggplot + 
+  geom_line(aes(x = iteration, y = value, group = .L1, color = factor(.L1))) + 
+  guides(color = "none") + 
+  facet_wrap(~name, scales = "free_y") + 
+  labs(
+    title = "SEIRS Local Search Results",
+    x = "Iteration",
+    y = "Value"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+The log-likelihood trace shows the search quickly moved towards a local minimum, with the likelihood value sharply increasing before flattening off. The initial state parameters and $k$ quickly converged as well. The remaining parameters did not converge within this iterated filtering search, but the improvement in likelihood means this is not an issue. We will estimate these parameters more thoroughly using a global search.
+
+```{r}
+# Get best model from local search
+params_local <- results_local %>%
+  filter(loglik == max(loglik)) %>%
+  select(-loglik, -loglik.se)
+
+# Update model parameters
+coef(flu_seirs) <- params_local
+
+# Run particle filter for log-likelihood estimation
+pf_local <- foreach(i = 1:10, .combine = c) %dopar% {
+  flu_seirs %>% pfilter(Np = Np)
+}
+
+```
+
+To evaluate the performance of the model after the local search, we can use the particle filtering algorithm. This is necessary to get a reliable estimate for the log-likelihood, rather than relying on the final likelihood estimate from the iterated filtering. The local search produced a log-likelihood of `r round(logmeanexp(logLik(pf_local)), 3)`. This is several hundred points lower than the likelihood of the initial guess, a promising sign for finding an improved model. Finally, we can examine a pair-plot of the model parameters. We excluded the parameters which converged quickly $S_0, E_0, I_0, R_0,$ and $k$ to improve the readability of the pair-plot.
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+pairs(
+  ~loglik + Beta0 + amp + phase + mu_EI + mu_IR + mu_RS + rho, 
+  data = results_local, pch = 16, cex = 0.5
+)
+
+```
+
+#### Global Search {.tabset}
+
+While the first search method allowed us to identify a good model within the neighborhood of the initial guess, we now employ a global search to fully explore all potential parameter values. Due to the extensive range of potential parameters, we ran multiple global searches with different ranges to try and fully explore the likelihood surface. After each iteration of the global search, we adjusted the guess ranges based on the pair-plot. This allowed us to analyze where the iterated filtering algorithm ended up and update the next global search accordingly. 
+
+In the following tabs, we show the results from each global search. Each tab includes a pair-plot, likelihood table, and a model simulation using the best model from each run. The first five global searches used a sequence size of 100 for the design matrix. In each successive iteration, the parameter estimates converged to a more clear value. We utilized the converged parameter estimates to run a final global search with a sequence size of 250. This final search is shown in the sixth tab, which shows a distinct convergence point for the parameters. The final search also produced the highest log-likelihood of all experiments.
+
+Note: Due to the fast convergence in the local search, we fixed the $S_0, E_0, I_0, R_0,$ and $k$ parameters. This helped reduce the computational complexity of the global searches and allowed us to run more iterations. We followed the example of slides 45-49 in the Chapter 14 lecture notes (6) to construct our global search.
+
+##### 1
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+# Global Search 1
+guesses <- runif_design(
+  lower = c(Beta0 = 0, amp = 0, phase = -25, mu_EI = 0, mu_IR = 0, mu_RS = 0, rho = 0),
+  upper = c(Beta0 = 100, amp = 1, phase = 0, mu_EI = 100, mu_IR = 100, mu_RS = 100, rho = 1),
+  nseq = 100
+)
+
+# Load results from great lakes run
+# The script that produced these results is 'great-lakes-seirs-global.R'
+global_results <- read_csv("SEIRS/seirs_lik_1.csv")
+
+all <- global_results %>%
+  filter(loglik > max(loglik) - 50) %>%
+  bind_rows(guesses) %>%
+  mutate(type = ifelse(is.na(loglik), "guess", "result")) %>%
+  arrange(type)
+
+pairs(
+  ~loglik + Beta0 + amp + phase + mu_EI + mu_IR + mu_RS + rho, 
+  data = all, pch = 16, cex = 0.3, 
+  col = ifelse(all$type == "guess", grey(0.5), "red")
+)
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+global_results %>%
+  arrange(-loglik) %>%
+  select(Beta0, amp, phase, mu_EI, mu_IR, mu_RS, rho, loglik) %>%
+  head(5) %>%
+  kable
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+params_new <- global_results %>%
+  filter(loglik == max(loglik)) %>%
+  select(-loglik, -loglik.se)
+
+flu_seirs %>% sim(params_new)
+
+```
+
+##### 2
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+# Global Search 2
+guesses <- runif_design(
+  lower = c(Beta0 = 0, amp = 0, phase = -10, mu_EI = 0, mu_IR = 0, mu_RS = 0, rho = 0),
+  upper = c(Beta0 = 25, amp = 1, phase = 0, mu_EI = 1000, mu_IR = 1000, mu_RS = 1000, rho = 0.01),
+  nseq = 100
+)
+
+# Load results from great lakes run
+# The script that produced these results is 'great-lakes-seirs-global.R'
+global_results <- read_csv("SEIRS/seirs_lik_2.csv")
+
+all <- global_results %>%
+  filter(loglik > max(loglik) - 50) %>%
+  bind_rows(guesses) %>%
+  mutate(type = ifelse(is.na(loglik), "guess", "result")) %>%
+  arrange(type)
+
+pairs(
+  ~loglik + Beta0 + amp + phase + mu_EI + mu_IR + mu_RS + rho, 
+  data = all, pch = 16, cex = 0.3, 
+  col = ifelse(all$type == "guess", grey(0.5), "red")
+)
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+global_results %>%
+  arrange(-loglik) %>%
+  select(Beta0, amp, phase, mu_EI, mu_IR, mu_RS, rho, loglik) %>%
+  head(5) %>%
+  kable
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+params_new <- global_results %>%
+  filter(loglik == max(loglik)) %>%
+  select(-loglik, -loglik.se)
+
+flu_seirs %>% sim(params_new)
+
+```
+
+##### 3
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+# Global Search 3
+guesses <- runif_design(
+  lower = c(Beta0 = 0, amp = 0, phase = -15, mu_EI = 0, mu_IR = 0, mu_RS = 0, rho = 0),
+  upper = c(Beta0 = 15, amp = 1, phase = 0, mu_EI = 10000, mu_IR = 10000, mu_RS = 10000, rho = 0.001),
+  nseq = 100
+)
+
+# Load results from great lakes run
+# The script that produced these results is 'great-lakes-seirs-global.R'
+global_results <- read_csv("SEIRS/seirs_lik_3.csv")
+
+all <- global_results %>%
+  filter(loglik > max(loglik) - 50) %>%
+  bind_rows(guesses) %>%
+  mutate(type = ifelse(is.na(loglik), "guess", "result")) %>%
+  arrange(type)
+
+pairs(
+  ~loglik + Beta0 + amp + phase + mu_EI + mu_IR + mu_RS + rho, 
+  data = all, pch = 16, cex = 0.3, 
+  col = ifelse(all$type == "guess", grey(0.5), "red")
+)
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+global_results %>%
+  arrange(-loglik) %>%
+  select(Beta0, amp, phase, mu_EI, mu_IR, mu_RS, rho, loglik) %>%
+  head(5) %>%
+  kable
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+params_new <- global_results %>%
+  filter(loglik == max(loglik)) %>%
+  select(-loglik, -loglik.se)
+
+flu_seirs %>% sim(params_new)
+
+```
+
+##### 4
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+# Global Search 4
+guesses <- runif_design(
+  lower = c(Beta0 = 5, amp = 0, phase = -10, mu_EI = 0, mu_IR = 0, mu_RS = 0, rho = 0),
+  upper = c(Beta0 = 10, amp = 0.3, phase = 0, mu_EI = 10000, mu_IR = 10000, mu_RS = 10000, rho = 0.0001),
+  nseq = 100
+)
+
+# Load results from great lakes run
+# The script that produced these results is 'great-lakes-seirs-global.R'
+global_results <- read_csv("SEIRS/seirs_lik_4.csv")
+
+all <- global_results %>%
+  filter(loglik > max(loglik) - 50) %>%
+  bind_rows(guesses) %>%
+  mutate(type = ifelse(is.na(loglik), "guess", "result")) %>%
+  arrange(type)
+
+pairs(
+  ~loglik + Beta0 + amp + phase + mu_EI + mu_IR + mu_RS + rho, 
+  data = all, pch = 16, cex = 0.3, 
+  col = ifelse(all$type == "guess", grey(0.5), "red")
+)
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+global_results %>%
+  arrange(-loglik) %>%
+  select(Beta0, amp, phase, mu_EI, mu_IR, mu_RS, rho, loglik) %>%
+  head(5) %>%
+  kable
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+params_new <- global_results %>%
+  filter(loglik == max(loglik)) %>%
+  select(-loglik, -loglik.se)
+
+flu_seirs %>% sim(params_new)
+
+```
+
+##### 5
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+# Global Search 5
+guesses <- runif_design(
+  lower = c(Beta0 = 5, amp = 0.75, phase = -10, mu_EI = 0, mu_IR = 0, mu_RS = 0, rho = 0),
+  upper = c(Beta0 = 15, amp = 1, phase = 0, mu_EI = 10, mu_IR = 500, mu_RS = 500, rho = 0.0001),
+  nseq = 100
+)
+
+# Load results from great lakes run
+# The script that produced these results is 'great-lakes-seirs-global.R'
+global_results <- read_csv("SEIRS/seirs_lik_5.csv")
+
+all <- global_results %>%
+  filter(loglik > max(loglik) - 50) %>%
+  bind_rows(guesses) %>%
+  mutate(type = ifelse(is.na(loglik), "guess", "result")) %>%
+  arrange(type)
+
+pairs(
+  ~loglik + Beta0 + amp + phase + mu_EI + mu_IR + mu_RS + rho, 
+  data = all, pch = 16, cex = 0.3, 
+  col = ifelse(all$type == "guess", grey(0.5), "red")
+)
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+global_results %>%
+  arrange(-loglik) %>%
+  select(Beta0, amp, phase, mu_EI, mu_IR, mu_RS, rho, loglik) %>%
+  head(5) %>%
+  kable
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+params_new <- global_results %>%
+  filter(loglik == max(loglik)) %>%
+  select(-loglik, -loglik.se)
+
+flu_seirs %>% sim(params_new)
+
+```
+
+##### 6
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+# Global Search 6
+guesses <- runif_design(
+  lower = c(Beta0 = 0, amp = 0, phase = -5, mu_EI = 0, mu_IR = 0, mu_RS = 0, rho = 0),
+  upper = c(Beta0 = 10, amp = 1, phase = 0, mu_EI = 1, mu_IR = 10, mu_RS = 1, rho = 0.005),
+  nseq = 250
+)
+
+# Load results from great lakes run
+# The script that produced these results is 'great-lakes-seirs-global.R'
+global_results <- read_csv("SEIRS/seirs_lik_6.csv")
+
+all <- global_results %>%
+  filter(loglik > max(loglik) - 50) %>%
+  bind_rows(guesses) %>%
+  mutate(type = ifelse(is.na(loglik), "guess", "result")) %>%
+  arrange(type) %>%
+  filter(mu_EI <= 1, mu_IR <= 10, mu_RS <= 1)
+
+pairs(
+  ~loglik + Beta0 + amp + phase + mu_EI + mu_IR + mu_RS + rho, 
+  data = all, pch = 16, cex = 0.3, 
+  col = ifelse(all$type == "guess", grey(0.5), "red")
+)
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+global_results %>%
+  arrange(-loglik) %>%
+  select(Beta0, amp, phase, mu_EI, mu_IR, mu_RS, rho, loglik) %>%
+  head(5) %>%
+  kable
+
+```
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+params_new <- global_results %>%
+  filter(loglik == max(loglik)) %>%
+  select(-loglik, -loglik.se)
+
+flu_seirs %>% sim(params_new)
+
+```
+
+#### {.unlisted .unnumbered}
+
+```{r, message = FALSE, warning = FALSE, error = FALSE}
+# Manually set model parameters
+coef(flu_seirs) <- params_new
+
+# Run particle filter for log-likelihood estimation
+pf <- foreach(i = 1:10, .combine = c) %dopar% {
+  flu_seirs %>% pfilter(Np = 2000)
+}
+
+```
+
+Interestingly, the log-likelihood from the local search (`r round(logmeanexp(logLik(pf_local)), 3)`) was very close to the best log-likelihood identified by the global search (`r round(logmeanexp(logLik(pf)), 3)`). 
+
+The simulation using the best model more closely resembles the true flu case data from Oklahoma. The starts and ends of the curves more closely align with the seasonality in flu cases. However, the magnitude of the spikes are a bit too large for the second, third, and fourth years in the data. We thought that the simulations from the third global search more closely resembled the true dataset, but the log-likelihood for this model was considerably higher than the final global search.
+
+As a final diagnostic check for this model, we can examine the results of the particle filter. Although there is a dip in the effective sample size around the middle of the time series, it is still far above zero, suggesting a good fit for the flu data. 
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+plot(pf)
+
+```
+
+#### Poor Man's Profile {.tabset}
+
+Next, to determine if our estimated parameters are appropriate for the dataset, we construct Poor Man's Profiles for each of the parameters. These profiles are constructed using the results of all global searches, which includes a total of 750 models. These profile plots are depicted in the following tabs.
+
+```{r, include=F}
+
+all_results <- read_csv("SEIRS/seirs_lik.csv")
+
+```
+
+##### Beta0
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+all_results %>%
+  filter(loglik > max(loglik) - 10) %>%
+  ggplot(aes(x = Beta0, y = loglik)) + 
+  geom_point() + 
+  labs(
+    x = "Beta0",
+    y = "Log-Likelihood",
+    title = "Poor Man's Profile Likelihood Beta0"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+##### Amp
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+all_results %>%
+  filter(loglik > max(loglik) - 10) %>%
+  ggplot(aes(x = amp, y = loglik)) + 
+  geom_point() + 
+  labs(
+    x = "Amp",
+    y = "Log-Likelihood",
+    title = "Poor Man's Profile Likelihood Amp"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+##### Phase
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+all_results %>%
+  filter(loglik > max(loglik) - 10) %>%
+  ggplot(aes(x = phase, y = loglik)) + 
+  geom_point() + 
+  labs(
+    x = "Phase",
+    y = "Log-Likelihood",
+    title = "Poor Man's Profile Likelihood Phase"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+##### mu_EI
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+all_results %>%
+  filter(loglik > max(loglik) - 10, mu_EI <= 1) %>%
+  ggplot(aes(x = mu_EI, y = loglik)) + 
+  geom_point() + 
+  labs(
+    x = "mu_EI",
+    y = "Log-Likelihood",
+    title = "Poor Man's Profile Likelihood mu_EI"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+##### mu_IR
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+all_results %>%
+  filter(loglik > max(loglik) - 10, mu_IR <= 10) %>%
+  ggplot(aes(x = mu_IR, y = loglik)) + 
+  geom_point() + 
+  labs(
+    x = "mu_IR",
+    y = "Log-Likelihood",
+    title = "Poor Man's Profile Likelihood mu_IR"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+##### mu_RS
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+all_results %>%
+  filter(loglik > max(loglik) - 10, mu_RS <= 1) %>%
+  ggplot(aes(x = mu_RS, y = loglik)) + 
+  geom_point() + 
+  labs(
+    x = "mu_RS",
+    y = "Log-Likelihood",
+    title = "Poor Man's Profile Likelihood mu_RS"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+##### Rho
+
+```{r, fig.align='center', message = FALSE, warning = FALSE, error = FALSE}
+
+all_results %>%
+  filter(loglik > max(loglik) - 10) %>%
+  ggplot(aes(x = rho, y = loglik)) + 
+  geom_point() + 
+  labs(
+    x = "Rho",
+    y = "Log-Likelihood",
+    title = "Poor Man's Profile Likelihood Rho"
+  ) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+#### {.unlisted .unnumbered}
+
+The poor man's profiles show a convergence of points for each of the parameters. Despite starting at very different points during the global search, the iterated filtering algorithms converged at a similar area, suggesting we found a high point in the likelihood surface.
+
+#### Profile Likelihood
+
+We attempted to create profile likelihoods for all parameters to get a more accurate estimate of the likelihood surface. Unfortunately, the great lakes cluster was running very slow while we were finishing up the project. As a result, we were unable to obtain profile likelihoods for the parameters.
+
+### Conclusions
+
+Although the global searches for the POMP model seemed to converge for the parameters, the log-likelihood for the SEIRS model was much higher than the SARIMA approach. The highest likelihood obtained for the POMP model was `r round(logmeanexp(logLik(pf)), 3)`, while the SARIMA model achieved a likelihood of `r round(sarima011$loglik, 3)`. This substantial difference in results suggests that the POMP approach is unnecessary for the Oklahoma flu data. Although the simulations for the SEIRS model resembled the original data, we would choose the SARIMA approach for our final model. Thus, we conclude that the SEIRS POMP model is not the best time series approach for modeling Oklahoma influenza data.
+
+However, this does not mean that other POMP-based approaches could not improve upon the results from the SARIMA model. There are several factors that could be incorporated into a mechanistic state-space model that would more accurately reflect the real-life process. Notably, our analysis does not consider flu vaccinations, which affect the transmission of the virus among a population. Vaccination rates can affect transmission, the susceptible population, and the recovery speed. Moreover, we could also consider adjusting the population size over time, in addition to births/deaths. Given more time, we also would have liked to construct profile likelihoods for the model parameters, which could have further improved the likelihood results. 
+
+### Scholarship
+
+As noted in the report, this analysis was inspired by a past project that applied an SIRS POMP model to flu cases in America. We utilized the idea of a transition between the recovered and susceptible populations for our modeling. However, we wrote all the code for our analysis and adjusted the model framework/parameters from the previous project. All points in which we consulted external sources, including the class notes and ChatGPT, were noted during the analysis.
+
+### References
+
+1. CDC FluView Interactive. Centers for Disease Control. Available at: https://gis.cdc.gov/grasp/fluview/fluportaldashboard.html
+
+2. Stats531 Final Project - Flu Cases Study (2022). STATS-531 Course Website. Available at: https://ionides.github.io/531w22/final_project/project20/blinded.html#References
+
+3. Ionides, E. (2024). Chapter 7: Introduction to time series analysis in the frequency domain - Lecture Notes: https://ionides.github.io/531w24/07/notes.pdf
+
+4. Ionides, E. (2024). Chapter 6: Extending the ARMA model: Seasonality, integration and trend - Lecture Notes: https://ionides.github.io/531w24/06/notes.pdf
+
+5. King, A. Ionides, E. (2024). Chapter 12: Simulation of stochastic dynamic models - Lecture Slides: https://ionides.github.io/531w24/12/slides-annotated.pdf
+
+6. King, A. Ionides, E. (2024). Chapter 14: Likelihood maximization for POMP models - Lecture Slides: https://ionides.github.io/531w24/14/slides-annotated.pdf
+
+7. King, A. Ionides, E. (2024). Chapter 17: A case study of measles: Dynamics revealed in long time series - Lecture Slides: https://ionides.github.io/531w24/17/slides-annotated.pdf
+
+8. United States Census Bureau (n.d.). Oklahoma. Available at: https://data.census.gov/profile/Oklahoma?g=040XX00US40
+
+

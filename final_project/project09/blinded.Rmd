@@ -1,0 +1,815 @@
+---
+title: "Volatility analysis of NASDAQ 100"
+date: "2024-04-18"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: True
+      smooth_scroll: false
+---
+
+
+# Introduction
+Stock market is commonly considered unpredictable. However, instead of focusing on the price forecast, studies of volatility enables trading firms and investors to handle the risks of huge losses. In fact, Robert F. Engle and Clive Granger won the Nobel prize in economics in 2003 by the development of Autoregressive Conditional Heteroskedasticity (ARCH) model. They leveraged this model to identify statistical patterns of asset volatility [1]. Despite the success of ARCH models, there are several different options we can consider when it comes to modeling time-varying volatility including ARIMA, GARCH, and POMP. Given that the assumptions behind these models are different, applying these models might provide different aspects and insights into the studies of time-varying volatility in assets. To compare how these models perform in fitting to the volatility, we choose NASDAQ 100 index, which is a well-known index commonly used to value the technology stocks, from the American stock market from 1971 to date [2]. We simply relies on `yfinance` package to gather the historical data in Python and perform the following analysis in R [3]. Finally, we demonstrated that the ARIMA model cannot fully capture the time-series behaviors of volatility. Although GARCH suggested a better result based on the likelihood estimate, realizing Breto's model with POMP outperformed the previous two models. In the end, we identified that the leverage effect was converged to a really low value in parameter scanning. Therefore, we built a simplified version of stochastic volatility model to verify the essentiality of the leverage effect. Interestingly, the likelihood estimate guided us to consider that the leverage effect is required even if the value was low.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# import packages
+library(tidyverse)
+library(lubridate)
+library(tseries)
+library(doRNG)
+library(doFuture)
+library(doParallel)
+library(tidyverse)
+library(pomp)
+library(plotly)
+library(foreach)
+library(fGarch)
+library(forecast)
+plan(multisession)
+```
+
+
+<br>
+
+# Exploratory Data Analysis (EDA)
+
+```{r echo=FALSE}
+# Load the datasets
+ndx <- read.csv("^IXIC_quote.csv")
+# Convert the Date column to Date type 
+ndx$Date <- as.Date(ndx$Date)
+head(ndx)
+dim(ndx)
+summary(ndx)
+```
+
+<br>
+There are 13416 rows of data for `IXIC.csv` and no missing values. We will only use the closing data recorded in the "Close" column in the following analysis. However, as we stated in the introduction, this work focuses on the analysis of volatility which requires the calculation of returns. To do so, we generated a new column "Return" by calculating the formula
+$$
+Return = log(x_t)-log(x_{t-1})
+$$
+, where $x$ stands for the closing prices and $t$ stands for days. Furthermore, we centered the "Returns" by removing the mean values of the "Returns" which was saved in "demeaned" column [4].
+<br>
+
+## Price Plots
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# take log
+ndx$log_Close = log(ndx$Close)
+Return = diff(ndx$log_Close)
+Return = c(0, Return)
+ndx$Return = Return
+ndx$demeaned = (ndx$Return - mean(ndx$Return))
+ndx %>%
+  ggplot(aes(x = Date, y = log_Close)) +
+  geom_line(color = 'red') +
+  labs(title = "Nasdaq log Close", x = "Date", y = "log Close Price")
+ndx %>%
+  ggplot(aes(x = Date, y = Return)) +
+  geom_line(color = 'red') +
+  labs(title = "Nasdaq returns", x = "Date", y = "returns")
+ndx %>%
+  ggplot(aes(x = Date, y = demeaned)) +
+  geom_line(color = 'red') +
+  labs(title = "Nasdaq demeaned", x = "Date", y = "demeaned")
+# ACF
+acf(ts(ndx$demeaned))
+```
+<br>
+According to the plots, we can easily see that both returns and demeaned returns ignored the trend of the increasing prices, but it was hard to identify patterns but many large spikes by naked eye. Additionally, autocorrelation of the demeaned returns showed a quick drop from 0 to 1 lag, but multiple significant lags popped up after lag=7.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# Unsmoothed Periodogram
+ndx_ts <- ts(ndx$demeaned, frequency = 365)
+ndx_spec <- spectrum(ndx_ts, spans = NULL, plot = FALSE)
+plot(ndx_spec, main = "NASDAQ Unsmoothed Periodogram")
+# smoothed Periodogram
+ndx_spec_smooth <- spectrum(ndx_ts, spans = c(3, 3), plot = FALSE)
+plot(ndx_spec_smooth, main = "NASDAQ Smoothed Periodogram")
+cat('The peak frequency of NASDAQ:')
+ndx_spec_smooth$freq[which.max(ndx_spec_smooth$spec)]
+# smoothed periodogram of NASDAQ selected by AIC
+ndx_ar_aic = spectrum(ndx_ts, method="ar", main="Spectrum of NASDAQ estimated via AR model picked by AIC")
+ndx_ar_aic$freq[which.max(ndx_ar_aic$spec)]
+```
+<br>
+Either manually chosen or AIC-based frequency in the analysis of periodogram did not separate out any strong periodic behaviors. Althoguh it is expected to see no seasonal/periodic patterns from the returns, we can try using ARIMA model to identify hidden statistical characteristics.
+<br>
+
+
+# Fitting ARIMA models to the demeaned returns
+## Model fitting
+Leveraging the AIC-based method taught in the first half of the semester [10], we scanned the parameter for AR and MA from 0 to 5. As a result, the AIC table indicated that AR(5) and MA(5) can provide the best-fit model.
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=TRUE}
+# AIC table
+aic_table <- function(arr,P,Q){
+table <- matrix(NA,(P+1),(Q+1))
+for(p in 0:P) {
+for(q in 0:Q) {
+table[p+1,q+1] <- tryCatch({
+  arima(arr, order=c(p,0,q))$aic
+  }, error = function(err) {
+    print("Err msg:")
+    print(err)
+    return(NA)
+})
+}
+}
+dimnames(table) <- list(paste("AR",0:P, sep=""),
+paste("MA",0:Q,sep=""))
+table
+}
+
+# scan parameters
+res <- aic_table(ndx$demeaned, 5, 5)
+require(knitr)
+kable(res, digits=2)
+res[which.min(res)]
+```
+<br>
+
+
+## Diagnosis
+After we obtained the ARMA(5,5) model, we can make diagnostic plots for the model. Apparently, the residuals were not perfectly normally distributed and not reaching homoscedasticity. The autocorrelation plot also showed significant lags, whereas all the points were inside the unit circle. Since the inverse roots still recoganized that the ARMA(5,5) could be a stable model, we will integrate it into GARCH models considering the heteroscedasticity of the residuals.
+
+<br>
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+arima_ndx = arima(ndx$demeaned, order=c(5,0,5))
+plot(arima_ndx$residuals, type='l')
+hist(arima_ndx$residuals)
+qqnorm(arima_ndx$residuals); qqline(arima_ndx$residuals, col = 2)
+acf(arima_ndx$residuals, main = "Residuals Autocorrelation")
+autoplot(arima_ndx, main = "ARIMA(5,0,5) for NASDAQ")
+```
+<br>
+
+
+
+# Building GARCH models as benchmarks
+## Model fitting
+Due to the heteroscedasticity, GARCH models naturally become one of the ideal candidate models to deal with the residuals. Our group was inspired by the Final Project 14 in 2022 to initialize GARCH models with `fGARCH` package [5]. Using the function `garch`, we can fit the model combining ARMA(5,5) and GARCH(1,1). The method reported that coefficients of AR(5) and MA(5) were not significant and the log-likelihood value is about 43341.
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+ndx_garch <- garch(ndx$demeaned,grad="numerical", trace =FALSE)
+ndx_arma_garch <- garchFit(~arma(5,5)+garch(1,1), data=ndx$demeaned, cond.dist=c("norm"), include.mean=TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE, message=TRUE}
+summary(ndx_arma_garch)
+```
+<br>
+According to the previous report, AR(4) and MA(4) were only significant coefficients; thus, we fitted a new model again by combining ARMA(4,4) and GARCH(1,1) instead. The result showed an improved log-likelihood value which is 43361.47.
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+ndx_garch <- garch(ndx$demeaned,grad="numerical", trace =FALSE)
+ndx_arma_garch <- garchFit(~arma(4,4)+garch(1,1), data=ndx$demeaned, cond.dist=c("norm"), include.mean=TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE, message=TRUE}
+summary(ndx_arma_garch)
+```
+<br>
+However, the residuals in `fGARCH` is not standardized that might lead to some issues [6]. We finally decided to move on to using `garch` function from `tseries` like the lecture slides [4]. Considering the models we found in `fGARCH`, we built the same models again with the `garch` function. Expectedly, the combination of ARMA(4,4) and GARCH(1,1) reported the best likelihood value among the three while the value is worse than it was in the `fGARCH`-based models.
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+fit.garch <- tseries::garch(arima(ndx$demeaned, order=c(0,0,0))$residuals, grad = "numerical", trace = FALSE)
+L.garch <- tseries:::logLik.garch(fit.garch)
+L.garch
+fit.garch <- tseries::garch(arima(ndx$demeaned, order=c(5,0,5))$residuals, grad = "numerical", trace = FALSE)
+L.garch <- tseries:::logLik.garch(fit.garch)
+L.garch
+fit.garch <- tseries::garch(arima(ndx$demeaned, order=c(4,0,4))$residuals, grad = "numerical", trace = FALSE)
+L.garch <- tseries:::logLik.garch(fit.garch)
+L.garch
+```
+<br>
+
+## Diagnosis
+We relies on the same procedure to make diagnostic plots. Indeed, discernible improvement was shown, but the assumption of equal variances and normal distribution of residuals were not perfectly satisfied. Even the lag=1 was identified as signficiant in the ACF plot. The issue led us to consider POMP models in the next section.
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+hist(fit.garch$residuals)
+qqnorm(fit.garch$residuals); qqline(fit.garch$residuals, col = 2)
+acf(fit.garch$residuals, main = "Residuals ARMA(4,4)+GARCH(1,1) Autocorrelation", na.action = na.pass)
+```
+<br>
+
+
+
+
+# Stochastic volatility models
+The above analysis including ARIMA and GARCH indicated that there is room to improve the models of the NASDAQ volatility. We are inspired by the Breto's model and lecture slides Chapter 16 to realize the stochastic volatility models with POMP. The model follows four points. First, volatility is modeled as a stochastic latent process. Second, return offers the measurement that partially observes volatility. Third, our aim is to apply POMP to model "leverage effect" which stands for negative returns (typically refers to a sharp drop/shock) the increases of volatility [11]. Lastly, mathematically, we have
+$$
+Y_n = e^{H_n/2}\epsilon_n \\
+H_n = μ_h(1 − \phi) + \phi H_{n−1} + \beta_{n−1}R_n e^{−H_{n−1}/2} + \omega_n \\
+G_n = G_{n−1} + \nu_n
+$$
+where $\beta_n=Y_n\sigma_n\sqrt{1-\phi^2}$, ${\epsilon_n}$ is an iid $N(0, 1)$, ${\nu_n}$ is an iid $N(0, \sigma^2_\nu)$, and ${\omega_n}$ is an iid $N(0, \sigma^2_{w,n})$.
+Conceptually, both a higher past volatility and a higher leverage component can upscale current volatility. As for the leverage term, a higher past return and a higher noise term R (a function of G) can increase the leverage effect. Interestingly, the leverage effect is scaled by the exponential of negative volatility which mitigate the leverage effect if the past volatility is high. After understanding the mathematical setups, we then start building the model like what we did for homework 7 [12].
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+ndx_statenames <- c("H","G","Y_state")
+ndx_rp_names <- c("sigma_nu","mu_h","phi","sigma_eta")
+ndx_ivp_names <- c("G_0","H_0")
+ndx_paramnames <- c(ndx_rp_names,ndx_ivp_names)
+
+rproc1 <- "
+double beta,omega,nu;
+omega = rnorm(0,sigma_eta * sqrt( 1- phi*phi ) *
+sqrt(1-tanh(G)*tanh(G)));
+nu = rnorm(0, sigma_nu);
+G += nu;
+beta = Y_state * sigma_eta * sqrt( 1- phi*phi );
+H = mu_h*(1 - phi) + phi*H + beta * tanh( G )
+* exp(-H/2) + omega;
+"
+rproc2.sim <- "
+Y_state = rnorm( 0,exp(H/2) );
+"
+rproc2.filt <- "
+Y_state = covaryt;
+"
+ndx_rproc.sim <- paste(rproc1,rproc2.sim)
+ndx_rproc.filt <- paste(rproc1,rproc2.filt)
+ndx_rinit <- "
+G = G_0;
+H = H_0;
+Y_state = rnorm( 0,exp(H/2) );
+"
+ndx_rmeasure <- "
+y=Y_state;
+"
+ndx_dmeasure <- "
+lik=dnorm(y,0,exp(H/2),give_log);
+"
+
+library(pomp)
+ndx_partrans <- parameter_trans(
+log=c("sigma_eta","sigma_nu"),
+logit="phi"
+)
+
+ndx.filt <- pomp(data=data.frame(
+y=ndx$demeaned,time=1:length(ndx$demeaned)),
+statenames=ndx_statenames,
+paramnames=ndx_paramnames,
+times="time",
+t0=0,
+covar=covariate_table(
+time=0:length(ndx$demeaned),
+covaryt=c(0,ndx$demeaned),
+times="time"),
+rmeasure=Csnippet(ndx_rmeasure),
+dmeasure=Csnippet(ndx_dmeasure),
+rprocess=discrete_time(step.fun=Csnippet(ndx_rproc.filt),
+delta.t=1),
+rinit=Csnippet(ndx_rinit),
+partrans=ndx_partrans
+)
+
+params_test <- c(
+sigma_nu = exp(-4.5),
+mu_h = -0.25,
+phi = expit(4),
+sigma_eta = exp(-0.07),
+G_0 = 0,
+H_0=0
+)
+sim1.sim <- pomp(ndx.filt,
+statenames=ndx_statenames,
+paramnames=ndx_paramnames,
+rprocess=discrete_time(
+step.fun=Csnippet(ndx_rproc.sim),delta.t=1)
+)
+sim1.sim <- simulate(sim1.sim,seed=1,params=params_test)
+
+# put the simulated object back to rprocess
+sim1.filt <- pomp(sim1.sim,
+covar=covariate_table(
+time=c(timezero(sim1.sim),time(sim1.sim)),
+covaryt=c(obs(sim1.sim),NA),
+times="time"),
+statenames=ndx_statenames,
+paramnames=ndx_paramnames,
+rprocess=discrete_time(
+step.fun=Csnippet(ndx_rproc.filt),delta.t=1)
+)
+```
+
+
+<br>
+
+# Set up different level of modeling (different size)
+From now on, we will be fitting models to data instead of simulated ones. Following the lecture slides, we consider that different sample numbers and replicates can influence the performance of particle filters and the POMP model. We then test the model in 3 different size levels.
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+run_level <- 3
+ndx_Np <- switch(run_level, 50, 1e3, 2e3)
+ndx_Nmif <- switch(run_level, 5, 100, 500)
+ndx_Nreps_eval <- switch(run_level, 4, 10, 20)
+ndx_Nreps_local <- switch(run_level, 5, 20, 20)
+ndx_Nreps_global <- switch(run_level, 5, 20, 100)
+```
+
+## Local search
+### Test the model and likelihood estimate
+We firstly test the model and estimate log likelihood with the initial guess. As one can see, the likelihood value is not comparable to the likelihood values of GARCH. The value is even lower than the initial estimation for S&P 500 in the lecture slides Chapter 16. However, we will be locally searching the parameters for the model [4].
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(doParallel)
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE',unset=NA))
+if(is.na(cores)) cores <- detectCores()
+registerDoParallel(cores)
+library(doRNG)
+registerDoRNG(34118892)
+stew(file=paste0("pf1_",run_level,".rda"),{
+t.pf1 <- system.time(
+pf1 <- foreach(i=1:ndx_Nreps_eval,
+.packages='pomp') %dopar% pfilter(sim1.filt,Np=ndx_Np))
+})
+(L.pf1 <- logmeanexp(sapply(pf1,logLik),se=TRUE))
+```
+
+### Iterative filtering 
+In this step, we simply adapted the code and inital settings from the lecture slides considering the similar volatility between S&P500 and NASDAQ100. We can see that the diagnosis plot displayed that `loglik` showed a quick increase followed by a gradual drease. This implies that the model might be overfitted and stuck in a local maxima. In spite of a bad model fitting, `sigma_eta` and `sigma_nu` almost got convergences. In contrast, other parameters were not really converged to a small range of values. Since these are common issues in local search, we will move on to global search for a more stable result. The pairplot also confirms the finding; `sigma_nu` and `sigma_eta` tended to settle at a narrow range of values, but `phi` did not. However, this plot suggests a potentially optimal value for `mu_h` which was not shown in the diagnosis plot.
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# set up parameters
+ndx_rw.sd_rp <- 0.02
+ndx_rw.sd_ivp <- 0.1
+ndx_cooling.fraction.50 <- 0.5
+ndx_rw.sd <- rw_sd(
+sigma_nu = ndx_rw.sd_rp,
+mu_h = ndx_rw.sd_rp,
+phi = ndx_rw.sd_rp,
+sigma_eta = ndx_rw.sd_rp,
+G_0 = ivp(ndx_rw.sd_ivp),
+H_0 = ivp(ndx_rw.sd_ivp)
+)
+
+# Fitting the POMP model to data
+stew(file=paste0("mif1_",run_level,".rda"),{
+t.if1 <- system.time({
+if1 <- foreach(i=1:ndx_Nreps_local,
+.packages='pomp', .combine=c) %dopar% mif2(ndx.filt,
+params=params_test,
+Np=ndx_Np,
+Nmif=ndx_Nmif,
+cooling.fraction.50=ndx_cooling.fraction.50,
+rw.sd = ndx_rw.sd)
+L.if1 <- foreach(
+                 i=1:ndx_Nreps_local, .packages='pomp', .combine=rbind) %dopar% logmeanexp(
+                 replicate(ndx_Nreps_eval, logLik(pfilter(
+                                                          ndx.filt,
+                                                          params=coef(if1[[i]]),
+                                                          Np=ndx_Np
+                                                          ))), se=TRUE)
+})
+})
+r.if1 <- data.frame(logLik=L.if1[,1],logLik_se=L.if1[,2],
+t(sapply(if1,coef)))
+if (run_level>1) write.table(r.if1,file="ndx_params.csv",
+append=TRUE,col.names=FALSE,row.names=FALSE)
+```
+<br>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# plot of parameter scanning
+if1 |>
+  traces() |>
+  melt() |>
+  ggplot(aes(x=iteration,y=value,group=.L1,color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name,scales="free_y")
+```
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# pair plot like what we did in HW07
+pairs(~logLik+sigma_nu+mu_h+phi+sigma_eta, data=r.if1)#subset(r.if1,logLik>max(logLik)))
+```
+<br>
+
+
+## Global search
+We fed the model with the same ranges used for S&P500 from the lecture slides [4]. On one hand, the diagnosis plot showed a better convergence in `G_0`. Nonetheless, although only one samplwas not settled in `sigma_nu`, `mu_h`, `phi`, and `sigma_eta` did not converge well. That being said, the loglik indeed reached its maximum in the global search. On the other hand, the parameters `mu_h` and `sigma_eta` were really settled in a samll range of values with maximized likelihood. Based on this finding, we are interested in fixing the parameters to obtain profile likelihood. While we have two options here, `mu_h` governs the log volatility with another parameter `phi`. Without considering any realistic assumption behind, it is intuitive to concern an nonlinear parameter space. To simplify the problem, we will focus on `sigma_eta` which decides the magnitude of the log volatility individually and independently.
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# Likelihood maximization using randomized starting values
+ndx_box <- rbind(
+sigma_nu=c(0.005,0.05),
+mu_h =c(-1,0),
+phi = c(0.95,0.99),
+sigma_eta = c(0.5,1),
+G_0 = c(-2,2),
+H_0 = c(-1,1)
+)
+
+# Fitting the POMP model to data
+stew(file=paste0("box_eval_",run_level,".rda"),{
+if.box <- foreach(i=1:ndx_Nreps_global,
+.packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
+params=apply(ndx_box,1,function(x)runif(1,x)))
+L.box <- foreach(i=1:ndx_Nreps_global,
+.packages='pomp',.combine=rbind) %dopar% {
+logmeanexp(replicate(ndx_Nreps_eval, logLik(pfilter(
+ndx.filt,params=coef(if.box[[i]]),Np=ndx_Np))),
+se=TRUE)}
+})
+timing.box <- .system.time["elapsed"]
+r.box <- data.frame(logLik=L.box[,1],logLik_se=L.box[,2],
+t(sapply(if.box,coef)))
+if(run_level>1) write.table(r.box,file="ndx_params.csv",
+append=TRUE,col.names=FALSE,row.names=FALSE)
+```
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# plot of parameter scanning
+if.box |>
+  traces() |>
+  melt() |>
+  ggplot(aes(x=iteration,y=value,group=.L1,color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name,scales="free_y")
+```
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# pairplot
+pairs(~logLik+log(sigma_nu)+mu_h+phi+sigma_eta+H_0, data=r.box)#subset(r.box,logLik>max(logLik)))
+```
+<br>
+
+Before we perform the analysis of profile likelihood, we can take a look at the likelihood estimation of the best model. The maximum of the value reached 3483 which is already better than GARCH and ARIMA, but the standard error is quite high.
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=TRUE}
+r.box |>
+filter(r.box$logLik>max(r.box$logLik)-20,r.box$logLik_se<2) -> tmp
+summary(tmp$logLik,digits=5)
+summary(tmp$logLik_se,digits=5)
+```
+<br>
+
+## Construct profile likelihood by fixing $\sigma_{\eta}$
+Then, we applied `Np=2000` and `Nmif=200` to re-run the model for the construction of profile likelihood [7, 8]. According to the CI, we knew that the valid range COULD BE between 0.54 to 1 for `sigma_eta`, whereas the samples we got were pretty few. We have tried higher `Np` or `Nmif` which resulted in more than the computation more than 5 hours on GreatLakes. Coming back to the pairplot, we can see that `mu_h` was settled at about -8.9, `sigma_nu` was converged to 0.001, `phi` was at 0.96. 
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+r.box |>
+filter(r.box$logLik>max(r.box$logLik)-20,r.box$logLik_se<2) |>
+sapply(range) -> box
+
+freeze(seed=1,
+profile_design(
+sigma_eta=seq(0.5,0.95,length=40),
+lower=box[1,c("sigma_nu","mu_h","phi","G_0","H_0")],
+upper=box[2,c("sigma_nu","mu_h","phi","G_0","H_0")],
+nprof=15, type="runif"
+)) -> guesses
+```
+<br>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+#, echo=FALSE, warning=FALSE, message=FALSE}
+# profile likelihood over sigma_eta
+stew(file=paste0("profile_sigma_eta_",run_level,".rda"),{
+       if.prof <- foreach(i=1:100,.packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
+     params=c(unlist(guesses[i,]),params_test),
+     Np=2000,
+     Nmif=200,
+     rw.sd=rw_sd(
+                 sigma_nu=ndx_rw.sd_rp,
+                 mu_h=ndx_rw.sd_rp,
+                 phi=ndx_rw.sd_rp,
+                 G_0=ivp(ndx_rw.sd_ivp),
+                 H_0=ivp(ndx_rw.sd_ivp)
+                 ) 
+)
+L.prof <- foreach(i=1:100,.packages='pomp',.combine=rbind) %dopar% {
+logmeanexp(replicate(ndx_Nreps_eval, logLik(
+          pfilter(ndx.filt,params=coef(if.box[[i]]),Np=2000))),se=TRUE)
+}
+})
+timing.box <- .system.time["elapsed"]
+r.prof <- data.frame(logLik=L.prof[,1],logLik_se=L.prof[,2],
+t(sapply(if.prof,coef)))
+if(run_level>1) write.table(r.prof,file="ndx_params.csv",
+append=TRUE,col.names=FALSE,row.names=FALSE)
+
+# pairplot
+pairs(~logLik+sigma_nu+mu_h+phi+sigma_eta, data=subset(r.prof,logLik>max(logLik)-20))
+```
+<br>
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Suggestive CI
+maxloglik <- max(r.prof$logLik,na.rm=TRUE)
+ci.cutoff <- maxloglik-0.5*qchisq(df=1,p=0.95)
+r.prof |>
+filter(is.finite(logLik)) |>
+group_by(round(sigma_eta,5)) |>
+ungroup() |>
+ggplot(aes(x=sigma_eta,y=logLik))+
+geom_point()+
+geom_smooth(method="loess",span=0.25)+
+geom_hline(color="red",yintercept=ci.cutoff)+
+lims(y=maxloglik-c(5,0))
+```
+<br>
+```{r echo=FALSE, warning=FALSE, message=TRUE}
+r.prof |>
+filter(r.prof$logLik>43483) -> tmp
+summary(tmp$logLik,digits=5)
+summary(tmp$logLik_se,digits=5)
+```
+
+<br>
+
+
+# Volatility model without leverage
+From the result above we find that $\sigma_{\nu}$ almost converges to 0 and $G_0$ also converges to a scope near zero. So we wonder if a simple model without leverage is enough to catch the trend and stochastic volatility. Practically, we simplify Breto's model by setting $G_0$ to $0$ and removing leverage term $R_n$.
+
+Mathmetically, then we have
+$$
+Y_n = e^{H_n/2}\epsilon_n \\
+H_n = \mu_h(1-\phi) + \phi H_{n-1} + w_n
+$$
+where {$w_n$} is i.i.d r.v. following $\mathcal{N}(0,\sigma_{w}^2)$. And 
+$$
+\sigma_{w}^2 = \sigma_{\eta}^2(1-\phi^2)
+$$
+
+
+## Basic testing
+
+<br>
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+ndx_statenames <- c("H","Y_state")
+ndx_rp_names <- c("mu_h","phi","sigma_eta")
+ndx_ivp_names <- c("H_0")
+ndx_paramnames <- c(ndx_rp_names,ndx_ivp_names)
+
+rproc1 <- "
+double omega;
+omega = rnorm(0,sigma_eta * sqrt( 1- phi*phi ));
+H = mu_h*(1 - phi) + phi*H + omega;
+"
+rproc2.sim <- "
+Y_state = rnorm( 0,exp(H/2) );
+"
+rproc2.filt <- "
+Y_state = covaryt;
+"
+ndx_rproc.sim <- paste(rproc1,rproc2.sim)
+ndx_rproc.filt <- paste(rproc1,rproc2.filt)
+
+ndx_rinit <- "
+H = H_0;
+Y_state = rnorm( 0,exp(H/2) );
+"
+ndx_rmeasure <- "
+y=Y_state;
+"
+ndx_dmeasure <- "
+lik=dnorm(y,0,exp(H/2),give_log);
+"
+
+library(pomp)
+ndx_partrans <- parameter_trans(
+log=c("sigma_eta"),
+logit="phi"
+)
+
+ndx.filt <- pomp(data=data.frame(
+y=ndx$demeaned,time=1:length(ndx$demeaned)),
+statenames=ndx_statenames,
+paramnames=ndx_paramnames,
+times="time",
+t0=0,
+covar=covariate_table(
+time=0:length(ndx$demeaned),
+covaryt=c(0,ndx$demeaned),
+times="time"),
+rmeasure=Csnippet(ndx_rmeasure),
+dmeasure=Csnippet(ndx_dmeasure),
+rprocess=discrete_time(step.fun=Csnippet(ndx_rproc.filt),
+delta.t=1),
+rinit=Csnippet(ndx_rinit),
+partrans=ndx_partrans
+)
+
+params_test <- c(
+mu_h = -6,
+phi = expit(3),
+sigma_eta = exp(0.5),
+H_0=0
+)
+sim1.sim <- pomp(ndx.filt,
+statenames=ndx_statenames,
+paramnames=ndx_paramnames,
+rprocess=discrete_time(
+step.fun=Csnippet(ndx_rproc.sim),delta.t=1)
+)
+sim1.sim <- simulate(sim1.sim,seed=1,params=params_test)
+plot(Y_state~time, data=sim1.sim, type='l', col='blue', main="Observed returns and simulated returns", ylab="Returns")
+lines(ndx$demeaned,col='black')
+legend('topright' , c("Observed Returns","Simulated Returns"), col=c("black","blue"), lty=c(1,1),cex = 0.5)
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# put the simulated object back to rprocess
+sim1.filt <- pomp(sim1.sim,
+covar=covariate_table(
+time=c(timezero(sim1.sim),time(sim1.sim)),
+covaryt=c(obs(sim1.sim),NA),
+times="time"),
+statenames=ndx_statenames,
+paramnames=ndx_paramnames,
+rprocess=discrete_time(
+step.fun=Csnippet(ndx_rproc.filt),delta.t=1)
+)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+run_level <- 2
+ndx_Np <- switch(run_level, 50, 100, 1e3)
+ndx_Nmif <- switch(run_level, 5, 50, 200)
+ndx_Nreps_eval <- switch(run_level, 4, 10, 20)
+ndx_Nreps_local <- switch(run_level, 5, 20, 20)
+ndx_Nreps_global <- switch(run_level, 5, 20, 100)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=TRUE}
+library(doParallel)
+cores <- as.numeric(Sys.getenv('SLURM_NTASKS_PER_NODE',unset=NA))
+if(is.na(cores)) cores <- detectCores()
+registerDoParallel(cores)
+library(doRNG)
+registerDoRNG(34118892)
+stew(file=paste0("pf2_",run_level,".rda"),{
+t.pf1 <- system.time(
+pf1 <- foreach(i=1:ndx_Nreps_eval,
+.packages='pomp') %dopar% pfilter(sim1.filt,Np=ndx_Np))
+})
+(L.pf1 <- logmeanexp(sapply(pf1,logLik),se=TRUE))
+```
+
+
+<br>
+
+
+## Local search without leverage
+
+<br>
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# set up parameters
+ndx_rw.sd_rp <- 0.02
+ndx_rw.sd_ivp <- 0.1
+ndx_cooling.fraction.50 <- 0.5
+ndx_rw.sd <- rw_sd(
+mu_h = ndx_rw.sd_rp,
+phi = ndx_rw.sd_rp,
+sigma_eta = ndx_rw.sd_rp,
+H_0 = ivp(ndx_rw.sd_ivp)
+)
+
+# Fitting the POMP model to data
+stew(file=paste0("mif2_",run_level,".rda"),{
+t.if1 <- system.time({
+if1 <- foreach(i=1:ndx_Nreps_local,
+.packages='pomp', .combine=c) %dopar% mif2(ndx.filt,
+params=params_test,
+Np=ndx_Np,
+Nmif=ndx_Nmif,
+cooling.fraction.50=ndx_cooling.fraction.50,
+rw.sd = ndx_rw.sd)
+L.if1 <- foreach(
+                 i=1:ndx_Nreps_local, .packages='pomp', .combine=rbind) %dopar% logmeanexp(
+                 replicate(ndx_Nreps_eval, logLik(pfilter(
+                                                          ndx.filt,
+                                                          params=coef(if1[[i]]),
+                                                          Np=ndx_Np
+                                                          ))), se=TRUE)
+})
+})
+r.if1 <- data.frame(logLik=L.if1[,1],logLik_se=L.if1[,2],
+t(sapply(if1,coef)))
+if (run_level>1) write.table(r.if1,file="ndx_params2.csv",
+append=TRUE,col.names=FALSE,row.names=FALSE)
+```
+
+<br>
+```{r echo=FALSE}
+# plot of parameter scanning
+if1 |>
+  traces() |>
+  melt() |>
+  ggplot(aes(x=iteration,y=value,group=.L1,color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name,scales="free_y")
+```
+
+
+
+<br>
+
+```{r echo=FALSE}
+# pair plot like what we did in HW07
+summary(r.if1$logLik,digits=5)
+pairs(~logLik+mu_h+phi+sigma_eta, data=subset(r.if1,logLik>max(logLik)-20))
+```
+
+
+<br>
+We find that the maximized likelihood becomes smaller than the original model, but now the number of fitted parameters is 4 and the parameter $\phi$ is no longer fluctuating intensely after 50 iterations. As the likelihood doesnt't converge well, we decided to move on to global search.
+<br>
+
+## Global search without leverage
+
+<br>
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Likelihood maximization using randomized starting values
+ndx_box <- rbind(
+mu_h =c(-16,5),
+phi = c(0.90,1),
+sigma_eta = c(0,60),
+H_0 = c(-3,0)
+)
+
+# Fitting the POMP model to data
+stew(file=paste0("box2_eval_",run_level,".rda"),{
+if.box <- foreach(i=1:ndx_Nreps_global,
+.packages='pomp',.combine=c) %dopar% mif2(if1[[1]],
+params=apply(ndx_box,1,function(x)runif(1,x)))
+L.box <- foreach(i=1:ndx_Nreps_global,
+.packages='pomp',.combine=rbind) %dopar% {
+logmeanexp(replicate(ndx_Nreps_eval, logLik(pfilter(
+ndx.filt,params=coef(if.box[[i]]),Np=ndx_Np))),
+se=TRUE)}
+})
+timing.box <- .system.time["elapsed"]
+r.box <- data.frame(logLik=L.box[,1],logLik_se=L.box[,2],
+t(sapply(if.box,coef)))
+if(run_level>1) write.table(r.box,file="ndx_params2.csv",
+append=TRUE,col.names=FALSE,row.names=FALSE)
+```
+<br>
+
+```{r echo=FALSE}
+summary(r.box$logLik,digits=5)
+```
+
+<br>
+```{r echo=FALSE}
+# plot of parameter scanning
+if.box |>
+  traces() |>
+  melt() |>
+  ggplot(aes(x=iteration,y=value,group=.L1,color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name,scales="free_y")
+```
+
+<br>
+```{r echo=FALSE}
+plot(r.box)
+```
+<br>
+As a result, it seems like the parameters are much easier to converge than the Breto's model after 50 iterations, but the 4-parameter model still reported less likelihood values with global search than the original model. This means the model with leverage performed better.
+
+
+
+
+# Conclusion
+We found that neither ARIMA and GARCH can perfectly fit to the NASDAQ historical data. The diagnosis of residuals left some issues to address. From our perspective, the time window might be one of the reason to consider in the future. In fact, different trading systems, updated regulations, and economic background inject too many factors and noises into the 44 years of data. Although there obviously exist other variables to consider, our POMP model still outperfomed the previous two methods in terms of likelihood estimates. It is noteworthy that the low fitted parameter of the leverage effect led us to build a simplified stochastic models, but the worse likelihood value confirmed that the requirement of the leverage in the Breto's model. Additionally, the profile likelihood validated that the parameters found in the global search. That being said, it took much more time and efforts to tune the POMP models with 6 parameters compared to the GARCH model with only 3 paremeters. The trade-off between a good-fit model and a easy-to-use model actually guides us to choose one method over another for different scenarios. In the end, we envision that separating the data during specific events like economic crisis or COVID outbreaks would be a intriguing scope to study with the time-series models. We might be able to compare the different magnitudes of parameters like `sigma_eta` that lead to the same amount of volatility. It would be like the analysis of dynamic adaptive system to understand the branch points of the fates [8]. In conclusion, time-series models including ARIMA, GARCH, and Markov models like POMP might not be the best choice for forecasting, but they are really useful when it comes to analyzing the time-series patterns.
+
+
+# Reference
+1. The Sveriges Riksbank Prize in Economic Sciences in Memory of Alfred Nobel 2003. https://www.nobelprize.org/prizes/economic-sciences/2003/summary/
+2. NASDAQ 100. https://www.nasdaq.com/
+3. yfinance. https://pypi.org/project/yfinance/
+4. Lecture slides Chapter 16. https://ionides.github.io/531w24/16/slides-annotated.pdf
+5. Final Project 14 2022. https://ionides.github.io/531w22/final_project/project14/Blinded.html#fn5
+6. The difference between garch{tseries} and garchFit{fGarch}. the acf of residuals^2 are different. What's wrong? Stack Exchange. https://stats.stackexchange.com/questions/426885/the-difference-between-garchtseries-and-garchfitfgarch-the-acf-of-residuals.
+7. Final project 18 2022. https://ionides.github.io/531w22/final_project/project18/blinded.html
+8. Lecture slides Chapter 14. https://ionides.github.io/531w24/14/slides-annotated.pdf 
+9. Strogatz, S. H. (1994). Nonlinear dynamics and chaos: Lab demonstrations. 
+10. Lecture slides Chapter 05. https://ionides.github.io/531w24/05/slides-annotated.pdf
+11. Ait-Sahalia, Y., Fan, J., & Li, Y. (2013). The leverage effect puzzle: Disentangling sources of bias at high frequency. Journal of financial economics, 109(1), 224-249.
+12. Homework 07 STATS531. 2024.

@@ -1,0 +1,36 @@
+---
+title: "DATASCI/STATS 531 Winter 2024 <br>Final Projects"
+output:
+  html_document:
+      toc: yes
+---
+
+---------
+
+* Projects are posted anonymously below. Source code and data are available from [https://github.com/ionides/531w24/final_project](https://github.com/ionides/531w24/tree/master/final_project).
+
+* After the course is over and the class grades are assigned, you may choose to request to have your name attached to your project.
+
+----------
+
+| | | 
+|:----|:----|----|
+| 1.  [Democratization Trends](project01/blinded.html)  <!--|  [Review comments](project01/comments.html) |-->
+| 2.  [Predator-Prey model with POMP](project02/blinded.html)  <!--|  [Review comments](project02/comments.html) |--> 
+| 3.  [COVID-19 in Japan](project03/blinded.html)  <!--|  [Review comments](project3/comments.html) |-->
+| 4.  [COVID-19 modeling comparison: ARIMA vs SEIR](project04/blinded.html)  <!--|  [Review comments](project04/comments.html) |--> 
+| 5.  [Modeling Flu Cases in Oklahoma](project05/blinded.html)  <!--|  [Review comments](project05/comments.html) |--> 
+| 6.  [Volatility Analysis of NASDAQ](project06/blinded.html)  <!--|  [Review comments](project06/comments.html) |--> 
+| 7.  [Analysis of Apple Stock Price](project07/blinded.html)  <!--|  [Review comments](project07/comments.html) |--> 
+| 8.  [COVID-19 in King County, WA](project08/blinded.html)  <!--|  [Review comments](project08/comments.html) |--> 
+| 9.  [Volatility Analysis of NASDAQ 100](project09/blinded.html)  <!--|  [Review comments](project09/comments.html) |--> 
+| 10.  [COVID-19 in Malaysia and Influenza in the U.S.](project10/blinded.html) <!--|  [Review comments](project10/comments.html) |--> 
+| 11.  [NVIDIA Stock Price Analysis](project11/blinded.html) <!--|  [Review comments](project11/comments.html) |--> 
+| 12.  [COVID-19 in Kent County, MI](project12/blinded.html) <!--|  [Review comments](project12/comments.html) |--> 
+| 13.  [COVID-19 in Taiwan](project13/blinded.html) <!--|  [Review comments](project13/comments.html) |--> 
+| 14.  [Annual Tuberculosis in the U.S.](project14/blinded.html) <!--|  [Review comments](project14/comments.html) |--> 
+| 15.  [MERS analysis in Saudi Arabia](project15/blinded.html) <!--|  [Review comments](project15/comments.html) |--> 
+| 16.  [Influenza cases in the Netherlands](project16/blinded.html) <!--|  [Review comments](project16/comments.html) |--> 
+
+
+----------

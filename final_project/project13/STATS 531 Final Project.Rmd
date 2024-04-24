@@ -1,0 +1,752 @@
+---
+title: "531final"
+date: "2024-04-09"
+output: html_document
+---
+
+## Introduction
+
+Coronavirus Disease 2019, commonly known as COVID-19, has significantly disrupted our lives from 2020 to 2022. It originated in Wuhan, China, in December 2019, and rapidly spread to all corners of the world. Taiwan, with its proximity to China and economic interdependence, exhibited an exemplary response in preventing the widespread transmission of COVID-19. Therefore, we are particularly interested in analyzing Taiwan's data to understand just how effective their response is and what we can learn from them. We noticed that the data points strongly to two distinct phases of the pandemic, implying two different sets of model parameters. We attribute this to different strains of the virus and Taiwanese policy responses.
+
+We plan to compare and contrast the performances of an ARIMA and POMP model in simulating the observed behavior of the second phase of the pandemic in Taiwan. We choose to focus particularly on the second wave. Firstly because we found that the ARIMA model was not appropriate for analyzing the second phase so wanted to see how well POMP could deal with it. Secondly, the second wave was clearly much more severe and so decided to focus more resources on analyzing it.  Additionally, we intend to assess the effectiveness of government policies implemented during the pandemic.
+
+
+## Data Source
+Our data is sourced directly from Google's APIs, which host a vast repository of raw data, including a dedicated section for COVID-19 information. We accessed and downloaded this data directly from the API, subsequently undertaking the task of cleaning and preparing the data ourselves.[2]
+
+```{r chunk_without_code1, echo=FALSE}
+## Data cleaning
+library(dplyr)
+library(readr)
+
+# Load the data
+df <- read_csv('https://storage.googleapis.com/covid19-open-data/v3/epidemiology.csv')
+```
+
+```{r chunk_without_code2, echo=FALSE}
+# Filter for and TW
+tw_df <- df %>% filter(`location_key` == "TW") %>%
+  select(1:4)
+
+tw_df[is.na(tw_df)] <- 0
+
+# Filter for dates starting from 2020-01-17
+tw_df <- tw_df %>% 
+  filter(date >= as.Date("2020-01-17") & date <= as.Date('2022-09-14'))
+
+tw_df_first <- tw_df %>% 
+  filter(date >= as.Date("2021-01-01") & date <= as.Date('2021-12-31'))
+
+tw_df_second <- tw_df %>% 
+  filter(date >= as.Date("2022-01-01"))
+```
+
+
+## Explanatory Data Analysis (EDA)
+```{r chunk_without_code3, echo=FALSE}
+## plot of confirmed of the TW
+plot(tw_df$date, tw_df$new_confirmed,
+     type = 'l',
+     xlab = 'Date',
+     ylab = 'New Confirmed',
+     main = 'Daily New Confirmations in the TW')
+```
+
+```{r chunk_without_code4, echo=FALSE}
+## plot of confirmed of the TW
+plot(tw_df_first$date, tw_df_first$new_confirmed,
+     type = 'l',
+     xlab = 'Date',
+     ylab = 'New Confirmed',
+     main = 'Daily New Confirmations in the TW')
+```
+```{r chunk_without_code5, echo=FALSE}
+## plot of confirmed of the TW
+plot(tw_df_second$date, tw_df_second$new_confirmed,
+     type = 'l',
+     xlab = 'Date',
+     ylab = 'New Confirmed',
+     main = 'Daily New Confirmations in the TW')
+```
+
+
+From these plots, we can see that there is a relatively small peak during 2021. This coincides with the time that the Delta strain of COVID-19 was the main virus infecting people [3]. After that, Omicron became the dominant strain which was generally seen as being more infectious, which agrees with the much higher peak observed during the second wave. These extreme differences in the structure of the data between waves implies that two different models are appropriate for analyzing the COVID-19 pandemic in Taiwan. After we separate the data we find that there are obvious cycles.
+
+```{r chunk_without_code7, echo=FALSE}
+par(mfrow=c(1,2))
+acf(tw_df_first$new_confirmed,
+    main = 'TW First Confirmed ACF')
+acf(tw_df_second$new_confirmed,
+    main = 'TW Second Confirmed ACF')
+```
+
+From the plots we can see that the data exhibits high autocorrelation, across both waves. because of this, we difference the data to see if we can achieve some kind of stationarity.
+
+
+```{r chunk_without_code8, echo=FALSE}
+tw_df_first$new_confirmed_d <- c(0, diff(tw_df_first$new_confirmed))
+tw_df_second$new_confirmed_d <- c(0, diff(tw_df_second$new_confirmed))
+```
+
+
+```{r chunk_without_code9, echo=FALSE}
+## plot of confirmed differences of TW
+par(mfrow=c(1,2))
+plot(tw_df_first$date, tw_df_first$new_confirmed_d,
+     type = 'l',
+     xlab = 'Date',
+     ylab = 'New Confirmed Differences',
+     main = 'Daily New Confirmed Differences TW first')
+plot(tw_df_second$date, tw_df_second$new_confirmed_d,
+     type = 'l',
+     xlab = 'Date',
+     ylab = 'New Confirmed Differences',
+     main = 'Daily New Confirmed Differences TW second')
+```
+
+We find that after looking at the first differenced data, depicting the daily change in reported covid cases, the values fluctuate around zero, implying mean stationarity. However, there is notable fluctuation in the variance of the differenced data so we strict stationarity is unlikely. We then investigate the presence of autocorrelation.
+
+```{r chunk_without_code10, echo=FALSE}
+par(mfrow=c(1,2))
+acf(tw_df_first$new_confirmed_d,
+    main = 'TW First Confirmed differences ACF')
+acf(tw_df_second$new_confirmed_d,
+    main = 'TW Second Confirmed differences ACF')
+```
+
+For the first phase, we can find that the there are some small autocorrelation pattern in many lags; however, at the 7th lag the autocorrelation is more significant. This suggests that there is a weekly seasonal effect in the differenced data of Taiwanese COVID confirmed cases. As for the second phase, the strongest autocorrelation is also at the 7th lag. Moreover, there is a repeating pattern at 14, and 21 lags. This indicates that the data are not only correlated with their values from the previous week but also exhibit a consistent autocorrelation pattern that persists over multiple weeks. This probably represents the systematic effects of weekly cycles in how effectively infected people were identified (perhaps on Saturdays less people are tested).
+
+## SARIMA Model
+
+Because seasonality is observed in our data, we decided to use SARIMA model. 
+SARIMA model is usually represented as SARIMA(p, d, q)(P, D, Q)[s], where:
+
+- p is the order of the non-seasonal AR part,
+
+- d is the order of non-seasonal differencing,
+
+- q is the order of the non-seasonal MA part,
+
+- P is the order of the seasonal AR part,
+
+- D is the order of seasonal differencing,
+
+- Q is the order of the seasonal MA part,
+
+- s is the length of the seasonal period.
+
+And our final equation of the SARIMA model will look like,
+$$
+\Phi(B) \phi(B^s) [(1 - B)^d (1 - B^s)^D y_t - \mu] = \Psi(B) \psi(B^s) \varepsilon_t
+$$
+
+where 
+
+- $\Phi(B)$ and $\phi(B)$ are the seasonal and non-seasonal autoregressive operators respectively.
+
+- $d$ and $D$ are the orders of non-seasonal and seasonal differencing.
+
+- B is the backshift operator.
+
+- s is the seasonality period.
+
+- $y_t$ is the time series at time t.
+
+- $\Psi(B)$ and $\psi(B)$ are the seasonal and non-seasonal moving average operators respectively.
+
+- $\varepsilon_t$ is the error term at time t.
+
+- $\mu$ is the mean of differenced process $(1-B)^d (1-B^s)^D$ 
+
+[7]
+
+Because our cycle is weekly, the equation will be
+
+$$
+\Phi(B) \phi(B^7) [(1 - B)^d (1 - B^7)^D y_t - \mu] = \Psi(B) \psi(B^7) \varepsilon_t
+$$
+and we can acll it a WARIMA model.
+
+
+### Taiwan first model
+
+#### Auto Arima
+```{r chunk_without_code11, echo=FALSE}
+library(forecast)
+# Fit SARIMA model using auto.arima which automatically selects best parameters based on AIC
+ts_data1 <- ts(tw_df_first$new_confirmed, frequency = 52) # for weekly data
+
+# We set stepwise = FALSE to let it search exhaustively over the model space instead of the default stepwise selection method.
+sarima_model1 <- auto.arima(ts_data1, seasonal = TRUE, stepwise = FALSE, approximation = FALSE)
+
+# Output the best fit model
+print(summary(sarima_model1))
+```
+
+#### ARIMA AIC table
+```{r chunk_without_code12, echo=FALSE}
+## ARIMA AIC table for tw1
+aic_table <- function(data,P,Q){
+  table <- matrix(NA,(P+1),(Q+1)) 
+  for(p in 0:P) {
+    for(q in 0:Q) {
+      table[p+1,q+1] <- arima(data,order=c(p,1,q))$aic
+    } 
+  }
+  dimnames(table) <- list(paste("AR",0:P, sep=""),
+    paste("MA",0:Q,sep=""))
+  table
+}
+covid_aic_table <- aic_table(ts_data1,4,5)
+require(knitr)
+kable(covid_aic_table,digits=2)
+```
+
+We used two approaches to find the best parameters for the our WARIMA model. 
+The first approach is using the `auto.arima` function provided by R. And the second approach is using code provided by professor to find the lowest model. [8]
+The first approach suggests us to use a a WARIMA model with (4,1,1); however, the second approach suggests us to use (3, 1, 5).
+
+
+```{r chunk_without_code13, echo=FALSE}
+# Fit SARIMA model using auto.arima which automatically selects best parameters based on AIC
+ts_data2 <- ts(tw_df_second$new_confirmed, frequency = 52) # for weekly data
+
+# We set stepwise = FALSE to let it search exhaustively over the model space instead of the default stepwise selection method.
+sarima_model2 <- auto.arima(ts_data2, seasonal = TRUE, stepwise = FALSE, approximation = FALSE)
+
+# Output the best fit model
+print(summary(sarima_model2))
+```
+
+The `auto.arima` approach suggests us to use a a WARIMA model with (3,1,1).
+
+In both phases, we decided to use the parameter suggested by `auto.arima` because it does not only consider AIC but also different criteria, and recommend a model from a comprehensive angle. [9]
+
+#### Inverse root
+
+Using inverse roots of an ARIMA model, typically examined through the roots of the characteristic polynomial of the autoregressive (AR) and moving average (MA) parts of the model, we aim to determine the stability of the model.
+
+For an ARIMA model to be stable, the roots of the characteristic polynomial derived from the autoregressive component must lie inside the unit circle on the complex plane. Stability ensures that the impact of shocks (random disturbances) on the model diminishes over time, leading to one that reverts to its mean level after being disturbed. If any roots lie outside the unit circle, the model can exhibit non-decaying oscillatory behavior or trends, indicating it is not suitable for forecasting.
+
+Inverse root idea from [10].
+
+```{r chunk_without_code15, echo=FALSE}
+# Compute AR roots
+arroots <- function(object)
+{
+  if(!("Arima" %in% class(object)) &
+     !("ar" %in% class(object)))
+    stop("object must be of class Arima or ar")
+  if("Arima" %in% class(object))
+    parvec <- object$model$phi
+  else
+    parvec <- object$ar
+  if(length(parvec) > 0)
+  {
+    last.nonzero <- max(which(abs(parvec) > 1e-08))
+    if (last.nonzero > 0)
+      return(structure(list(
+          roots=polyroot(c(1,-parvec[1:last.nonzero])),
+          type="AR"),
+        class='armaroots'))
+  }
+  return(structure(list(roots=numeric(0), type="AR"),
+    class='armaroots'))
+}
+
+# Compute MA roots
+maroots <- function(object)
+{
+  if(!("Arima" %in% class(object)))
+    stop("object must be of class Arima")
+  parvec <- object$model$theta
+  if(length(parvec) > 0)
+  {
+    last.nonzero <- max(which(abs(parvec) > 1e-08))
+    if (last.nonzero > 0)
+      return(structure(list(
+          roots=polyroot(c(1,parvec[1:last.nonzero])),
+          type="MA"),
+        class='armaroots'))
+  }
+  return(structure(list(roots=numeric(0), type="MA"),
+    class='armaroots'))
+}
+
+plot.armaroots <- function(x, xlab="Real", ylab="Imaginary",
+    main=paste("Inverse roots of", x$type,
+          "characteristic polynomial"),
+    ...)
+{
+  oldpar <- par(pty='s')
+  on.exit(par(oldpar))
+  plot(c(-1,1), c(-1,1), xlab=xlab, ylab=ylab,
+       type="n", bty="n", xaxt="n", yaxt="n", main=main, ...)
+  axis(1, at=c(-1,0,1), line=0.5, tck=-0.025)
+  axis(2, at=c(-1,0,1), label=c("-i","0","i"),
+    line=0.5, tck=-0.025)
+  circx <- seq(-1,1,l=501)
+  circy <- sqrt(1-circx^2)
+  lines(c(circx,circx), c(circy,-circy), col='gray')
+  lines(c(-2,2), c(0,0), col='gray')
+  lines(c(0,0), c(-2,2), col='gray')
+  if(length(x$roots) > 0)
+  {
+    inside <- abs(x$roots) > 1
+    points(1/x$roots[inside], pch=19, col='black')
+    if(sum(!inside) > 0)
+      points(1/x$roots[!inside], pch=19, col='red')
+  }
+}
+```
+
+
+```{r chunk_without_code17, echo = FALSE}
+par(mfrow=c(1,2))
+plot(arroots(sarima_model1),main="Inverse AR roots")
+plot(maroots(sarima_model1),main="Inverse MA roots")
+```
+
+This is the (4,1,1) model for the first phase. We can see that all of the inverse roots are within the unit circle, which implies that our model is suitable, capable, and stable enough for forecasting tasks.
+
+```{r chunk_without_code18, echo = FALSE}
+par(mfrow=c(1,2))
+plot(arroots(sarima_model2),main="Inverse AR roots")
+plot(maroots(sarima_model2),main="Inverse MA roots")
+```
+
+Because our model is a WARIMA(3,1,2), there are no inverse roots on the AR side. From the MA side, we can see that all inverse roots lie within the unit circle, indicating that our model is suitable, capable, and stable enough for forecasting tasks.
+
+In summary, we can know from the inverse roots plot to know that our model is a stationary, causal model. After that, we can use QQ plot and ACF plot of the residuals to check for normality in the data and whether our model captures all the dynamics in the data.
+
+#### QQ plot
+```{r chunk_without_code19, echo = FALSE}
+library(ggplot2)
+# Generate residuals from the SARIMA model
+residuals1 <- residuals(sarima_model1)
+
+# Create a QQ plot of the residuals
+qqnorm(residuals1, main = "QQ Plot of SARIMA Model Residuals")
+qqline(residuals1, col = "steelblue", lwd = 2)
+```
+
+This is the QQ plot of the WARIMA model (4,1,1) for the first wave.
+
+```{r chunk_without_code20, echo = FALSE}
+# Generate residuals from the SARIMA model1
+residuals2 <- residuals(sarima_model2)
+
+# Create a QQ plot of the residuals
+qqnorm(residuals2, main = "QQ Plot of SARIMA Model Residuals")
+qqline(residuals2, col = "steelblue", lwd = 2)
+```
+
+This is the QQ plot of the WARIMA model (3,1,2) for the second wave.
+
+The QQ plot suggests that the residuals from the WARIMA model may not conform perfectly to a normal distribution, with indications of skewness and heavier-than-expected tails. This could be attributed to the early stages of the pandemic, when the distinction between a common cold and a mild case of COVID-19 was less clear, leading to lower reported numbers of confirmed cases. In time series modeling, particularly for event counts like new confirmed cases, it is common for data not to follow a normal distribution. Alternative distributions, such as Poisson or negative binomial, might be more suitable. Given that SARIMA models are predicated on the assumption of normality, they might not quite be ideal in this scenario.[11]
+
+
+```{r chunk_without_code23, echo = FALSE}
+tw_df_first$Fitted <- fitted(sarima_model1)
+
+ggplot(data = tw_df_first, aes(x = date)) + 
+  geom_line(aes(y = new_confirmed, colour = "Actual")) + 
+  geom_line(aes(y = Fitted, colour = "Fitted")) + 
+  labs(x = "Date", 
+       y = "Number of Cases", 
+       title = "Time Series Plot of Fitted ARIMA(4,1,1) Model vs Actual Data") + 
+  scale_color_manual(values = c("Actual" = "black", "Fitted" = "orange")) +
+  theme_minimal() +
+  theme(aspect.ratio=3/7)
+```
+
+```{r chunk_without_code24, echo = FALSE}
+tw_df_second$Fitted <- fitted(sarima_model2)
+
+ggplot(data = tw_df_second, aes(x = date)) + 
+  geom_line(aes(y = new_confirmed, colour = "Actual")) + 
+  geom_line(aes(y = Fitted, colour = "Fitted")) + 
+  labs(x = "Date", 
+       y = "Number of Cases", 
+       title = "Time Series Plot of Fitted ARIMA(3,1,2) Model vs Actual Data") + 
+  scale_color_manual(values = c("Actual" = "black", "Fitted" = "orange")) +
+  theme_minimal() +
+  theme(aspect.ratio=3/7)
+```
+We see that the WARIMA model for the first wave seems to fit the data quite well. However, the data fits our model of the second wave less well. We can see that the peak of our simulation seems to come noticeably later than the actual data and the weekly variation is less pronounced than the data's, especially as time goes on. 
+
+This could be attributed to the fact that the second wave had more pronounced autocorrelations between weeks, threatening the necessary stationarity more. Also, the data was less normally distributed in the second wave than the first, again making it expected that the model is not as appropriate.
+
+Thus, because the second wave is so  much more pronounced than the first, and the fact that the WARIMA model is less suitable for it than the first, we fous the next section on developing POMP models to fit the second wave of observed data.
+
+
+## POMP
+```{r setup, include=FALSE}
+library(dplyr)
+library(readr)
+library(doFuture)
+library(tidyverse)
+library(pomp)
+library(iterators)
+```
+
+```{r}
+read_csv(paste0("C:/Users/USER/Desktop/Time Series Analysis/Projects/TW_last_days.csv")) |>
+  select(days,reports=cases) -> covid
+covid |> as.data.frame() |> head()
+
+covid |>
+  ggplot(aes(x=days,y=reports))+
+  geom_line()+
+  geom_point()
+```
+Here we plot the last 174 days of our data, i.e the second wave. The second wave corresponds with the rise of Omicron as the dominant and more virulent strain. It was identified first in South Africa, November 2021. The first case was identified in Taiwan in December of that year [12].
+
+By mid 2022, as we can see, after the arrival of Omicron, the number of cases increased dramatically. The presence of significant autocorrelation even in the differenced data for the second wave, as well as the non-normality of the residuals, coupled with its relatively more dramatic effects than the first wave motivate us to focus our search for an alternative model on the second wave exclusively. We will try to fit a POMP model to the data for the second wave.
+
+### The SIQRIQR Model
+
+For much of the pandemic, Taiwan was able to manage the spread of COVID-19 in a quite exemplary manner. We have seen how before the omicron wave there was only one noticeable peak and it was not very severe. Much of Taiwan's success in containing COVID was thought to have from strict quarantine policies [13] which garnered international praise. In April 2022, just before the outbreak of the second wave, Taiwan abandoned its 'zero COVID-19' policy in favor of the less severe 'new Taiwanese model' [14]. Because of the marked effectiveness of Taiwanese quarantine policy and the coincidence of its relaxation and COVID-19's uptick, we thought it important to incorporate into out model somehow.
+
+Futhermore, instead of a conclusive die-out like in the case of the first wave, the second wave is characterised by a rising tail where the number of cases seem to have gone down and then started increasing again indicating a possible second wave. For this reason, a usual SEIR or SIR model seemed inappropriate to model it because of their tendency to result in only one wave which dies out. 
+
+When constructing our model therefore, we thought it essential to incorporate both the effect of quarantine policies and the ability for the number of cases to increase after the first wave. Motivated by a previous final project [15] we adapted idea that individuals after recovery could return to the susceptible pool once. By doing this we allowed a replenishing of the susceptible pool and so allowed for the possibility of a second wave. We adapted their SEIREIR (Susceptible-Exposed-Infected-Recovered-Exposed-Infected-Recovered) model to be instead an SIQRIQR model, where the Q compartment corresponded to individuals who had become infected and consequently were quarantined at a certain rate. We interpret the ability for recovered people to be infected again as reflecting the existence of two different dtrains, one arriving first and the other subsequently. This allows for the main two characteristics of the data to be leveraged for analysis.
+
+#### Assumptions of the Model
+
+The model, like the one in [15] has 7 different compartments;
+
+* $S$ is the number of susceptible people out of the total population. We assume that all people who are susceptible to one strain are susceptible to the other.
+
+* $I_{o}$ is the number of people currently infected by the first variant and infectious to the population. $O$ denotes Omicron.
+
+* $Q_{o}$ is the number of people quarantined because they were detected to have the Omicron virus. While in Qurantine they cannot infect other members of the population.
+
+* $R_{b}$ is the number of people who have recovered from the beta variant.
+
+* $I_{b}$ is the number of people currently infected by the first variant and infectious to the population. $O$ denotes beta.
+
+* $Q_{b}$ is the number of people quarantined because they were detected to have the beta virus. While in Qurantine they cannot infect other members of the population.
+
+* $R_{b}$ is the number of people who have recovered from the beta variant.
+
+The parameters are as follows;
+
+* $N$ - population of Taiwan, taken to be 24 000 000,
+
+*$\beta_o$ is the velocity of infection of Omicron,
+
+*$\beta_b$ is the velocity of infection of beta 
+
+*$\mu_{IQ_{o}}$, $\mu_{IQ_{b}}$, $\mu_{QR_{o}}$, $\mu_{QR_{b}}$, $\mu_{QR_{r}}$ are rates of transfer between the different compartments.
+
+The population transferring between states is assumed to be binomially distributed around the population of the initial compartment.
+
+We assume that net population growth rate is zero, so the initial pool of people is all there is. We assume that a constant portion of the population, $\eta$ is susceptible to both strains at all times. 
+
+```{r}
+siqriqr_step <- function (S, I_o, I_b, Q_o, Q_b, R_o, N, Beta_o, Beta_or, Beta_r, Beta_b, 
+                          mu_IQ_o, mu_IQ_b, mu_QR_o, mu_QR_b, mu_QR_r, delta.t, H, ...)
+{
+  dN_SI_o <- rbinom(n=1,size=S,prob=1-exp(-Beta_o*Q_o/N*delta.t))
+  dN_IQ_o <- rbinom(n=1,size=I_o,prob=1-exp(-mu_IQ_o*delta.t))
+  dN_QR_o <- rbinom(n=1,size=Q_o,prob=1-exp(-mu_QR_o*delta.t))
+  dN_RI_b = rbinom(R_o,1-exp(-Beta_r*Q_b/N*dt))
+  dN_SI_b = rbinom(S-dN_SI_o,1-exp(-Beta_b*Q_b/N*dt))
+  dN_IQ_b = rbinom(I_b,1-exp(-mu_IQ_b*dt))
+  dN_QR_b = rbinom(Q_b,1-exp(-mu_QR_b*dt))
+  e = 0
+  S = S - (dN_SE_o + dN_SE_b)
+  I_o = I_o + dN_SI_o - dN_IQ_o
+  Q_o = Q_o + dN_IQ_o - dN_QR_o
+  R_o = R_o + dN_QR_o - dN_RI_b
+  I_b = I_b + dN_SI_b + dN_RI_b - dN_IQ_b + e
+  Q_b = Q_b + dN_IQ_b - dN_QR_b
+  R_b = R_b + dN_QR_b
+  H = H + (dN_QR_o + dN_QR_b)
+}
+
+siqriqr_rinit <- function (N, eta, ...) {
+  c(S = round(N*eta), I_o = 0, Q_o = 100, R_o = 0, I_b = 0, Q_b = 0, R_b = round(N*(1-eta)), H = 0)
+}
+
+covid |>
+  pomp(times="days",t0=0,
+       rprocess=euler(siqriqr_step,delta.t=1/7),
+       rinit=siqriqr_rinit
+  ) -> covidSIQRIQR
+
+covidSIQRIQR|>
+  pomp(
+    rprocess=euler(siqriqr_step,delta.t=1/7),
+    rinit=siqriqr_rinit, accumvars="H"
+  ) -> covidSIQRIQR
+
+
+siqriqr_dmeas <- function (reports, H, rho, k, log, ...) {
+  dnbinom(x=reports, size=k, mu=rho*H, log=log)
+}
+
+siqriqr_rmeas <- function (H, rho, k, ...) {
+  c(reports=rnbinom(n=1, size=k, mu=rho*H))
+}
+
+covidSIQRIQR |>
+  pomp(
+    rmeasure=siqriqr_rmeas,
+    dmeasure=siqriqr_dmeas
+  ) -> covidSIQRIQR
+```
+
+We implement the model as follows:
+
+```{r}
+siqriqr_step <- Csnippet("
+  double dN_SI_o = rbinom(S,1-exp(-Beta_o*Q_o/N*dt));
+  double dN_IQ_o = rbinom(I_o,1-exp(-mu_IQ_o*dt));
+  double dN_QR_o = rbinom(Q_o,1-exp(-mu_QR_o*dt));
+  double dN_RI_b = rbinom(R_o,1-exp(-Beta_r*Q_b/N*dt));
+  double dN_SI_b = rbinom(S-dN_SI_o,1-exp(-Beta_b*Q_b/N*dt));
+  double dN_IQ_b = rbinom(I_b,1-exp(-mu_IQ_b*dt));
+  double dN_QR_b = rbinom(Q_b,1-exp(-mu_QR_b*dt));
+  double e = 0;
+  if (t == 125) e = 100;
+  S -= (dN_SI_o + dN_SI_b);
+  I_o += dN_SI_o - dN_IQ_o;
+  Q_o += dN_IQ_o - dN_QR_o;
+  R_o += dN_QR_o - dN_RI_b;
+  I_b += dN_SI_b + dN_RI_b - dN_IQ_b + e;
+  Q_b += dN_IQ_b - dN_QR_b;
+  R_b += dN_QR_b;
+  H += (dN_QR_o + dN_QR_b);
+")
+
+siqriqr_init <- Csnippet("
+  S = nearbyint(eta*N);
+  I_o = 0;
+  Q_o = 100;
+  R_o = 0;
+  I_b = 0;
+  Q_b = 0;
+  R_b = nearbyint((1-eta)*N);
+  H = 0;
+")
+
+dmeas <- Csnippet("
+  lik = dnbinom_mu(reports,k,rho*H,give_log);
+   
+  ")
+
+rmeas <- Csnippet("
+  reports = rnbinom_mu(k,rho*H);
+  ")
+
+covidSIQRIQR |>
+  pomp(
+    rprocess=euler(siqriqr_step,delta.t=1/7),
+    rinit=siqriqr_init,
+    rmeasure=rmeas,
+    dmeasure=dmeas,
+    accumvars="H",
+    statenames=c("S","I_o","Q_o","R_o","I_b","Q_b","R_b","H"),
+    paramnames=c("Beta_o","Beta_b","Beta_r","mu_IQ_o","mu_QR_o",
+                 "Beta_or","mu_QR_r",
+                 "mu_IQ_b","mu_QR_b","eta","rho","k","N")
+  ) -> covidSIQRIQR
+
+covidSIQRIQR |>
+  simulate(
+    params=c(Beta_o=8,Beta_b = 20,Beta_or = 20, Beta_r = 20,mu_IQ_o=0.035,
+             mu_QR_o = 0.03,mu_IQ_b = 0.035,mu_QR_r = 0.05, 
+             mu_QR_b=0.01,rho=0.4,k=10,eta=0.5,N=24000000),
+    nsim=20,format="data.frame",include.data=TRUE
+  ) -> sims
+
+sims |>
+  ggplot(aes(x=days,y=reports,group=.id,color=.id=="data"))+
+  geom_line()+
+  guides(color="none")
+```
+
+### Local Search
+
+We take these parameters as a our initial guess. We can see that the essential features of our model are relatively well captured. We use `mif2` to do iterated filtering in search of an optimal parameter. 
+
+```{r}
+params=c(Beta_o=8,Beta_b = 20,Beta_or = 20, Beta_r = 20,mu_IQ_o=0.035,
+         mu_QR_o = 0.03,mu_IQ_b = 0.035,mu_QR_r = 0.05, 
+         mu_QR_b=0.01,rho=0.4,k=10,eta=0.5,N=24000000)
+
+
+
+covidSIQRIQR %>%
+  pomp(
+    partrans=parameter_trans(log=c("Beta_o","Beta_b","Beta_r","Beta_or"),
+                             logit=c("rho","mu_IQ_o","mu_IQ_b","eta")),
+    paramnames=c("Beta_o","Beta_b","Beta_r","Beta_or","mu_IQ_o", "mu_QR_o", "mu_IQ_b", 
+                 "mu_QR_r", "mu_QR_b", "rho","k","eta","N"),
+  ) -> covidSIQRIQR2
+
+bake(file="covid_local_search.rds",{
+  foreach(i=1:20,.combine=c) %do% {
+    library(pomp)
+    library(tidyverse)
+    covidSIQRIQR2 %>%
+      mif2(
+        params=params,
+        Np=2000, Nmif=50,
+        cooling.fraction.50=0.5,
+        rw.sd=rw_sd(Beta_o=0.02,Beta_b = 0.02,Beta_or = 0.02, 
+                    Beta_r = 0.02,mu_IQ_o=0.02,mu_IQ_b = 0.02,
+                    rho=0.02,eta=ivp(0.01))
+      )
+  } -> mifs_local
+}) -> mifs_local
+
+mifs_local |>
+  traces(pars=c("loglik","Beta_o","Beta_b","Beta_or","Beta_r","mu_IQ_o","mu_IQ_b","rho","eta")) |>
+  melt() |>
+  ggplot(aes(x=iteration,y=value,group=.L1,color=factor(.L1)))+
+  geom_line()+
+  guides(color="none")+
+  facet_wrap(~name,scales="free_y")
+```
+
+```{r}
+bake(file="lik_local_search.rds",{
+  foreach(mf=mifs_local,.combine=rbind) %do% {
+    library(pomp)
+    library(tidyverse)
+    evals <- replicate(5, logLik(pfilter(mf,Np=2000)))
+    ll <- logmeanexp(evals,se=TRUE)
+    mf %>% coef() %>% bind_rows() %>%
+      bind_cols(loglik=ll[1],loglik.se=ll[2])
+  } -> results
+  results
+}) -> results
+
+pairs(~loglik+Beta_o+Beta_b+Beta_or+Beta_r+mu_IQ_o+mu_IQ_b+rho+eta,data=results,pch=16)
+```
+We can see that our original guess was fairly good for $\beta_{or}, \beta_{b}, \beta_{o}$, and $\rho$. This is evinced by how they converge to values not much different from where we started. Most of the other parameters also converge. $\beta_{r}$ converges a bit ambiguously but is a reasonable result. $\eta$ Does not seem to converge which is concerning but it also fluctuates within a fairly narrow band of values so we can perhaps work with the result.
+
+### Global Search
+
+```{r}
+fixed_params <- params[c("mu_QR_o", "mu_QR_r", "mu_QR_b", "k", "N")]
+
+{
+  freeze(
+    runif_design(
+      lower=c(Beta_o=5,Beta_b = 1, Beta_or = 0, Beta_r = 5, mu_IQ_o = 0.01, mu_IQ_b = 0.02, rho = 0.4, eta = 0.45),
+      upper=c(Beta_o=20, Beta_b = 20, Beta_or = 50, Beta_r = 100, mu_IQ_o = 0.1,mu_IQ_b = 0.05,rho = 0.6,eta = 0.52),
+      nseq=50
+    ),
+    seed=100
+  )-> guesses
+  
+ncpu <- nbrOfWorkers()
+bake(file="Q_fit_siqriqr_global1.rds",{
+    foreach(guess=iter(guesses,"row"), .combine=rbind,
+            .options.future=list(seed=100)
+    ) %dopar% {
+      covidSIQRIQR2 |>
+        mif2(
+          Nmif=50, Np=2000,
+          cooling.fraction.50=0.5,
+          rw.sd=rw_sd(Beta_o=0.02,Beta_b = 0.02,Beta_or = 0.02, 
+                      Beta_r = 0.02,mu_IQ_o=0.02,mu_IQ_b = 0.02,
+                      rho=0.02,eta=ivp(0.02)),
+          params=c(unlist(guess),fixed_params)
+        ) -> mf
+      replicate(
+        10,
+        mf |> pfilter(Np=2000) |> logLik()
+      ) |>
+        logmeanexp(se=TRUE) -> ll
+      mf |> coef() |> bind_rows() |>
+        bind_cols(loglik=ll[1],loglik.se=ll[2])
+    } -> global1
+    attr(global1,"ncpu") <- nbrOfWorkers()
+    global1
+  }) -> global1
+}
+```
+
+```{r}
+global1 |>
+ filter(
+ is.finite(loglik),
+ loglik>max(loglik,na.rm=TRUE)-1000
+ ) -> global_result
+
+pairs(~loglik+Beta_o+Beta_b+Beta_or+Beta_r+mu_IQ_o+mu_IQ_b+rho+eta,data=global_result,pch=16)
+```
+Compared to the local search, the results show a more obvious trend that the estimated parameters mostly center in a specific place which introduce the better convergence for global search. However, it seems that only part of the simulation result fall on the higher log-likelihood. That means that it may need more particles or iterations or a more parameters to finds the point that log-likelihood stop increasing. The linear ridge of most coefficients demonstrated well in this figure. It captures the correlation between some coefficients. Overall, I think these times of simulation is well enough for our inference. Lets print out the 10 best results of local search and global search respectively. 
+
+```{r}
+my_dataframe_local <- as.data.frame(results)
+my_dataframe_local <- my_dataframe_local[order(my_dataframe_local$loglik,decreasing = TRUE),]
+print("Local Search")
+print(my_dataframe_local[0:10,])
+```
+
+```{r}
+my_dataframe_global <- as.data.frame(global_result)
+my_dataframe_global <- my_dataframe_global[order(my_dataframe_global$loglik,decreasing = TRUE),]
+print("Global Search")
+print(my_dataframe_global[0:10,])
+```
+
+As we can see, global search provides a better log-likelihood and shrinkage the range of possible value of our parameters. 
+
+## Conclusion
+
+In this report, Taiwan's COVID-19 response was examined, focusing on two distinct phases: a milder first wave and a severe second wave due to the Omicron variant. Traditional ARIMA models struggled with the data's complexity, prompting the use of an innovative SIQRIQR model that considered the effects of quarantine and reinfection.
+
+Using POMP (Partially Observed Markov Processes), we conducted local and global searches to optimize the SIQRIQR model parameters, achieving a reasonable fit with observed data patterns. The model captured key elements, such as Omicron's high transmissibility and policy changes impacting quarantine measures.
+
+Despite some challenges with parameter stability, the SIQRIQR model offers a flexible approach to understanding and forecasting COVID-19 dynamics, especially in a context where public health policies evolve and multiple viral strains coexist.
+
+
+#### Future Work 
+In this project, we successfully capture partial dynamic from the COVID infection process of Taiwan. However, due to limited time and computation resource, we only try few simple models which may be weak on simulating rapid increase in the number of infections sometimes. Take this data set for example, before the outbreak of pandemic at 2022 April, the reported cases are always controlled under few hundreds. It is very hard to simulate the complexity dynamic with single model.
+
+Therefore, in the future we believe that we could improve our model in two directions. First of all, we can fit two models for the data before pandemic outbreak and after outbreak. We can also observe the parameters' changing of the model which may provides useful information to clarify the reasons of the epidemic worsens. Second, fitting a more complicated model may also be a feasible option. In our data, the second outbreak wave of infection caused by omicron, so we use a two step SIQRIQR model to fit it in our study. However, the real situation may be much more complicated. For example, some people may be infected twice with the original virus, or some new people comes from other country which make total population change. A multiple stage model with more parameter may be able to catch such feature before the outbreak time point and make better simulation. 
+
+## Reference
+[1] https://www.yalemedicine.org/news/covid-19-variants-of-concern-omicron#:~:text=In%20the%20U.S.%2C%20in%20June,to%20get%20their%20booster%20shots.
+
+[2] https://storage.googleapis.com/covid19-open-data/v3/epidemiology.csv
+
+[3] https://bmcinfectdis.biomedcentral.com/articles/10.1186/s12879-023-08714-x#:~:text=A%20major%20difference%20between%20Delta,as%20expected.
+
+[4] https://www.cdc.gov/museum/timeline/covid19.html
+
+[4] https://www.forbes.com/sites/matthewbinnicker/2023/10/23/tis-the-season---why-influenza-and-covid-19-surge-in-the-winter/
+
+[6] https://heho.com.tw/archives/284932
+
+[7] Slides 6 page 15
+
+[8] Slides 5
+
+[9] https://www.analyticsvidhya.com/blog/2018/08/auto-arima-time-series-modeling-python-r/#:~:text=Auto%20ARIMA%20takes%20into%20account,the%20better%20is%20the%20model.
+
+[10] https://ionides.github.io/531w22/final_project/project04/blinded.html, https://ionides.github.io/531w22/midterm_project/project10/blinded.html, code: https://robjhyndman.com/hyndsight/arma-roots/
+
+[11] https://www.jstor.org/stable/1391639#:~:text=Time%20series%20sometimes%20consist%20of,binomial%20distribution%20is%20often%20appropriate.
+
+[12] https://www.reuters.com/world/asia-pacific/taiwan-confirms-first-case-omicron-variant-2021-12-11/
+
+[13] https://www.voanews.com/a/science-health_coronavirus-outbreak_why-taiwan-has-just-42-coronavirus-cases-while-neighbors-report/6185231.html
+
+[14]https://www.taipeitimes.com/News/front/archives/2022/04/08/2003776214
+
+[15] https://ionides.github.io/531w22/final_project/project08/blinded.html
+
+[16] https://ionides.github.io/531w22/final_project/project08/blinded.html
+
+[17] https://ionides.github.io/531w22/final_project/project20/blinded.html
+
+
+
