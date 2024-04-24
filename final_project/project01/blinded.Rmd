@@ -186,7 +186,7 @@ The latent process in this model starts from the covariate $S(t)$ or the number 
 Elites may inherit sophisticated military technologies from the previous foreign domination or simply receive exogenous endowment, such as oils or natural resources, that make them powerful enough to not establish democracies. The transition from $S(t)$ to $P(t)$ is captured as a binomial approximation with exponential transition probabilities, as suggested in Euler solutions to stochastic dynamic (King, Ionides, and Wheeler 2024):
 
 $$
-\tilde{N}_{SP}(t + \delta) + \tilde{N}_{SP}(t) + \text{Binomial}\left[\tilde{S}(t), 1 - \text{exp}\left( {{-\beta} \frac{\tilde{R}(t)}{\tilde{S}(t)} \Delta t} \right) \right]
+\tilde{N}_{SP}(t + \delta) + \tilde{N}_{SP}(t) + \text{Binomial}\left[\tilde{S}(t), 1 - \text{exp}\left( -\beta \frac{\tilde{R}(t)}{\tilde{S}(t)} \Delta t \right) \right]
 $$
 Drawing insight from SIER model in epidemology research (see King, Ionides, and Wheeler 2024), I consider $P(t)$ as a latency period before revoluationary threats occur. Observing powerful elites after the state’s sovereignty is established, the mass soon prepares for the revolution to negotiate with the elites with the following expected value.
 
