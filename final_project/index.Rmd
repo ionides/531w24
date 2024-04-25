@@ -28,7 +28,7 @@ output:
 | 11.  [NVIDIA Stock Price Analysis](project11/blinded.html) <!--|  [Review comments](project11/comments.html) |--> 
 | 12.  [COVID-19 in Kent County, MI](project12/blinded.html) <!--|  [Review comments](project12/comments.html) |--> 
 | 13.  [COVID-19 in Taiwan](project13/blinded.html) <!--|  [Review comments](project13/comments.html) |--> 
-| 14.  [Annual Tuberculosis in the U.S.](project14/blinded.html) [Revised Version] (project14/revision/blinded.html)<!--|  [Review comments](project14/comments.html) |--> 
+| 14.  [Annual Tuberculosis in the U.S.](project14/blinded.html)    [(Revised Version)](project14/revision/blinded.html)<!--|  [Review comments](project14/comments.html) |--> 
 | 15.  [MERS analysis in Saudi Arabia](project15/blinded.html) <!--|  [Review comments](project15/comments.html) |--> 
 | 16.  [Influenza cases in the Netherlands](project16/blinded.html) <!--|  [Review comments](project16/comments.html) |--> 
 
