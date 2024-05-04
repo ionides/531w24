@@ -9,9 +9,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="DATASCI/STATS 531, Winter 2024" />
 
 
-<title>DATASCI/STATS 531 Winter 2024  Final Projects</title>
+<title>Review comments on Project 5</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,143 +349,53 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">DATASCI/STATS 531 Winter 2024 <br>Final
-Projects</h1>
+<h1 class="title toc-ignore">Review comments on Project 5</h1>
+<h4 class="author">DATASCI/STATS 531, Winter 2024</h4>
 
 </div>
 
 
-<hr />
-<ul>
-<li><p>Projects are posted anonymously below. Source code and data are
-available from <a href="https://github.com/ionides/531w24/tree/master/final_project">https://github.com/ionides/531w24/final_project</a>.</p></li>
-<li><p>After the course is over and the class grades are assigned, you
-may choose to request to have your name attached to your
-project.</p></li>
-</ul>
-<hr />
-<table>
-<colgroup>
-<col width="35%" />
-<col width="35%" />
-<col width="28%" />
-</colgroup>
-<tbody>
-<tr class="odd">
-<td align="left">1. <a href="project01/blinded.html">Democratization
-Trends</a></td>
-<td align="left"><a href="project01/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">2. <a href="project02/blinded.html">Predator-Prey model
-with POMP</a></td>
-<td align="left"><a href="project02/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">3. <a href="project03/blinded.html">COVID-19 in
-Japan</a></td>
-<td align="left"><a href="project3/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">4. <a href="project04/blinded.html">COVID-19 modeling
-comparison: ARIMA vs SEIR</a></td>
-<td align="left"><a href="project04/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">5. <a href="project05/blinded.html">Modeling Flu Cases
-in Oklahoma</a></td>
-<td align="left"><a href="project05/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">6. <a href="project06/blinded.html">Volatility Analysis
-of NASDAQ</a></td>
-<td align="left"><a href="project06/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">7. <a href="project07/blinded.html">Analysis of Apple
-Stock Price</a></td>
-<td align="left"><a href="project07/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">8. <a href="project08/blinded.html">COVID-19 in King
-County, WA</a></td>
-<td align="left"><a href="project08/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">9. <a href="project09/blinded.html">Volatility Analysis
-of NASDAQ 100</a></td>
-<td align="left"><a href="project09/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">10. <a href="project10/blinded.html">COVID-19 in
-Malaysia and Influenza in the U.S.</a></td>
-<td align="left"><a href="project10/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">11. <a href="project11/blinded.html">NVIDIA Stock Price
-Analysis</a></td>
-<td align="left"><a href="project11/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">12. <a href="project12/blinded.html">COVID-19 in Kent
-County, MI</a></td>
-<td align="left"><a href="project12/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">13. <a href="project13/blinded.html">COVID-19 in
-Taiwan</a></td>
-<td align="left"><a href="project13/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">14. <a href="project14/blinded.html">Annual
-Tuberculosis in the U.S.</a> <a href="project14/revision/blinded.html">(Revised Version)</a></td>
-<td align="left"><a href="project14/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td align="left">15. <a href="project15/blinded.html">MERS analysis in
-Saudi Arabia</a></td>
-<td align="left"><a href="project15/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-<tr class="even">
-<td align="left">16. <a href="project16/blinded.html">Influenza cases in
-the Netherlands</a></td>
-<td align="left"><a href="project16/comments.html">Review
-comments</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<hr />
+<div id="strengths" class="section level3">
+<h3>Strengths</h3>
+<p>The project built on previous course projects while analyzing a new
+dataset. They developed a model capable of fitting four consecutive
+seasons of flu data by using a seasonal transmission rate.</p>
+</div>
+<div id="specific-comments" class="section level3">
+<h3>Specific comments</h3>
+<ol style="list-style-type: decimal">
+<li><p>Please give figures captions and numbers. For the time plot: show
+date, not just week number. For the frequency analysis: give units in
+the text and the plot.</p></li>
+<li><p>Doing spectral analysis to detect the annual seasonality in this
+data is not necessary. One can do it as an exercise, but one could add
+appreciation that the conclusion was unsurprising after looking at the
+data.</p></li>
+<li><p>The ARMA grid search is rather small - no more than 2 lags. Was
+that an intentional decision?</p></li>
+<li><p>The fraction of the project devoted to ARMA and linear time
+series analysis is too large, considering that this analysis ends up
+being useful mostly as a benchmark for the mechanistic
+modeling.</p></li>
+<li><p>Infectious disease dynamics, like many ecological systems, is
+better modeled by ARMA on a log scale.</p></li>
+<li><p>Log likelihood for differenced models are not immediately
+comparable to those for the original data. One has to properly account
+for the transformation.</p></li>
+<li><p>An interesting use of ChatGPT to propose consideration of a
+sinusoidal seasonal transmission.</p></li>
+<li><p>In the initial pfilter, effective sample size (ESS) is always
+between 1990 and 2000, which is surprising. Perhaps the measurement
+model is extremely flat?</p></li>
+<li><p>When describing the model parameter, the group misses discussion
+on the measurement model. Even though the readers can examine this in
+the code snippet they use, it can be useful for an understanding of
+their readers if they incorporate it in their report.</p></li>
+<li><p>The conclusions correctly point out the preliminary nature of the
+findings. The mechanistic model has some promising features, but does
+not (yet) explain the data better than an ARIMA model.</p></li>
+</ol>
+</div>
 
 
 
