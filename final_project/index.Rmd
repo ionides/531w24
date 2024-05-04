@@ -17,7 +17,7 @@ output:
 |:----|:----|----|
 | 1.  [Democratization Trends](project01/blinded.html)   |  [Review comments](project01/comments.html) | 
 | 2.  [Predator-Prey model with POMP](project02/blinded.html)   |  [Review comments](project02/comments.html) |  
-| 3.  [COVID-19 in Japan](project03/blinded.html)   |  [Review comments](project3/comments.html) | 
+| 3.  [COVID-19 in Japan](project03/blinded.html)   |  [Review comments](project03/comments.html) | 
 | 4.  [COVID-19 modeling comparison: ARIMA vs SEIR](project04/blinded.html)   |  [Review comments](project04/comments.html) |  
 | 5.  [Modeling Flu Cases in Oklahoma](project05/blinded.html)   |  [Review comments](project05/comments.html) |  
 | 6.  [Volatility Analysis of NASDAQ](project06/blinded.html)   |  [Review comments](project06/comments.html) |  
